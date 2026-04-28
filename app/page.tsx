@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 
-// TypeScript'e bir film objesinin içinde neler olduğunu öğretiyoruz
 interface Movie {
   id: number;
   title: string;
@@ -9,7 +8,6 @@ interface Movie {
 }
 
 export default function Home() {
-  // useState<Movie[]> diyerek buranın bir film listesi olacağını belirttik
   const [movies, setMovies] = useState<Movie[]>([]);
   const [search, setSearch] = useState("");
   const [showDonate, setShowDonate] = useState(false);
@@ -28,7 +26,7 @@ export default function Home() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const res = await fetch(
-      `https://api.themoviedb.org/3/search/movie?api_key=BURAYA_KENDI_API_KEYINI_YAZ&query=${search}&language=tr-TR`
+      `https://api.themoviedb.org/3/search/movie?api_key=eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ&query=${search}&language=tr-TR`
     );
     const data = await res.json();
     setMovies(data.results);
@@ -56,6 +54,7 @@ export default function Home() {
         />
       </form>
 
+      {/* FİLMLER BURADA LİSTELENİYOR */}
       <div className="movie-grid">
         {movies.map((movie) => (
           <div key={movie.id} className="movie-card">
@@ -72,7 +71,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Bağış Butonu */}
+      {/* BAĞIŞ BUTONU DÖNGÜNÜN DIŞINDA, EN ALTTA VE SABİT */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000 }}>
         {showDonate && (
           <div style={{
