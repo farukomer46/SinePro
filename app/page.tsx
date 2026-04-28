@@ -8,6 +8,7 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
+  const [showDonate, setShowDonate] = useState(false);
   const [items, setItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -219,7 +220,73 @@ export default function Home() {
                      >
                         <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '225px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #333', transition: '0.4s' }} alt="" />
                         <p style={{ fontSize: '12px', marginTop: '10px', fontWeight: 'bold', textAlign: 'center' }}>{s.title || s.name}</p>
+                     {/* Bağış Bölümü */}
+<div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000 }}>
+  
+  {/* Küçük Bilgi Kutusu */}
+  {showDonate && (
+    <div style={{
+      backgroundColor: '#1a1a1a',
+      padding: '20px',
+      borderRadius: '15px',
+      marginBottom: '10px',
+      border: '1px solid #FFDD00',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+      width: '280px',
+      color: 'white',
+      textAlign: 'center',
+      animation: 'fadeIn 0.3s ease-in-out'
+    }}>
+      <h3 style={{ margin: '0 0 10px 0', color: '#FFDD00' }}>🎬 SinePro'ya Destek Ol</h3>
+      <p style={{ fontSize: '13px', color: '#bbb', lineHeight: '1.5' }}>
+        Sitemizin reklamsız kalması ve yeni özellikler için bir kahve ısmarlayabilirsin! 🍿
+      </p>
+      
+      <div style={{ 
+        backgroundColor: '#222', 
+        padding: '12px', 
+        borderRadius: '10px', 
+        fontSize: '12px', 
+        border: '1px dashed #444',
+        margin: '10px 0'
+      }}>
+        <span style={{ color: '#FFDD00', fontWeight: 'bold' }}>IBAN:</span><br/>
+        <code style={{ fontSize: '11px', display: 'block', margin: '5px 0' }}>TR00 0000 0000 0000 0000 0000 00</code>
+        <span style={{ fontSize: '11px', opacity: 0.8 }}>Faruk Ömer - [Banka Adı]</span>
+      </div>
+
+      <button 
+        onClick={() => setShowDonate(false)}
+        style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '12px' }}
+      >
+        Kapat
+      </button>
+    </div>
+  )}
+
+  {/* Tetikleyici Buton */}
+  <button 
+    onClick={() => setShowDonate(!showDonate)}
+    style={{
+      backgroundColor: '#FFDD00',
+      color: '#000',
+      padding: '12px 25px',
+      borderRadius: '50px',
+      fontWeight: 'bold',
+      border: 'none',
+      cursor: 'pointer',
+      boxShadow: '0 5px 15px rgba(255, 221, 0, 0.3)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px'
+    }}
+  >
+    <span style={{ fontSize: '18px' }}>☕</span> Bir Kahve Ismarla
+  </button>
+</div>
                      </div>
+                     
                    ))}
                 </div>
              </div>
