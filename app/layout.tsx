@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "SİNEPRO | Film ve Dizi Portalı",
   description: "En güncel içerikler ve favori listeniz.",
   icons: {
-    icon: "https://img.icons8.com/neon/96/movie-beginning.png",
+    icon: "/icon.png",
   },
 };
 
