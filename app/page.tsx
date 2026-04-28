@@ -149,7 +149,7 @@ export default function Home() {
       )}
 
       {/* LİSTE + PUANLAR */}
-      <div style={{ padding: '30px 5% 100px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '40px', justifyContent: 'center' }}>
+      <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
             <div 
