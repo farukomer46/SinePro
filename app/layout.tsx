@@ -16,9 +16,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      <head>
-        <link rel="icon" href="https://img.icons8.com/neon/96/movie-beginning.png" />
-      </head>
       <body>{children}</body>
     </html>
   );

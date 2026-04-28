@@ -34,17 +34,6 @@ export default function Home() {
  useEffect(() => {
     setMounted(true);
     
-    // BAŞLIK VE LOGO GÜNCELLEME
-    document.title = "SİNEPRO | Sinema Portalı";
-    let link = document.querySelector("link[rel~='icon']");
-    if (!link) {
-      link = document.createElement('link');
-      // @ts-ignore
-      link.rel = 'icon';
-      document.getElementsByTagName('head')[0].appendChild(link);
-    }
-    // @ts-ignore
-    link.href = 'https://img.icons8.com/neon/96/movie-beginning.png'; // Bu neon bir sinema ikonu
 
     const saved = localStorage.getItem("sinepro_favs");
     if (saved) setFavorites(JSON.parse(saved));
