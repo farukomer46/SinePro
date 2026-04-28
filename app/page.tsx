@@ -187,34 +187,60 @@ export default function Home() {
         )}
       </div>
 
-      {/* DETAY MODALI (Daha Öncekiyle Aynı) */}
-      {selectedItem && (
-        <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
-           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', backdropFilter: 'blur(10px)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
-             <h2 style={{ color: '#66FCF1', margin: 0 }}>{selectedItem.title || selectedItem.name}</h2>
-             <button onClick={() => setSelectedItem(null)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 25px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
-          </div>
-          <div style={{ width: '100%', height: '60vh', backgroundImage: `linear-gradient(to bottom, transparent, #0B0C10), url(${getImgUrl(selectedItem.backdrop_path, 'original')})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedItem.title || selectedItem.name)}+fragman`} target="_blank" rel="noreferrer" style={{ background: '#66FCF1', color: '#0B0C10', padding: '12px 35px', borderRadius: '50px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 0 20px rgba(102, 252, 241, 0.5)' }}>▶ FRAGMANI İZLE</a>
-          </div>
-          <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px', position: 'relative' }}>
-             <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '20px', border: '1px solid #333', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }} alt="" />
-                <div style={{ flex: 1, minWidth: '300px', paddingTop: '50px' }}>
-                   <h1 style={{ fontSize: '48px', color: 'white', margin: '0', fontWeight: '900' }}>{selectedItem.title || selectedItem.name}</h1>
-                   <p style={{ color: '#66FCF1', fontSize: '20px', margin: '15px 0' }}>{selectedItem.release_date?.split('-')[0] || selectedItem.first_air_date?.split('-')[0]} • ★ {selectedItem.vote_average?.toFixed(1)}</p>
-                   <p style={{ fontSize: '18px', color: '#ccc', lineHeight: '1.8' }}>{selectedItem.overview}</p>
-                   <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginTop: '40px' }}>OYUNCULAR</h3>
-                   <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', padding: '10px 0' }}>
-                      {cast.map((p, pIdx) => (
-                        <div key={`c-${p.id || pIdx}`} style={{ minWidth: '90px', textAlign: 'center' }}>
-                          <img src={getImgUrl(p.profile_path, 'w185')} style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #45A29E' }} alt="" />
-                          <p style={{ fontSize: '12px', marginTop: '8px' }}>{p.name}</p>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-             </div>
+      {/* BENZER İÇERİKLER (Neon Efektli) */}
+<div style={{ marginTop: '80px' }}>
+  <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '30px' }}>
+    BUNLARI DA SEVEBİLİRSİNİZ
+  </h3>
+  <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', justifyContent: 'center' }}>
+    {similar.map((s, sIdx) => (
+      <div 
+        key={`sim-${s.id || sIdx}`} 
+        onClick={() => { 
+          setSelectedItem(s); 
+          fetchExtraDetails(s.id); 
+          document.getElementById('modal-content')?.scrollTo(0,0); 
+        }} 
+        style={{ width: '150px', cursor: 'pointer', textAlign: 'center', transition: '0.4s' }}
+        onMouseEnter={(e) => { 
+          e.currentTarget.style.transform = 'translateY(-10px)'; 
+          // Görsele parlama efekti ekliyoruz:
+          const img = e.currentTarget.querySelector('img');
+          if (img) img.style.boxShadow = '0 0 20px rgba(102, 252, 241, 0.6)';
+        }}
+        onMouseLeave={(e) => { 
+          e.currentTarget.style.transform = 'translateY(0)'; 
+          const img = e.currentTarget.querySelector('img');
+          if (img) img.style.boxShadow = 'none';
+        }}
+      >
+        <img 
+          src={getImgUrl(s.poster_path)} 
+          style={{ 
+            width: '100%', 
+            height: '225px', 
+            borderRadius: '10px', 
+            border: '1px solid #333', 
+            objectFit: 'cover',
+            transition: '0.4s' // Yumuşak geçiş için şart
+          }} 
+          alt="" 
+        />
+        <p style={{ 
+          fontSize: '13px', 
+          marginTop: '10px', 
+          fontWeight: 'bold', 
+          whiteSpace: 'nowrap', 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis',
+          color: '#fff'
+        }}>
+          {s.title || s.name}
+        </p>
+      </div>
+    ))}
+  </div>
+</div>
              {/* BENZERLER */}
              <div style={{ marginTop: '80px' }}>
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '30px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
