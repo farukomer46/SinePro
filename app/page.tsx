@@ -56,7 +56,6 @@ export default function Home() {
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
-      // Daha fazla film gelmesi için 2 sayfa veriyi birleştiriyoruz
       const page1Url = searchQuery 
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=1`
         : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=1`;
@@ -115,9 +114,13 @@ export default function Home() {
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1px' }}>SİNEPRO</span>
+          
+          {/* 🎯 AMBLEM (LOGO) ESKİ HALİNE DÖNDÜRÜLDÜ */}
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.4))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
+
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -146,14 +149,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* ANA LİSTE (DAHA FAZLA FİLM İÇİN GRİD GÜNCELLENDİ) */}
+      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               
-              {/* ❤️ KALP SİMGESİ GERİ GELDİ */}
+              {/* ❤️ KALP SİMGESİ KORUNDU */}
               <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, transition: '0.3s' }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
@@ -208,7 +211,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 💎 BAĞIŞ BUTONU GERİ GELDİ */}
+      {/* 💎 BAĞIŞ BUTONU KORUNDU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a 
           href="https://donate.bynogame.com/sinepro" 
