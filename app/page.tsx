@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { ThemeProvider, useTheme } from "next-themes";
 
-// --- TEMA BUTONU ---
+// --- TEMA DEĞİŞTİRME BUTONU ---
 function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -110,19 +110,39 @@ function SineProContent() {
       <style dangerouslySetInnerHTML={{ __html: `
         .movie-card:hover { transform: translateY(-10px); box-shadow: 0 0 20px rgba(102, 252, 241, 0.5); }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; padding: 20px; }
+        .genre-btn:hover { background: #66FCF1 !important; color: #0B0C10 !important; }
       ` }} />
 
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--background)', borderBottom: '1px solid #1F2833', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <h1 style={{ color: '#66FCF1', margin: 0, cursor: 'pointer' }} onClick={() => window.location.reload()}>SİNEPRO</h1>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => setViewMode("home")} style={{ background: 'none', border: 'none', color: '#45A29E', cursor: 'pointer', fontWeight: 'bold' }}>ANA SAYFA</button>
-            <button onClick={() => setViewMode("favorites")} style={{ background: 'none', border: 'none', color: '#45A29E', cursor: 'pointer', fontWeight: 'bold' }}>LİSTEM</button>
+          <h1 style={{ color: '#66FCF1', margin: 0, cursor: 'pointer', fontSize: '24px', fontWeight: '900' }} onClick={() => window.location.reload()}>SİNEPRO</h1>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button onClick={() => {setViewMode("home"); setContentType("movie")}} style={{ background: 'none', border: 'none', color: contentType === "movie" ? '#66FCF1' : '#45A29E', cursor: 'pointer', fontWeight: 'bold' }}>FİLMLER</button>
+            <button onClick={() => {setViewMode("home"); setContentType("tv")}} style={{ background: 'none', border: 'none', color: contentType === "tv" ? '#66FCF1' : '#45A29E', cursor: 'pointer', fontWeight: 'bold' }}>DİZİLER</button>
+            <button onClick={() => setViewMode("favorites")} style={{ background: 'none', border: 'none', color: viewMode === "favorites" ? '#66FCF1' : '#45A29E', cursor: 'pointer', fontWeight: 'bold' }}>LİSTEM ({favorites.length})</button>
           </div>
         </div>
-        <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '8px 15px', borderRadius: '20px', color: 'white' }} />
+
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '5px 10px', borderRadius: '10px' }}>
+                <option value="popularity.desc">Trendler</option>
+                <option value="vote_average.desc">Puan</option>
+                <option value="primary_release_date.desc">Yeni</option>
+            </select>
+            <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '8px 15px', borderRadius: '20px', color: 'white' }} />
+        </div>
       </nav>
+
+      {/* KATEGORİLER (GERİ GELDİ) */}
+      {viewMode === "home" && !searchQuery && (
+        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <button onClick={() => setSelectedGenre(null)} className="genre-btn" style={{ padding: '5px 15px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#45A29E', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
+          {genres.map(g => (
+            <button key={g.id} onClick={() => setSelectedGenre(g.id)} className="genre-btn" style={{ padding: '5px 15px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#45A29E', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
+          ))}
+        </div>
+      )}
 
       {/* FİLM LİSTESİ */}
       <div className="movie-grid">
@@ -130,39 +150,46 @@ function SineProContent() {
           <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ cursor: 'pointer', textAlign: 'center' }}>
             <div className="movie-card" style={{ borderRadius: '12px', overflow: 'hidden', height: '250px', position: 'relative', transition: '0.3s', border: '1px solid #333' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+              </div>
             </div>
-            <p style={{ marginTop: '10px', fontSize: '14px', fontWeight: 'bold' }}>{item.title || item.name}</p>
+            <p style={{ marginTop: '10px', fontSize: '13px', fontWeight: 'bold' }}>{item.title || item.name}</p>
           </div>
         ))}
       </div>
 
-      {/* MODAL (DETAY EKRANI) - RENKLER DÜZELTİLDİ */}
+      {/* DETAY MODALI (DÜZELTİLDİ VE FULL EKRAN) */}
       {selectedItem && (
-        <div style={{ position: 'fixed', inset: 0, background: 'var(--background)', zIndex: 2000, overflowY: 'auto', padding: '40px 5%' }}>
-          <button onClick={() => setSelectedItem(null)} style={{ position: 'fixed', top: '20px', left: '20px', background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', zIndex: 2100 }}>GERİ DÖN</button>
-          
-          <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', marginTop: '40px' }}>
-            <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '300px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} alt="" />
-            <div style={{ flex: 1, minWidth: '300px' }}>
-              <h1 style={{ fontSize: '40px', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
-              <p style={{ fontSize: '18px', lineHeight: '1.6', margin: '20px 0' }}>{selectedItem.overview || "Açıklama bulunamadı."}</p>
-              <h3 style={{ color: '#45A29E' }}>OYUNCULAR</h3>
-              <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px' }}>
-                {cast.map((c: any) => (
-                  <div key={c.id} style={{ textAlign: 'center', minWidth: '80px' }}>
-                    <img src={getImgUrl(c.profile_path, 'w185')} style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #66FCF1' }} alt="" />
-                    <p style={{ fontSize: '10px', marginTop: '5px' }}>{c.name}</p>
-                  </div>
-                ))}
-              </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--background)', zIndex: 2000, overflowY: 'auto' }}>
+          <div style={{ position: 'relative', width: '100%', minHeight: '100vh', padding: '20px' }}>
+            <button onClick={() => setSelectedItem(null)} style={{ position: 'fixed', top: '20px', left: '20px', background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '10px 25px', borderRadius: '30px', fontWeight: '900', cursor: 'pointer', zIndex: 2100, boxShadow: '0 0 20px rgba(102,252,241,0.5)' }}>KAPAT</button>
+            
+            <div style={{ maxWidth: '1000px', margin: '60px auto', display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
+                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '300px', borderRadius: '20px', boxShadow: '0 0 40px rgba(0,0,0,0.8)' }} alt="" />
+                <div style={{ flex: 1, minWidth: '300px' }}>
+                    <h1 style={{ fontSize: '48px', margin: '0 0 10px 0', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
+                    <p style={{ color: '#45A29E', fontSize: '20px', marginBottom: '20px' }}>★ {selectedItem.vote_average?.toFixed(1)} | {selectedItem.release_date || selectedItem.first_air_date}</p>
+                    <p style={{ fontSize: '18px', lineHeight: '1.7' }}>{selectedItem.overview}</p>
+                    
+                    <h3 style={{ color: '#66FCF1', marginTop: '30px', borderBottom: '1px solid #333' }}>OYUNCULAR</h3>
+                    <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', padding: '10px 0' }}>
+                        {cast.map(c => (
+                            <div key={c.id} style={{ minWidth: '80px', textAlign: 'center' }}>
+                                <img src={getImgUrl(c.profile_path, 'w185')} style={{ width: '70px', height: '70px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #45A29E' }} alt="" />
+                                <p style={{ fontSize: '11px', marginTop: '5px' }}>{c.name}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* DESTEK BUTONU (SABİTLENDİ) */}
+      {/* DESTEK BUTONU (SABİT SAĞDA) */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 10000 }}>
-        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}>💎 DESTEK OL</a>
+        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.4)' }}>💎 DESTEK OL</a>
       </div>
     </main>
   );
