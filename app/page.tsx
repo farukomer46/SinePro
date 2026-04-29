@@ -229,6 +229,34 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* 💎 BYNOGAME BAĞIŞ BUTONU */}
+      <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 9999 }}>
+        <a 
+          href="https://donate.bynogame.com/sinepro" 
+          target="_blank" 
+          rel="noreferrer"
+          style={{
+            backgroundColor: '#ff3131',
+            color: '#fff',
+            padding: '12px 24px',
+            borderRadius: '50px',
+            fontWeight: '900',
+            textDecoration: 'none',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 10px 25px rgba(255, 49, 49, 0.4)',
+            border: '2px solid #fff',
+            transition: 'transform 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <span style={{ fontSize: '20px' }}>🍿</span> 
+          <span>DESTEK OL</span>
+        </a>
+      </div>
     </main>
   );
 }
