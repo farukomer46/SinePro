@@ -1,11 +1,26 @@
+@import "tailwindcss";
+
+/* Hata veren @source satırını kaldırdık, v4 otomatik tarayacaktır */
+
+/* KARANLIK VE AYDINLIK MOD RENK AYARLARI */
 :root {
+  --background: #ffffff;
+  --foreground: #0B0C10;
+}
+
+/* Karanlık mod aktif olduğunda (html class="dark") */
+.dark {
   --background: #0B0C10;
+  --foreground: #ffffff;
 }
 
 body {
   margin: 0;
   background: var(--background);
-  overflow-x: hidden; /* Sağa kaymayı engeller */
+  color: var(--foreground);
+  overflow-x: hidden;
+  /* Yumuşak geçiş efekti */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ANA FİLM GRİDİ */
@@ -16,49 +31,38 @@ body {
   padding: 20px;
 }
 
-/* MOBİL AYARLAR (TELEFONLAR İÇİN) */
+/* --- MOBİL AYARLAR (DEĞİŞMEDİ) --- */
 @media (max-width: 768px) {
-  /* Navbar'ı alt alta ve düzgün yapalım */
   nav {
     flex-direction: column !important;
     height: auto !important;
     padding: 15px !important;
     align-items: center !important;
   }
-
-  /* Logoyu ve Menü Linklerini hizalayalım */
   nav > div:first-child {
     flex-direction: column !important;
     gap: 10px !important;
     width: 100% !important;
     align-items: center !important;
   }
-
-  /* Arama çubuğu ve filtre kısmını yan yana sığdıralım */
   nav > div:last-child {
     width: 100% !important;
-    flex-direction: row !important; /* Yan yana dursunlar */
+    flex-direction: row !important;
     justify-content: center !important;
     gap: 8px !important;
     margin-top: 10px;
   }
-
-  /* Input kutularını küçültelim */
   input, select {
     font-size: 12px !important;
     padding: 8px !important;
-    flex: 1 !important; /* Ekrana sığmaları için */
+    flex: 1 !important;
   }
-
-  /* Filmleri tam 2'li sıra yapalım */
   .movie-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 12px !important;
     padding: 10px !important;
     margin-top: 20px !important;
   }
-
-  /* Kart yüksekliği mobilde sırıtmamalı */
   .movie-grid > div > div:first-child {
     height: 220px !important;
   }
