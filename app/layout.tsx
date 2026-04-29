@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   // WHATSAPP VE SOSYAL MEDYA ÖNİZLEMESİ İÇİN:
   openGraph: {
     title: "SİNEPRO | Film ve Dizi Portalı",
-    description: "Reklamsız ve hızlı film izlemenin adresi.",
+    description: "En güncel içerikler, reklamsız HD film ve dizi keyfi SinePro'da!",
     type: "website",
     url: "https://farukomer46.vercel.app/", // Kendi site adresin
     images: [
