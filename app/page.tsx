@@ -229,33 +229,49 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* 💎 BYNOGAME BAĞIŞ BUTONU */}
+      {/* 💎 PREMIUM DESTEK BUTONU */}
       <div style={{ position: 'fixed', bottom: '25px', right: '25px', zIndex: 9999 }}>
         <a 
           href="https://donate.bynogame.com/sinepro" 
           target="_blank" 
           rel="noreferrer"
+          className="donate-btn"
           style={{
-            backgroundColor: '#ff3131',
-            color: '#fff',
-            padding: '12px 24px',
+            background: 'linear-gradient(45deg, #66FCF1, #45A29E)', // Sitenin turkuaz tonları
+            color: '#0B0C10', // Koyu yazı
+            padding: '12px 28px',
             borderRadius: '50px',
             fontWeight: '900',
             textDecoration: 'none',
             fontSize: '14px',
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 10px 25px rgba(255, 49, 49, 0.4)',
-            border: '2px solid #fff',
-            transition: 'transform 0.2s ease'
+            gap: '12px',
+            boxShadow: '0 0 20px rgba(102, 252, 241, 0.4)', // Neon parlama efekti
+            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            border: 'none',
+            letterSpacing: '1px'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
-          <span style={{ fontSize: '20px' }}>🍿</span> 
+          <span style={{ fontSize: '20px' }}>💎</span> 
           <span>DESTEK OL</span>
         </a>
+
+        {/* Küçük bir animasyon ekleyelim: Buton hafifçe nefes alsın */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          .donate-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 0 30px rgba(102, 252, 241, 0.7);
+          }
+          @media (max-width: 600px) {
+            .donate-btn {
+              padding: 10px 20px !important;
+              font-size: 12px !important;
+              bottom: 15px !important;
+              right: 15px !important;
+            }
+          }
+        `}} />
       </div>
     </main>
   );
