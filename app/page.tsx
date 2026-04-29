@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import { ThemeProvider, useTheme } from "next-themes"; // Temayı yönetmek için
+import { ThemeProvider, useTheme } from "next-themes";
 
-// --- 1. TEMA DEĞİŞTİRME BUTONU (SABİT) ---
+// --- 1. TEMA DEĞİŞTİRME BUTONU (GÜNCELLENDİ) ---
 function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -22,11 +22,14 @@ function ThemeToggle() {
         zIndex: 10000, 
         padding: '10px', 
         borderRadius: '50%', 
-        background: theme === "dark" ? '#1F2833' : '#e2e8f0',
-        border: '1px solid #45A29E',
+        background: theme === "dark" ? '#1F2833' : '#ffffff',
+        border: '2px solid #45A29E',
         cursor: 'pointer',
         fontSize: '20px',
-        boxShadow: '0 0 10px rgba(0,0,0,0.3)'
+        boxShadow: '0 0 15px rgba(102, 252, 241, 0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }}
     >
       {theme === "dark" ? "☀️" : "🌙"}
@@ -38,7 +41,6 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 
 export default function Home() {
   return (
-    // --- 2. TÜM SİTEYİ TEMA SİSTEMİNE SARIYORUZ ---
     <ThemeProvider attribute="class" defaultTheme="dark">
       <ThemeToggle />
       <SineProContent />
@@ -46,7 +48,6 @@ export default function Home() {
   );
 }
 
-// --- 3. ANA İÇERİK (SENİN KODLARIN) ---
 function SineProContent() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<any[]>([]); 
@@ -139,11 +140,24 @@ function SineProContent() {
   if (!mounted) return null;
 
   return (
-    // BURADA background: 'var(--background)' KULLANARAK CSS İLE BAĞLADIK
-    <main style={{ backgroundColor: 'var(--background)', minHeight: '100vh', color: 'var(--foreground)', transition: '0.3s' }}>
+    <main style={{ backgroundColor: 'var(--background)', minHeight: '100vh', color: 'var(--foreground)', transition: 'background-color 0.3s ease, color 0.3s ease' }}>
       
-      <style dangerouslySetInnerHTML={{ __html: `.nextjs-static-indicator-container, #nextjs-portal { display: none !important; }` }} />
+      {/* CSS EFEKTLERİNİ GERİ GETİRDİK */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .nextjs-static-indicator-container, #nextjs-portal { display: none !important; }
+        .movie-card:hover { 
+          transform: translateY(-10px) !important;
+          box-shadow: 0 0 25px rgba(102, 252, 241, 0.4) !important;
+        }
+        .donate-btn {
+          position: fixed !important;
+          bottom: 20px !important;
+          right: 20px !important;
+          z-index: 9999 !important;
+        }
+      ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--background)', backdropFilter: 'blur(15px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
@@ -158,57 +172,50 @@ function SineProContent() {
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {viewMode === "home" && (
-            <select 
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)} 
-              style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none' }}
-            >
-              <option value="popularity.desc">🔥 Trendler</option>
-              <option value="vote_average.desc">⭐ En Yüksek Puan</option>
-            </select>
-          )}
-          <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white' }} />
+          <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
-      {viewMode === "home" && !searchQuery && (
-        <div style={{ padding: '15px 5%', display: 'flex', gap: '10px', overflowX: 'auto' }}>
-          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer' }}>Tümü</button>
-          {genres.map(g => (
-            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer' }}>{g.name}</button>
-          ))}
-        </div>
-      )}
-
+      {/* FİLM GRİDİ */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
-            <div style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ cursor: 'pointer', textAlign: 'center' }}>
+            <div className="movie-card" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative', transition: 'all 0.3s ease' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
+              <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', color: 'var(--foreground)' }}>{item.title || item.name}</p>
           </div>
         ))}
       </div>
 
-      {selectedItem && (
-        <div id="modal-content" style={{ position: 'fixed', inset: 0, background: 'var(--background)', zIndex: 1000, overflowY: 'auto' }}>
-           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'var(--background)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
-             <h2 style={{ color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h2>
-             <button onClick={() => setSelectedItem(null)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 25px', borderRadius: '20px', fontWeight: 'bold' }}>KAPAT</button>
-          </div>
-          {/* Modal içeriğinin kalanı buraya gelecek (kısalttım) */}
-        </div>
-      )}
-
-      {/* DESTEK BUTONU */}
-      <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 9999 }}>
-        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '10px 20px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', fontSize: '13px' }}>💎 DESTEK OL</a>
+      {/* SABİT DESTEK BUTONU */}
+      <div className="donate-btn">
+        <a 
+          href="https://donate.bynogame.com/sinepro" 
+          target="_blank" 
+          rel="noreferrer"
+          style={{
+            background: 'linear-gradient(45deg, #66FCF1, #45A29E)',
+            color: '#0B0C10',
+            padding: '10px 20px',
+            borderRadius: '30px',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)'
+          }}
+        >
+          <span>💎 DESTEK OL</span>
+        </a>
       </div>
+
     </main>
   );
 }
