@@ -107,7 +107,7 @@ export default function Home() {
         height: '70vw',
         maxWidth: '700px',
         maxHeight: '700px',
-        background: 'radial-gradient(circle, rgba(255, 215, 3) 0%, rgba(102,252,241,0) 70%)',
+        background: 'radial-gradient(circle, rgba(102,252,241,1) 0%, rgba(102,252,241,0) 70%)',
         borderRadius: '50%',
         zIndex: 0,
         pointerEvents: 'none',
@@ -117,7 +117,7 @@ export default function Home() {
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulseGlow {
           0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.15); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
         }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
         .hover-effect { transition: 0.4s ease; cursor: pointer; }
