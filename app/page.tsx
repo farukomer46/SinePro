@@ -8,7 +8,6 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-  const [showDonate, setShowDonate] = useState(false);
   const [items, setItems] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,13 +31,12 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
- useEffect(() => {
+  useEffect(() => {
     setMounted(true);
-    
-
     const saved = localStorage.getItem("sinepro_favs");
     if (saved) setFavorites(JSON.parse(saved));
   }, []);
+
   useEffect(() => {
     if (mounted) {
       document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
@@ -102,8 +100,13 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
       
-      {/* N SİMGESİNİ GİZLE */}
-      <style dangerouslySetInnerHTML={{ __html: `.nextjs-static-indicator-container, #nextjs-portal { display: none !important; }` }} />
+      {/* CSS AYARLARI */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .nextjs-static-indicator-container, #nextjs-portal { display: none !important; }
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; padding: 20px; }
+        .donate-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5); }
+        @media (max-width: 600px) { .donate-btn { padding: 6px 14px !important; font-size: 11px !important; } }
+      ` }} />
 
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(15px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
@@ -120,7 +123,6 @@ export default function Home() {
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* POPÜLER KISMI GERİ GELDİ */}
           {viewMode === "home" && (
             <select 
               value={sortBy} 
@@ -130,8 +132,6 @@ export default function Home() {
               <option value="popularity.desc">🔥 Trendler</option>
               <option value="vote_average.desc">⭐ En Yüksek Puan</option>
               <option value="primary_release_date.desc">📅 En Yeniler</option>
-              <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
-              <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
             </select>
           )}
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
@@ -148,7 +148,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* LİSTE + PUANLAR */}
+      {/* LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
@@ -161,7 +161,6 @@ export default function Home() {
               <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '30px', height: '30px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-              {/* KART ÜSTÜ PUAN SİMGESİ */}
               <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'white' }}>{item.title || item.name}</p>
@@ -198,7 +197,6 @@ export default function Home() {
                 </div>
              </div>
 
-             {/* BENZER İÇERİKLER + NEON PARLAMA */}
              <div style={{ marginTop: '60px' }}>
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '25px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -207,28 +205,45 @@ export default function Home() {
                         key={idx} 
                         onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} 
                         style={{ width: '150px', cursor: 'pointer', transition: '0.4s' }}
-                        onMouseEnter={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(-10px)'; 
-                          const img = e.currentTarget.querySelector('img');
-                          if(img) img.style.boxShadow = '0 0 20px rgba(102, 252, 241, 0.6)';
-                        }}
-                        onMouseLeave={(e) => { 
-                          e.currentTarget.style.transform = 'translateY(0)'; 
-                          const img = e.currentTarget.querySelector('img');
-                          if(img) img.style.boxShadow = 'none';
-                        }}
                      >
-                        <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '225px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #333', transition: '0.4s' }} alt="" />
+                        <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '225px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #333' }} alt="" />
                         <p style={{ fontSize: '12px', marginTop: '10px', fontWeight: 'bold', textAlign: 'center' }}>{s.title || s.name}</p>
-    
                      </div>
-                     
                    ))}
                 </div>
              </div>
           </div>
         </div>
       )}
+
+      {/* 💎 SABİT DESTEK (BAĞIŞ) BUTONU */}
+      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
+        <a 
+          href="https://donate.bynogame.com/sinepro" 
+          target="_blank" 
+          rel="noreferrer"
+          className="donate-btn"
+          style={{
+            background: 'linear-gradient(45deg, #66FCF1, #45A29E)',
+            color: '#0B0C10',
+            padding: '10px 22px',
+            borderRadius: '30px',
+            fontWeight: 'bold',
+            textDecoration: 'none',
+            fontSize: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)',
+            transition: 'all 0.3s ease',
+            border: 'none',
+          }}
+        >
+          <span style={{ fontSize: '18px' }}>💎</span> 
+          <span>DESTEK OL</span>
+        </a>
+      </div>
+
     </main>
   );
 }
