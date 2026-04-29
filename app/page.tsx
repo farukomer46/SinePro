@@ -97,17 +97,18 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 💥 GÜNCELLENMİŞ: BİRAZ DAHA PARLAK TURKUAZ IŞILTI EFEKTİ */}
+      {/* 💥 GÜNCELLENMİŞ: DAHA PARLAK VE BELİRGİN TURKUAZ IŞILTI EFEKTİ */}
       <div style={{
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '70vw',
-        height: '70vw',
-        maxWidth: '700px',
-        maxHeight: '700px',
-        background: 'radial-gradient(circle, rgba(102,252,241,1) 0%, rgba(102,252,241,0) 70%)',
+        width: '75vw',
+        height: '75vw',
+        maxWidth: '800px',
+        maxHeight: '800px',
+        // Merkez opaklığını artırdım (0.4) ve yayılımı netleştirdim
+        background: 'radial-gradient(circle, rgba(102,252,241,0.4) 0%, rgba(102,252,241,0.05) 50%, rgba(102,252,241,0) 75%)',
         borderRadius: '50%',
         zIndex: 0,
         pointerEvents: 'none',
@@ -116,8 +117,8 @@ export default function Home() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulseGlow {
-          0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } /* Parlama anında tam opaklık ve daha büyük boyut */
         }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
         .hover-effect { transition: 0.4s ease; cursor: pointer; }
