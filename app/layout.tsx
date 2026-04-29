@@ -6,7 +6,10 @@ export const metadata: Metadata = {
   description: "En güncel içerikler ve favori listeniz.",
   icons: {
     icon: "/icon.png",
-    apple:"/icon.png",
+    apple: "/icon.png",
+  },
+  verification: {
+    google: "lmDwjSLizRKR5WITo7zpUv0pwyVdP57ntVRqlDOFbqo",
   },
 };
 
