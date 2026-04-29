@@ -97,28 +97,28 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 💥 GÜNCELLENMİŞ: KISILMIŞ VE DAHA ZARİF TURKUAZ IŞILTI EFEKTİ */}
+      {/* 💥 GÜNCELLENMİŞ: EN KISIK VE ASİL TURKUAZ IŞILTI EFEKTİ */}
       <div style={{
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: '65vw',
-        height: '65vw',
-        maxWidth: '700px',
-        maxHeight: '700px',
-        // Opaklık 0.2'ye çekildi, daha yumuşak geçiş sağlandı
-        background: 'radial-gradient(circle, rgba(102,252,241,0.2) 0%, rgba(102,252,241,0.03) 45%, rgba(102,252,241,0) 70%)',
+        width: '60vw',
+        height: '60vw',
+        maxWidth: '600px',
+        maxHeight: '600px',
+        // Merkez opaklığı 0.12'ye düşürüldü, çok hafif bir esinti kıvamında
+        background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0.01) 40%, rgba(102,252,241,0) 60%)',
         borderRadius: '50%',
         zIndex: 0,
         pointerEvents: 'none',
-        animation: 'pulseGlow 5s infinite ease-in-out' // Süre 5 saniyeye çıkarılarak daha ağır bir tempo sağlandı
+        animation: 'pulseGlow 7s infinite ease-in-out' // 7 saniye ile çok daha ağır ve derin bir tempo
       }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes pulseGlow {
-          0%, 100% { opacity: 0.3; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
+          0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.05); }
         }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
         .hover-effect { transition: 0.4s ease; cursor: pointer; }
