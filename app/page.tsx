@@ -107,7 +107,7 @@ export default function Home() {
         height: '70vw',
         maxWidth: '700px',
         maxHeight: '700px',
-        background: 'radial-gradient(circle, rgba(102,252,241,0.25) 0%, rgba(102,252,241,0) 70%)',
+        background: 'radial-gradient(circle, rgba(102,252,241,1) 0%, rgba(102,252,241,0) 70%)',
         borderRadius: '50%',
         zIndex: 0,
         pointerEvents: 'none',
