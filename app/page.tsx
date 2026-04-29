@@ -53,23 +53,28 @@ export default function Home() {
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
   };
 
+  // 🚀 FİLM SAYISINI ARTIRAN GÜNCELLENMİŞ FONKSİYON
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
-      const page1Url = searchQuery 
-        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=1`
-        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=1`;
+      const getUrl = (page: number) => searchQuery 
+        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
+        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
       
-      const page2Url = searchQuery 
-        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=2`
-        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=2`;
-
-      const [res1, res2] = await Promise.all([
-        axios.get(page1Url, { headers: { Authorization: API_TOKEN } }),
-        axios.get(page2Url, { headers: { Authorization: API_TOKEN } })
+      // 4 sayfa birden çekerek film sayısını yaklaşık 80-100'e çıkarıyoruz
+      const [res1, res2, res3, res4] = await Promise.all([
+        axios.get(getUrl(1), { headers: { Authorization: API_TOKEN } }),
+        axios.get(getUrl(2), { headers: { Authorization: API_TOKEN } }),
+        axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
+        axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
       ]);
       
-      setItems([...(res1.data.results || []), ...(res2.data.results || [])]);
+      setItems([
+        ...(res1.data.results || []), 
+        ...(res2.data.results || []),
+        ...(res3.data.results || []),
+        ...(res4.data.results || [])
+      ]);
     } catch (err) { console.error(err); }
   };
 
@@ -111,16 +116,12 @@ export default function Home() {
         .donate-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5); }
       ` }} />
 
-      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          
-          {/* 🎯 AMBLEM (LOGO) ESKİ HALİNE DÖNDÜRÜLDÜ */}
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.4))' }} onClick={() => window.location.reload()}>
              <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
-
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -139,7 +140,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none' }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -149,18 +149,14 @@ export default function Home() {
         </div>
       )}
 
-      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              
-              {/* ❤️ KALP SİMGESİ KORUNDU */}
-              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, transition: '0.3s' }}>
+              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-
               <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
@@ -168,7 +164,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -211,15 +206,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 💎 BAĞIŞ BUTONU KORUNDU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
-        <a 
-          href="https://donate.bynogame.com/sinepro" 
-          target="_blank" 
-          rel="noreferrer"
-          className="donate-btn"
-          style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}
-        >
+        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
         </a>
       </div>
