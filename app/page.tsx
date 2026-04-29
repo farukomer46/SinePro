@@ -120,9 +120,33 @@ export default function Home() {
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {/* FİLTRELEME SEÇENEKLERİ GÜNCELLENDİ */}
+          {viewMode === "home" && (
+            <select 
+              value={sortBy} 
+              onChange={(e) => setSortBy(e.target.value)} 
+              style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontSize: '13px' }}
+            >
+              <option value="popularity.desc">🔥 Trendler</option>
+              <option value="vote_average.desc">⭐ En Yüksek Puan</option>
+              <option value="primary_release_date.desc">📅 En Yeniler</option>
+              <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+              <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
+            </select>
+          )}
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
+
+      {/* KATEGORİLER */}
+      {viewMode === "home" && !searchQuery && (
+        <div style={{ padding: '15px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
+          {genres.map(g => (
+            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
+          ))}
+        </div>
+      )}
 
       {/* ANA LİSTE */}
       <div className="movie-grid">
@@ -157,7 +181,6 @@ export default function Home() {
                 </div>
              </div>
 
-             {/* BENZER İÇERİKLER (EFEKT EKLENDİ) */}
              <div style={{ marginTop: '60px' }}>
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '25px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
