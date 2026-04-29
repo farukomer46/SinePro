@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 
-// 🔑 TOKEN
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
 export default function Home() {
@@ -120,13 +119,8 @@ export default function Home() {
         </div>
 
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* FİLTRELEME SEÇENEKLERİ GÜNCELLENDİ */}
           {viewMode === "home" && (
-            <select 
-              value={sortBy} 
-              onChange={(e) => setSortBy(e.target.value)} 
-              style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontSize: '13px' }}
-            >
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontSize: '13px' }}>
               <option value="popularity.desc">🔥 Trendler</option>
               <option value="vote_average.desc">⭐ En Yüksek Puan</option>
               <option value="primary_release_date.desc">📅 En Yeniler</option>
@@ -138,7 +132,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '15px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none' }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -148,7 +141,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
@@ -164,20 +156,35 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
-           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', backdropFilter: 'blur(10px)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
              <h2 style={{ color: '#66FCF1', margin: 0 }}>{selectedItem.title || selectedItem.name}</h2>
              <button onClick={() => setSelectedItem(null)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 25px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
           </div>
-          
-          <div style={{ maxWidth: '1100px', margin: '40px auto', padding: '0 5% 100px' }}>
+
+          {/* DÜZELTİLEN YER: FRAGMAN BUTONLU ÜST KISIM */}
+          <div style={{ width: '100%', height: '55vh', backgroundImage: `linear-gradient(to bottom, transparent, #0B0C10), url(${getImgUrl(selectedItem.backdrop_path, 'original')})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedItem.title || selectedItem.name)}+fragman`} target="_blank" rel="noreferrer" style={{ background: '#66FCF1', color: '#0B0C10', padding: '12px 35px', borderRadius: '50px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 0 20px rgba(102, 252, 241, 0.5)' }}>▶ FRAGMANI İZLE</a>
+          </div>
+
+          <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px' }}>
              <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: '1px solid #333' }} alt="" />
-                <div style={{ flex: 1, minWidth: '300px' }}>
+                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '260px', borderRadius: '15px', border: '1px solid #333', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }} alt="" />
+                <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
+                   <p style={{ color: '#66FCF1', fontSize: '20px', margin: '15px 0' }}>★ {selectedItem.vote_average?.toFixed(1)} • {selectedItem.release_date?.split('-')[0] || selectedItem.first_air_date?.split('-')[0]}</p>
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
+                   
+                   <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginTop: '30px' }}>OYUNCULAR</h3>
+                   <div style={{ display: 'flex', gap: '15px', overflowX: 'auto', padding: '10px 0' }}>
+                      {cast.map((p, i) => (
+                        <div key={i} style={{ minWidth: '85px', textAlign: 'center' }}>
+                          <img src={getImgUrl(p.profile_path, 'w185')} style={{ width: '75px', height: '75px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #45A29E' }} alt="" />
+                          <p style={{ fontSize: '11px', marginTop: '8px' }}>{p.name}</p>
+                        </div>
+                      ))}
+                   </div>
                 </div>
              </div>
 
@@ -185,12 +192,7 @@ export default function Home() {
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '25px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
                    {similar.map((s, idx) => (
-                     <div 
-                        key={idx} 
-                        onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} 
-                        className="hover-effect"
-                        style={{ width: '150px', textAlign: 'center' }}
-                     >
+                     <div key={idx} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} className="hover-effect" style={{ width: '150px', textAlign: 'center' }}>
                         <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '225px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #333' }} alt="" />
                         <p style={{ fontSize: '12px', marginTop: '10px', fontWeight: 'bold' }}>{s.title || s.name}</p>
                      </div>
@@ -201,18 +203,9 @@ export default function Home() {
         </div>
       )}
 
-      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
-        <a 
-          href="https://donate.bynogame.com/sinepro" 
-          target="_blank" rel="noreferrer"
-          className="donate-btn"
-          style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', transition: '0.3s' }}
-        >
-          <span>💎 DESTEK OL</span>
-        </a>
+        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', transition: '0.3s' }}><span>💎 DESTEK OL</span></a>
       </div>
-
     </main>
   );
 }
