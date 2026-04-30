@@ -40,7 +40,6 @@ export default function Home() {
     const interval = setInterval(() => {
       if (mainNewScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-        
         if (scrollLeft + clientWidth >= scrollWidth - 10) {
           mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
@@ -48,7 +47,6 @@ export default function Home() {
         }
       }
     }, 3000); 
-
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
 
@@ -143,7 +141,7 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 KÜÇÜK VE ŞEFFAF KALP */
+        /* 💖 ŞEFFAF VE KÜÇÜK KALP */
         .fav-badge { 
           position: absolute; 
           top: 8px; 
@@ -160,7 +158,7 @@ export default function Home() {
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ GÜNCELLENMİŞ: KUTUSUZ, KÜÇÜK NEON PUAN STİLİ */
+        /* 🎯 ⭐ İSTEDİĞİN: KUTUSUZ, NEON PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
           bottom: 10px; 
@@ -207,7 +205,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER */}
+      {/* VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -250,7 +248,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
+      {/* MODAL VE DİĞERLERİ AYNI KALDI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -288,7 +286,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 💎 BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
