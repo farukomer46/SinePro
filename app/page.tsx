@@ -28,12 +28,31 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
-  // 🎯 Tıklanan kategorinin ismini belirleyen yardımcı fonksiyon
   const currentCategoryName = useMemo(() => {
     if (selectedGenre === null) return "TÜMÜ";
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
+
+  // 🚀 OTOMATİK KAYDIRMA MANTIĞI
+  useEffect(() => {
+    if (!mounted || searchQuery || viewMode === "favorites") return;
+
+    const interval = setInterval(() => {
+      if (mainNewScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
+        
+        // Eğer sona yaklaştıysak başa dön, değilse bir sonraki film kadar kaydır
+        if (scrollLeft + clientWidth >= scrollWidth - 10) {
+          mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          mainNewScrollRef.current.scrollTo({ left: scrollLeft + 200, behavior: 'smooth' });
+        }
+      }
+    }, 3000); // 3 saniyede bir kayar
+
+    return () => clearInterval(interval);
+  }, [mounted, newReleases, searchQuery, viewMode]);
 
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
@@ -188,7 +207,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* KALICI YENİ VİZYONDAKİLER ŞERİDİ */}
+      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER ŞERİDİ */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -209,7 +228,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🚀 DİNAMİK BAŞLIK: Seçilen kategoriye göre değişir */}
       {viewMode === "home" && !searchQuery && <h3 className="section-title">{currentCategoryName}</h3>}
 
       <div className="movie-grid">
