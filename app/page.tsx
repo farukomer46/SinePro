@@ -50,9 +50,10 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
 
+  // 🛠 GÜNCELLENMİŞ: Görsellerin gelmesi için URL yapısı düzeltildi
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
-    return `https://image.tmdb.org/p/p/${size}${path}`;
+    return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
   useEffect(() => {
@@ -141,21 +142,21 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 🎯 YENİLENMİŞ KALP STİLİ (ARKASI ŞEFFAF) */
+        /* 🎯 KÜÇÜLTÜLMÜŞ KALP STİLİ */
         .fav-badge { 
           position: absolute; 
-          top: 10px; 
-          right: 10px; 
-          width: 32px; 
-          height: 32px; 
+          top: 8px; 
+          right: 8px; 
+          width: 24px; 
+          height: 24px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 24px;
-          filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+          font-size: 18px;
+          filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
         .rating-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
       ` }} />
@@ -164,7 +165,7 @@ export default function Home() {
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102,252,241,0.6)' }}>SİNE</span>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
