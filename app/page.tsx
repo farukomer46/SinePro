@@ -34,18 +34,21 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
+  // Otomatik Kaydırma (Autoplay)
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
       if (mainNewScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
+        
         if (scrollLeft + clientWidth >= scrollWidth - 10) {
           mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
           mainNewScrollRef.current.scrollTo({ left: scrollLeft + 200, behavior: 'smooth' });
         }
       }
-    }, 4000); 
+    }, 3000); 
+
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
 
@@ -80,6 +83,7 @@ export default function Home() {
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
+      // 4 sayfa birden çekerek film sayısını yaklaşık 80-100'e çıkarıyoruz
       const getUrl = (page: number) => searchQuery 
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
         : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
@@ -92,6 +96,7 @@ export default function Home() {
       ]);
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
+      // Yeni Vizyonları Çek (Arama yoksa)
       if (!searchQuery) {
         const type = contentType === "movie" ? "now_playing" : "on_the_air";
         const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
@@ -126,6 +131,7 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
+      {/* ARKA PLAN IŞILTI */}
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -156,22 +162,25 @@ export default function Home() {
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* ⭐ ESKİ NEON PUAN STİLİ */
+        /* 🎯 ⭐ GÜNCELLENMİŞ: ESKİ, SİYAH KUTULU PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
           bottom: 10px; 
           left: 10px; 
+          background: rgba(0,0,0,0.8); 
           color: #66FCF1; 
-          fontSize: 12px; 
+          padding: 2px 8px; 
+          borderRadius: 4px; 
+          fontSize: 11px; 
           fontWeight: bold; 
-          text-shadow: 0 0 8px rgba(102, 252, 241, 0.8), 1px 1px 2px rgba(0,0,0,1);
+          box-shadow: 0 0 10px rgba(102, 252, 241, 0.4);
         }
       ` }} />
 
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.5))' }} onClick={() => window.location.reload()}>
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
              <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
@@ -193,6 +202,7 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -202,7 +212,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* YENİ VİZYONDAKİLER */}
+      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -283,7 +293,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* BAĞIŞ BUTONU */}
+      {/* 💎 BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
