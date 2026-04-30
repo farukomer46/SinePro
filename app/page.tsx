@@ -16,7 +16,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
-  const [similar, setSimilar] = useState<any[]>([]);
+  const [similar, setSimilar] = useState<any[]>([]); // Benzer filmler state'i
   
   const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
@@ -33,6 +33,7 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
+  // Otomatik Kaydırma
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -76,6 +77,7 @@ export default function Home() {
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
   };
 
+  // Ana veri çekme fonksiyonu (Liste ve Trendler)
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
@@ -99,11 +101,17 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
-  const fetchExtraDetails = async (id: number) => {
+  // Modal açıldığında ek detayları ve benzer filmleri çekme
+  const fetchModalDetails = async (item: any) => {
+    setSelectedItem(item); // Önce temel veriyi ayarla
+    setSimilar([]); // Önceki benzerleri temizle
     try {
-      const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
+      // 🎯 SEVEBİLECEĞİN FİLMLER BURADA ÇEKİLİYOR
+      const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${item.id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Detaylar çekilemedi:", err); 
+    }
   };
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
@@ -139,15 +147,15 @@ export default function Home() {
           position: absolute; 
           top: 10px; 
           right: 10px; 
-          width: 32px; 
-          height: 32px; 
+          width: 35px; 
+          height: 35px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 22px;
+          font-size: 24px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
           background: rgba(0,0,0,0.3);
           border-radius: 50%;
@@ -181,13 +189,13 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* POPÜLER KISMI (ZENGİNLEŞTİRİLDİ) */}
+          {/* POPÜLER KISMI (ZENGİN MENÜ ESKİSİ GİBİ) */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Popüler (Trend)</option>
+            <option value="popularity.desc">🔥 Trendler (Popüler)</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
-            <option value="primary_release_date.desc">📅 En Yeni Eklenenler</option>
+            <option value="primary_release_date.desc">📅 En Yeniler</option>
             <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
-            <option value="vote_count.desc">🗣️ En Çok Yorumlanan</option>
+            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
@@ -211,7 +219,7 @@ export default function Home() {
             <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
             <div className="horizontal-scroll" ref={mainNewScrollRef}>
               {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                <div key={item.id} onClick={() => fetchModalDetails(item)} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
@@ -231,7 +239,7 @@ export default function Home() {
 
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+          <div key={`${item.id}-${idx}`} onClick={() => fetchModalDetails(item)} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
@@ -244,6 +252,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -263,22 +272,24 @@ export default function Home() {
                 </div>
              </div>
 
-             {/* 🎯 SEVEBİLECEĞİNİZ FİLMLER KISMI (GERİ GELDİ) */}
-             <div style={{ marginTop: '80px', position: 'relative' }}>
-                <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
-                <div className="horizontal-scroll" ref={similarScrollRef}>
-                   {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
-                           <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+             {/* 🎯 SEVEBİLECEĞİNİZ FİLMLER KISMI (GERİ GELDİ VE ÇALIŞIYOR) */}
+             {similar.length > 0 && (
+                <div style={{ marginTop: '80px', position: 'relative' }}>
+                    <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
+                    <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
+                    <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
+                    <div className="horizontal-scroll" ref={similarScrollRef}>
+                    {similar.map((s) => (
+                        <div key={s.id} onClick={() => { fetchModalDetails(s); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                            <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
+                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                            </div>
+                            <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
                         </div>
-                        <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
-                     </div>
-                   ))}
+                    ))}
+                    </div>
                 </div>
-             </div>
+             )}
           </div>
         </div>
       )}
