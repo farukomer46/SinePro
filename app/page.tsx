@@ -83,7 +83,6 @@ export default function Home() {
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
-      // 4 sayfa birden çekerek film sayısını yaklaşık 80-100'e çıkarıyoruz
       const getUrl = (page: number) => searchQuery 
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
         : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
@@ -96,7 +95,6 @@ export default function Home() {
       ]);
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      // Yeni Vizyonları Çek (Arama yoksa)
       if (!searchQuery) {
         const type = contentType === "movie" ? "now_playing" : "on_the_air";
         const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
@@ -162,18 +160,15 @@ export default function Home() {
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ GÜNCELLENMİŞ: ESKİ, SİYAH KUTULU PUAN STİLİ */
+        /* 🎯 ⭐ GÜNCELLENMİŞ: KUTUSUZ, KÜÇÜK NEON PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
           bottom: 10px; 
           left: 10px; 
-          background: rgba(0,0,0,0.8); 
           color: #66FCF1; 
-          padding: 2px 8px; 
-          borderRadius: 4px; 
-          fontSize: 11px; 
+          fontSize: 12px; 
           fontWeight: bold; 
-          box-shadow: 0 0 10px rgba(102, 252, 241, 0.4);
+          text-shadow: 0 0 8px rgba(102, 252, 241, 0.8), 1px 1px 2px rgba(0,0,0,1);
         }
       ` }} />
 
