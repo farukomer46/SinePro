@@ -34,7 +34,6 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
-  // Otomatik Kaydırma (Autoplay)
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -141,7 +140,7 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 KÜÇÜK VE ŞEFFAF KALP */
+        /* 💖 KALP */
         .fav-badge { 
           position: absolute; 
           top: 8px; 
@@ -158,18 +157,18 @@ export default function Home() {
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ İSTEDİĞİN: SİYAH KUTULU, NET PUAN STİLİ */
+        /* 🎯 ⭐ YENİ: KÜÇÜK, BEYAZ VE NET PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
           bottom: 10px; 
           left: 10px; 
-          background: rgba(0,0,0,0.8); 
-          color: #66FCF1; 
-          padding: 2px 8px; 
+          background: rgba(255,255,255,0.9); /* Beyaz arka plan */
+          color: #0B0C10; /* Siyah yazı */
+          padding: 2px 6px; 
           borderRadius: 4px; 
-          fontSize: 11px; 
-          fontWeight: bold; 
-          box-shadow: 0 0 10px rgba(0,0,0,0.5);
+          fontSize: 12px; /* Biraz büyütüldü */
+          fontWeight: 900; 
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
       ` }} />
 
@@ -223,7 +222,6 @@ export default function Home() {
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
                        {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
-                    {/* İSTEDİĞİN PUAN STİLİ BURADA */}
                     <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
                   <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
@@ -245,7 +243,6 @@ export default function Home() {
               <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-              {/* İSTEDİĞİN PUAN STİLİ BURADA */}
               <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
@@ -253,7 +250,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
+      {/* MODAL VE DİĞERLERİ */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -291,6 +288,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
