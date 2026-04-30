@@ -57,10 +57,6 @@ export default function Home() {
     if (saved) setFavorites(JSON.parse(saved));
   }, []);
 
-  useEffect(() => {
-    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
-  }, [selectedItem, mounted]);
-
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
     let updated;
@@ -125,41 +121,43 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
+        /* 💖 KALP STİLİ (DEĞİŞTİRİLMEDİ) */
         .fav-badge { 
           position: absolute; 
-          top: 5px; 
-          right: 5px; 
-          width: 20px; 
-          height: 20px; 
+          top: 3px; 
+          right: 3px; 
+          width: 16px; 
+          height: 16px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 12px;
+          font-size: 10px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ ULTRA MİNİ: EN KÜÇÜK VE KÖŞEYE SIFIR PUAN STİLİ */
+        /* 🎯 ⭐ MİKRO PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
-          bottom: 4px; /* Köşeye iyice yaklaştırıldı */
-          left: 4px;   /* Köşeye iyice yaklaştırıldı */
-          background: rgba(0,0,0,0.8); 
+          bottom: 2px; 
+          left: 2px; 
+          background: rgba(0,0,0,0.85); 
           color: #FFFFFF; 
-          padding: 1px 4px; /* Minimum iç boşluk */
+          padding: 0.5px 3px; 
           borderRadius: 2px; 
-          fontSize: 8px; /* Okunabilecek en küçük boyut */
-          fontWeight: 600; 
+          fontSize: 7px; /* Mikro boyut */
+          fontWeight: 700; 
+          line-height: 1;
         }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
@@ -171,20 +169,10 @@ export default function Home() {
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
-            <option value="primary_release_date.desc">📅 En Yeniler</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
-
-      {viewMode === "home" && !searchQuery && (
-        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
-          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
-          {genres.map(g => (
-            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
-          ))}
-        </div>
-      )}
 
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
