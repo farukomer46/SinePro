@@ -8,7 +8,6 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<any[]>([]); 
-  const [newReleases, setNewReleases] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [contentType, setContentType] = useState<"movie" | "tv">("movie");
@@ -18,41 +17,13 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   const [cast, setCast] = useState<any[]>([]);
   const [similar, setSimilar] = useState<any[]>([]);
-  
-  const similarScrollRef = useRef<HTMLDivElement>(null);
-  const mainNewScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const genres = useMemo(() => [
-    { id: 28, name: "Aksiyon" }, { id: 12, name: "Macera" }, { id: 35, name: "Komedi" },
+    { id: 28, name: "Aksiyon" }, { id: 35, name: "Komedi" },
     { id: 27, name: "Korku" }, { id: 878, name: "Bilim Kurgu" },
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
-
-  const currentCategoryName = useMemo(() => {
-    if (selectedGenre === null) return "TÜMÜ";
-    const genre = genres.find(g => g.id === selectedGenre);
-    return genre ? genre.name.toUpperCase() : "KEŞFET";
-  }, [selectedGenre, genres]);
-
-  // 🚀 OTOMATİK KAYDIRMA MANTIĞI
-  useEffect(() => {
-    if (!mounted || searchQuery || viewMode === "favorites") return;
-
-    const interval = setInterval(() => {
-      if (mainNewScrollRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-        
-        // Eğer sona yaklaştıysak başa dön, değilse bir sonraki film kadar kaydır
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          mainNewScrollRef.current.scrollTo({ left: scrollLeft + 200, behavior: 'smooth' });
-        }
-      }
-    }, 3000); // 3 saniyede bir kayar
-
-    return () => clearInterval(interval);
-  }, [mounted, newReleases, searchQuery, viewMode]);
 
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
@@ -97,13 +68,7 @@ export default function Home() {
       ]);
       
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
-
-      if (!searchQuery) {
-        const type = contentType === "movie" ? "now_playing" : "on_the_air";
-        const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
-        setNewReleases(newRes.data.results || []);
-      }
-    } catch (err) { console.error("Veri hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchExtraDetails = async (id: number) => {
@@ -114,16 +79,16 @@ export default function Home() {
       ]);
       setCast(castRes.data.cast?.slice(0, 10) || []);
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error("Detay hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
-  const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
-    if (ref.current) {
-      const { scrollLeft, clientWidth } = ref.current;
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
       const scrollTo = direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth;
-      ref.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
+      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
     }
   };
 
@@ -132,6 +97,7 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
+      {/* 💥 GÜNCELLENMİŞ: EN KISIK VE ASİL TURKUAZ IŞILTI EFEKTİ */}
       <div style={{
         position: 'fixed',
         top: '50%',
@@ -141,11 +107,12 @@ export default function Home() {
         height: '60vw',
         maxWidth: '600px',
         maxHeight: '600px',
+        // Merkez opaklığı 0.12'ye düşürüldü, çok hafif bir esinti kıvamında
         background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0.01) 40%, rgba(102,252,241,0) 60%)',
         borderRadius: '50%',
         zIndex: 0,
         pointerEvents: 'none',
-        animation: 'pulseGlow 7s infinite ease-in-out'
+        animation: 'pulseGlow 7s infinite ease-in-out' // 7 saniye ile çok daha ağır ve derin bir tempo
       }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -161,26 +128,15 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.3s; border-radius: 4px; }
         .side-nav-btn:hover { background: #66FCF1; color: #0B0C10; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        
-        .section-title { 
-          color: #66FCF1; 
-          padding: 0 10px; 
-          margin-top: 30px; 
-          font-size: 20px; 
-          letter-spacing: 1px; 
-          border-left: 4px solid #66FCF1; 
-          margin-left: 5%; 
-          font-weight: 900; 
-          display: flex;
-          align-items: center;
-        }
+        .donate-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(102, 252, 241, 0.5); }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.4))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
@@ -192,12 +148,15 @@ export default function Home() {
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
+            <option value="primary_release_date.desc">📅 En Yeniler</option>
             <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
+      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -207,29 +166,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER ŞERİDİ */}
-      {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
-        <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
-          <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
-          <div style={{ position: 'relative', padding: '0 5%' }}>
-            <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
-            <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
-            <div className="horizontal-scroll" ref={mainNewScrollRef}>
-              {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
-                    <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                  </div>
-                  <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {viewMode === "home" && !searchQuery && <h3 className="section-title">{currentCategoryName}</h3>}
-
+      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
@@ -245,6 +182,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -265,11 +203,11 @@ export default function Home() {
              </div>
              <div style={{ marginTop: '80px', position: 'relative' }}>
                 <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
-                <div className="horizontal-scroll" ref={similarScrollRef}>
+                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => scroll('left')}>❮</button>
+                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => scroll('right')}>❯</button>
+                <div className="horizontal-scroll" ref={scrollRef}>
                    {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center' }}>
                         <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                         </div>
@@ -282,11 +220,13 @@ export default function Home() {
         </div>
       )}
 
+      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
         </a>
       </div>
+
     </main>
   );
 }
