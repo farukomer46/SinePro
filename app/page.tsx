@@ -28,6 +28,13 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
+  // 🎯 Tıklanan kategorinin ismini belirleyen yardımcı fonksiyon
+  const currentCategoryName = useMemo(() => {
+    if (selectedGenre === null) return "TÜMÜ";
+    const genre = genres.find(g => g.id === selectedGenre);
+    return genre ? genre.name.toUpperCase() : "KEŞFET";
+  }, [selectedGenre, genres]);
+
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
     return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -72,7 +79,6 @@ export default function Home() {
       
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      // Yeni vizyonları her durumda çek (Sadece arama yoksa görünür olacak)
       if (!searchQuery) {
         const type = contentType === "movie" ? "now_playing" : "on_the_air";
         const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
@@ -107,7 +113,6 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 💥 KISIK TURKUAZ IŞILTI EFEKTİ */}
       <div style={{
         position: 'fixed',
         top: '50%',
@@ -138,10 +143,9 @@ export default function Home() {
         .side-nav-btn:hover { background: #66FCF1; color: #0B0C10; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
         
-        /* GÜNCELLENMİŞ BAŞLIK STİLİ */
         .section-title { 
           color: #66FCF1; 
-          padding: 0 10px; /* Boşluğu azalttım */
+          padding: 0 10px; 
           margin-top: 30px; 
           font-size: 20px; 
           letter-spacing: 1px; 
@@ -184,7 +188,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* KALICI YENİ VİZYONDAKİLER ŞERİDİ (Kategori seçilse de gitmez) */}
+      {/* KALICI YENİ VİZYONDAKİLER ŞERİDİ */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -205,7 +209,8 @@ export default function Home() {
         </div>
       )}
 
-      {viewMode === "home" && !searchQuery && <h3 className="section-title">KEŞFET</h3>}
+      {/* 🚀 DİNAMİK BAŞLIK: Seçilen kategoriye göre değişir */}
+      {viewMode === "home" && !searchQuery && <h3 className="section-title">{currentCategoryName}</h3>}
 
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
@@ -259,7 +264,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
