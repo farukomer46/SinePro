@@ -16,8 +16,6 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
-  const [cast, setCast] = useState<any[]>([]);
-  const [similar, setSimilar] = useState<any[]>([]);
   
   const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
@@ -100,17 +98,6 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
-  const fetchExtraDetails = async (id: number) => {
-    try {
-      const [castRes, similarRes] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } })
-      ]);
-      setCast(castRes.data.cast?.slice(0, 10) || []);
-      setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error(err); }
-  };
-
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
   const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
@@ -141,32 +128,32 @@ export default function Home() {
         
         .fav-badge { 
           position: absolute; 
-          top: 8px; 
-          right: 8px; 
-          width: 24px; 
-          height: 24px; 
+          top: 6px; 
+          right: 6px; 
+          width: 22px; 
+          height: 22px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 16px;
+          font-size: 14px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ GÜNCEL: KÜÇÜK, SİYAH KUTULU, BEYAZ YAZILI PUAN STİLİ */
+        /* 🎯 ⭐ ULTRA MİNİMAL: DAHA KÜÇÜK VE SOL ALTA KAYDIRILMIŞ PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
-          bottom: 8px; 
-          left: 8px; 
-          background: rgba(0,0,0,0.8); /* Siyah transparan arka plan */
-          color: #FFFFFF; /* Beyaz yazı rengi */
-          padding: 2px 6px; 
-          borderRadius: 4px; 
-          fontSize: 10px; /* Küçük yazı boyutu */
-          fontWeight: bold; 
-          letter-spacing: 0.3px;
+          bottom: 6px; /* Daha aşağıda */
+          left: 6px;   /* Daha solda */
+          background: rgba(0,0,0,0.85); 
+          color: #FFFFFF; 
+          padding: 1px 5px; /* Daha dar kutu */
+          borderRadius: 3px; 
+          fontSize: 9px; /* Daha küçük yazı */
+          fontWeight: 700; 
+          letter-spacing: 0.2px;
         }
       ` }} />
 
@@ -192,6 +179,7 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -210,7 +198,7 @@ export default function Home() {
             <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
             <div className="horizontal-scroll" ref={mainNewScrollRef}>
               {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                <div key={item.id} onClick={() => setSelectedItem(item)} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
@@ -230,7 +218,7 @@ export default function Home() {
 
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+          <div key={`${item.id}-${idx}`} onClick={() => setSelectedItem(item)} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
