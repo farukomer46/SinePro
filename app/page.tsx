@@ -166,7 +166,7 @@ export default function Home() {
           color: #0B0C10; /* Siyah yazı */
           padding: 2px 6px; 
           borderRadius: 4px; 
-          fontSize: 12px; /* Biraz büyütüldü */
+          fontSize: 5px; /* Biraz büyütüldü */
           fontWeight: 900; 
           box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         }
