@@ -52,7 +52,7 @@ export default function Home() {
 
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
-    return `https://image.tmdb.org/t/p/${size}${path}`;
+    return `https://image.tmdb.org/p/p/${size}${path}`;
   };
 
   useEffect(() => {
@@ -140,16 +140,31 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        .fav-badge { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; zIndex: 10; transition: 0.3s; cursor: pointer; }
+        
+        /* 🎯 YENİLENMİŞ KALP STİLİ (ARKASI ŞEFFAF) */
+        .fav-badge { 
+          position: absolute; 
+          top: 10px; 
+          right: 10px; 
+          width: 32px; 
+          height: 32px; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          z-index: 10; 
+          transition: 0.3s; 
+          cursor: pointer; 
+          font-size: 24px;
+          filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+        }
         .rating-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
       ` }} />
 
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          {/* PARILDAYAN AMBLEM */}
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102,252,241,0.6)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
@@ -159,7 +174,6 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* GENİŞ POPÜLER MENÜSÜ */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
@@ -181,7 +195,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* YENİ VİZYONDAKİLER (PUAN VE KALP EKLENDİ) */}
+      {/* YENİ VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -193,7 +207,7 @@ export default function Home() {
                 <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
                        {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
                     <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
@@ -214,7 +228,7 @@ export default function Home() {
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+              <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
               <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
