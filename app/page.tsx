@@ -145,13 +145,13 @@ export default function Home() {
         /* 🎯 ⭐ ULTRA MİNİMAL: DAHA KÜÇÜK VE SOL ALTA KAYDIRILMIŞ PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
-          bottom: 6px; /* Daha aşağıda */
+          bottom: 4px; /* Daha aşağıda */
           left: 6px;   /* Daha solda */
           background: rgba(0,0,0,0.85); 
           color: #FFFFFF; 
-          padding: 1px 5px; /* Daha dar kutu */
+          padding: 1px 3px; /* Daha dar kutu */
           borderRadius: 3px; 
-          fontSize: 9px; /* Daha küçük yazı */
+          fontSize: 4px; /* Daha küçük yazı */
           fontWeight: 700; 
           letter-spacing: 0.2px;
         }
