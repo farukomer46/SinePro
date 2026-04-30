@@ -17,7 +17,6 @@ export default function Home() {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   
-  const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
 
   const genres = useMemo(() => [
@@ -128,32 +127,31 @@ export default function Home() {
         
         .fav-badge { 
           position: absolute; 
-          top: 6px; 
-          right: 6px; 
-          width: 22px; 
-          height: 22px; 
+          top: 5px; 
+          right: 5px; 
+          width: 20px; 
+          height: 20px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 14px;
+          font-size: 12px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ ULTRA MİNİMAL: DAHA KÜÇÜK VE SOL ALTA KAYDIRILMIŞ PUAN STİLİ */
+        /* 🎯 ⭐ ULTRA MİNİ: EN KÜÇÜK VE KÖŞEYE SIFIR PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
-          bottom: 4px; /* Daha aşağıda */
-          left: 6px;   /* Daha solda */
-          background: rgba(0,0,0,0.85); 
+          bottom: 4px; /* Köşeye iyice yaklaştırıldı */
+          left: 4px;   /* Köşeye iyice yaklaştırıldı */
+          background: rgba(0,0,0,0.8); 
           color: #FFFFFF; 
-          padding: 1px 3px; /* Daha dar kutu */
-          borderRadius: 3px; 
-          fontSize: 4px; /* Daha küçük yazı */
-          fontWeight: 700; 
-          letter-spacing: 0.2px;
+          padding: 1px 4px; /* Minimum iç boşluk */
+          borderRadius: 2px; 
+          fontSize: 8px; /* Okunabilecek en küçük boyut */
+          fontWeight: 600; 
         }
       ` }} />
 
@@ -179,7 +177,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -189,7 +186,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* YENİ VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
