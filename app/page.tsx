@@ -34,23 +34,19 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
-  // 🚀 OTOMATİK KAYDIRMA MANTIĞI
+  // Otomatik Kaydırma
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
-
     const interval = setInterval(() => {
       if (mainNewScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-        
-        // Eğer sona yaklaştıysak başa dön, değilse bir sonraki film kadar kaydır
         if (scrollLeft + clientWidth >= scrollWidth - 10) {
           mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
           mainNewScrollRef.current.scrollTo({ left: scrollLeft + 200, behavior: 'smooth' });
         }
       }
-    }, 3000); // 3 saniyede bir kayar
-
+    }, 4000); 
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
 
@@ -95,7 +91,6 @@ export default function Home() {
         axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
         axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
       ]);
-      
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
       if (!searchQuery) {
@@ -103,7 +98,7 @@ export default function Home() {
         const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
         setNewReleases(newRes.data.results || []);
       }
-    } catch (err) { console.error("Veri hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchExtraDetails = async (id: number) => {
@@ -114,7 +109,7 @@ export default function Home() {
       ]);
       setCast(castRes.data.cast?.slice(0, 10) || []);
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error("Detay hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
@@ -132,55 +127,30 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '60vw',
-        height: '60vw',
-        maxWidth: '600px',
-        maxHeight: '600px',
-        background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0.01) 40%, rgba(102,252,241,0) 60%)',
-        borderRadius: '50%',
-        zIndex: 0,
-        pointerEvents: 'none',
-        animation: 'pulseGlow 7s infinite ease-in-out'
-      }} />
+      {/* ARKA PLAN IŞILTI */}
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes pulseGlow {
-          0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.05); }
-        }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.05); } }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
-        .hover-effect { transition: 0.4s ease; cursor: pointer; }
+        .hover-effect { transition: 0.4s ease; cursor: pointer; position: relative; }
         .hover-effect:hover { transform: translateY(-10px); box-shadow: 0 0 25px rgba(102, 252, 241, 0.4); }
         .horizontal-scroll { display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; padding: 10px 0; }
         .horizontal-scroll::-webkit-scrollbar { display: none; }
-        .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.3s; border-radius: 4px; }
-        .side-nav-btn:hover { background: #66FCF1; color: #0B0C10; }
-        .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        
-        .section-title { 
-          color: #66FCF1; 
-          padding: 0 10px; 
-          margin-top: 30px; 
-          font-size: 20px; 
-          letter-spacing: 1px; 
-          border-left: 4px solid #66FCF1; 
-          margin-left: 5%; 
-          font-weight: 900; 
-          display: flex;
-          align-items: center;
-        }
+        .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
+        .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
+        .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
+        .fav-badge { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; zIndex: 10; transition: 0.3s; cursor: pointer; }
+        .rating-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+          {/* PARILDAYAN AMBLEM */}
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
@@ -189,15 +159,19 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {/* GENİŞ POPÜLER MENÜSÜ */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
+            <option value="primary_release_date.desc">📅 En Yeniler</option>
             <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
+      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -207,7 +181,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER ŞERİDİ */}
+      {/* YENİ VİZYONDAKİLER (PUAN VE KALP EKLENDİ) */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -217,8 +191,12 @@ export default function Home() {
             <div className="horizontal-scroll" ref={mainNewScrollRef}>
               {newReleases.map((item) => (
                 <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
+                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                    </div>
+                    <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
                   <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
@@ -228,23 +206,25 @@ export default function Home() {
         </div>
       )}
 
-      {viewMode === "home" && !searchQuery && <h3 className="section-title">{currentCategoryName}</h3>}
+      <h3 className="section-title">{currentCategoryName}</h3>
 
+      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
-            <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+            <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+              <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-              <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
+              <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
           </div>
         ))}
       </div>
 
+      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -270,7 +250,7 @@ export default function Home() {
                 <div className="horizontal-scroll" ref={similarScrollRef}>
                    {similar.map((s) => (
                      <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
+                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                         </div>
                         <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
@@ -282,6 +262,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
