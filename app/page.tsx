@@ -16,7 +16,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
-  const [similar, setSimilar] = useState<any[]>([]); // Benzer filmler state'i
+  const [similar, setSimilar] = useState<any[]>([]); 
   
   const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
@@ -33,7 +33,6 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
-  // Otomatik Kaydırma
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -51,7 +50,7 @@ export default function Home() {
 
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
-    return `https://image.tmdb.org/t/p/${size}${path}`;
+    return `https://image.tmdb.org/p/original${path}`;
   };
 
   useEffect(() => {
@@ -77,7 +76,6 @@ export default function Home() {
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
   };
 
-  // Ana veri çekme fonksiyonu (Liste ve Trendler)
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
@@ -101,17 +99,13 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
-  // Modal açıldığında ek detayları ve benzer filmleri çekme
   const fetchModalDetails = async (item: any) => {
-    setSelectedItem(item); // Önce temel veriyi ayarla
-    setSimilar([]); // Önceki benzerleri temizle
+    setSelectedItem(item);
+    setSimilar([]);
     try {
-      // 🎯 SEVEBİLECEĞİN FİLMLER BURADA ÇEKİLİYOR
       const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${item.id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { 
-      console.error("Detaylar çekilemedi:", err); 
-    }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
@@ -142,22 +136,22 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 KALP ESKİ HALİ (BÜYÜK VE CANLI) */
+        /* 💖 GÜNCELLENMİŞ: DAHA KÜÇÜK VE SAYDAM KALP */
         .fav-badge { 
           position: absolute; 
-          top: 10px; 
-          right: 10px; 
-          width: 35px; 
-          height: 35px; 
+          top: 8px; 
+          right: 8px; 
+          width: 28px; 
+          height: 28px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 24px;
-          filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
-          background: rgba(0,0,0,0.3);
+          font-size: 18px;
+          filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+          background: rgba(0,0,0,0.2); /* Siyah arka plan daha saydam yapıldı */
           border-radius: 50%;
         }
 
@@ -175,7 +169,6 @@ export default function Home() {
         }
       ` }} />
 
-      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.5))' }} onClick={() => window.location.reload()}>
@@ -189,9 +182,8 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* POPÜLER KISMI (ZENGİN MENÜ ESKİSİ GİBİ) */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler (Popüler)</option>
+            <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
             <option value="primary_release_date.desc">📅 En Yeniler</option>
             <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
@@ -210,7 +202,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* YENİ VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -252,7 +243,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -272,7 +262,6 @@ export default function Home() {
                 </div>
              </div>
 
-             {/* 🎯 SEVEBİLECEĞİNİZ FİLMLER KISMI (GERİ GELDİ VE ÇALIŞIYOR) */}
              {similar.length > 0 && (
                 <div style={{ marginTop: '80px', position: 'relative' }}>
                     <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
