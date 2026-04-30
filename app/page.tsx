@@ -126,7 +126,6 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      {/* ARKA PLAN IŞILTI */}
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -140,7 +139,6 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 KALP */
         .fav-badge { 
           position: absolute; 
           top: 8px; 
@@ -153,26 +151,25 @@ export default function Home() {
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 18px;
+          font-size: 16px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
 
-        /* 🎯 ⭐ YENİ: KÜÇÜK, BEYAZ VE NET PUAN STİLİ */
+        /* 🎯 ⭐ GÜNCEL: KÜÇÜK, SİYAH KUTULU, BEYAZ YAZILI PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
-          bottom: 10px; 
-          left: 10px; 
-          background: rgba(255,255,255,0.9); /* Beyaz arka plan */
-          color: #0B0C10; /* Siyah yazı */
+          bottom: 8px; 
+          left: 8px; 
+          background: rgba(0,0,0,0.8); /* Siyah transparan arka plan */
+          color: #FFFFFF; /* Beyaz yazı rengi */
           padding: 2px 6px; 
           borderRadius: 4px; 
-          fontSize: 5px; /* Biraz büyütüldü */
-          fontWeight: 900; 
-          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          fontSize: 10px; /* Küçük yazı boyutu */
+          fontWeight: bold; 
+          letter-spacing: 0.3px;
         }
       ` }} />
 
-      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
@@ -190,14 +187,11 @@ export default function Home() {
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
             <option value="primary_release_date.desc">📅 En Yeniler</option>
-            <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
-            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -234,7 +228,6 @@ export default function Home() {
 
       <h3 className="section-title">{currentCategoryName}</h3>
 
-      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
@@ -250,7 +243,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* MODAL VE DİĞERLERİ */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -269,26 +261,10 @@ export default function Home() {
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
                 </div>
              </div>
-             <div style={{ marginTop: '80px', position: 'relative' }}>
-                <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
-                <div className="horizontal-scroll" ref={similarScrollRef}>
-                   {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
-                           <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                        </div>
-                        <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
-                     </div>
-                   ))}
-                </div>
-             </div>
           </div>
         </div>
       )}
 
-      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
