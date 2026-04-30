@@ -34,7 +34,6 @@ export default function Home() {
     return genre ? genre.name.toUpperCase() : "KEŞFET";
   }, [selectedGenre, genres]);
 
-  // Otomatik Kaydırma
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -50,7 +49,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
 
-  // 🛠 GÜNCELLENMİŞ: Görsellerin gelmesi için URL yapısı düzeltildi
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
     return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -128,7 +126,6 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      {/* ARKA PLAN IŞILTI */}
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -142,7 +139,7 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 🎯 KÜÇÜLTÜLMÜŞ KALP STİLİ */
+        /* 💖 KÜÇÜK VE ŞEFFAF KALP */
         .fav-badge { 
           position: absolute; 
           top: 8px; 
@@ -158,13 +155,23 @@ export default function Home() {
           font-size: 18px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
         }
-        .rating-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
+
+        /* ⭐ ESKİ NEON PUAN STİLİ */
+        .rating-badge { 
+          position: absolute; 
+          bottom: 10px; 
+          left: 10px; 
+          color: #66FCF1; 
+          fontSize: 12px; 
+          fontWeight: bold; 
+          text-shadow: 0 0 8px rgba(102, 252, 241, 0.8), 1px 1px 2px rgba(0,0,0,1);
+        }
       ` }} />
 
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102,252,241,0.5))' }} onClick={() => window.location.reload()}>
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.5))' }} onClick={() => window.location.reload()}>
              <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
@@ -186,7 +193,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
