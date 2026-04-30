@@ -19,7 +19,6 @@ export default function Home() {
   const [cast, setCast] = useState<any[]>([]);
   const [similar, setSimilar] = useState<any[]>([]);
   
-  // Kaydırma Referansları
   const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
 
@@ -73,13 +72,13 @@ export default function Home() {
       
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      // Yeni vizyonları sadece ana sayfa modunda çek
-      if (!searchQuery && !selectedGenre) {
+      // Yeni vizyonları her durumda çek (Sadece arama yoksa görünür olacak)
+      if (!searchQuery) {
         const type = contentType === "movie" ? "now_playing" : "on_the_air";
         const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
         setNewReleases(newRes.data.results || []);
       }
-    } catch (err) { console.error("Veri çekme hatası:", err); }
+    } catch (err) { console.error("Veri hatası:", err); }
   };
 
   const fetchExtraDetails = async (id: number) => {
@@ -95,7 +94,6 @@ export default function Home() {
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
-  // Merkezi Kaydırma Fonksiyonu
   const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
     if (ref.current) {
       const { scrollLeft, clientWidth } = ref.current;
@@ -109,6 +107,7 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
+      {/* 💥 KISIK TURKUAZ IŞILTI EFEKTİ */}
       <div style={{
         position: 'fixed',
         top: '50%',
@@ -138,7 +137,20 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.3s; border-radius: 4px; }
         .side-nav-btn:hover { background: #66FCF1; color: #0B0C10; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .section-title { color: #66FCF1; padding: 0 5%; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
+        
+        /* GÜNCELLENMİŞ BAŞLIK STİLİ */
+        .section-title { 
+          color: #66FCF1; 
+          padding: 0 10px; /* Boşluğu azalttım */
+          margin-top: 30px; 
+          font-size: 20px; 
+          letter-spacing: 1px; 
+          border-left: 4px solid #66FCF1; 
+          margin-left: 5%; 
+          font-weight: 900; 
+          display: flex;
+          align-items: center;
+        }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
@@ -172,8 +184,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* YENİ VİZYONDAKİLER ŞERİDİ */}
-      {viewMode === "home" && !searchQuery && !selectedGenre && newReleases.length > 0 && (
+      {/* KALICI YENİ VİZYONDAKİLER ŞERİDİ (Kategori seçilse de gitmez) */}
+      {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
           <div style={{ position: 'relative', padding: '0 5%' }}>
@@ -247,6 +259,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
