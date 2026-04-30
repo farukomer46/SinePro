@@ -16,7 +16,9 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
+  const [similar, setSimilar] = useState<any[]>([]);
   
+  const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
 
   const genres = useMemo(() => [
@@ -57,6 +59,10 @@ export default function Home() {
     if (saved) setFavorites(JSON.parse(saved));
   }, []);
 
+  useEffect(() => {
+    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
+  }, [selectedItem, mounted]);
+
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
     let updated;
@@ -93,6 +99,13 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
+  const fetchExtraDetails = async (id: number) => {
+    try {
+      const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
+      setSimilar(similarRes.data.results?.slice(0, 15) || []);
+    } catch (err) { console.error(err); }
+  };
+
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
   const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
@@ -121,24 +134,25 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 KALP STİLİ (DEĞİŞTİRİLMEDİ) */
+        /* 💖 KALP ESKİ HALİ (BÜYÜK VE CANLI) */
         .fav-badge { 
           position: absolute; 
-          top: 3px; 
-          right: 3px; 
-          width: 16px; 
-          height: 16px; 
+          top: 10px; 
+          right: 10px; 
+          width: 32px; 
+          height: 32px; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
           z-index: 10; 
           transition: 0.3s; 
           cursor: pointer; 
-          font-size: 10px;
+          font-size: 22px;
           filter: drop-shadow(0 0 5px rgba(0,0,0,0.8));
+          background: rgba(0,0,0,0.3);
+          border-radius: 50%;
         }
 
-        /* 🎯 ⭐ MİKRO PUAN STİLİ */
         .rating-badge { 
           position: absolute; 
           bottom: 2px; 
@@ -147,17 +161,18 @@ export default function Home() {
           color: #FFFFFF; 
           padding: 0.5px 3px; 
           borderRadius: 2px; 
-          fontSize: 7px; /* Mikro boyut */
+          fontSize: 7px; 
           fontWeight: 700; 
           line-height: 1;
         }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 8px rgba(102, 252, 241, 0.5))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
@@ -166,14 +181,28 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {/* POPÜLER KISMI (ZENGİNLEŞTİRİLDİ) */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler</option>
+            <option value="popularity.desc">🔥 Popüler (Trend)</option>
             <option value="vote_average.desc">⭐ En Yüksek Puan</option>
+            <option value="primary_release_date.desc">📅 En Yeni Eklenenler</option>
+            <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+            <option value="vote_count.desc">🗣️ En Çok Yorumlanan</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
+      {viewMode === "home" && !searchQuery && (
+        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
+          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
+          {genres.map(g => (
+            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
+          ))}
+        </div>
+      )}
+
+      {/* YENİ VİZYONDAKİLER */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
@@ -182,7 +211,7 @@ export default function Home() {
             <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
             <div className="horizontal-scroll" ref={mainNewScrollRef}>
               {newReleases.map((item) => (
-                <div key={item.id} onClick={() => setSelectedItem(item)} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
@@ -202,7 +231,7 @@ export default function Home() {
 
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => setSelectedItem(item)} style={{ textAlign: 'center' }}>
+          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
               <div onClick={(e) => toggleFavorite(e, item)} className="fav-badge">
@@ -231,6 +260,23 @@ export default function Home() {
                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
                    <p style={{ color: '#66FCF1', fontSize: '20px' }}>★ {selectedItem.vote_average?.toFixed(1)}</p>
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
+                </div>
+             </div>
+
+             {/* 🎯 SEVEBİLECEĞİNİZ FİLMLER KISMI (GERİ GELDİ) */}
+             <div style={{ marginTop: '80px', position: 'relative' }}>
+                <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
+                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
+                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
+                <div className="horizontal-scroll" ref={similarScrollRef}>
+                   {similar.map((s) => (
+                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px' }}>
+                           <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                        </div>
+                        <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
+                     </div>
+                   ))}
                 </div>
              </div>
           </div>
