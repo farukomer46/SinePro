@@ -28,7 +28,7 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
-  // 🎯 Kategori ismini dinamik yazdıran yardımcı
+  // 🎯 Sadece tür ismini yazdıran yardımcı (KEŞFET yazısı kaldırıldı)
   const getGenreName = () => {
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "TÜMÜ";
@@ -92,7 +92,6 @@ export default function Home() {
       ]);
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      // 🎯 Otomatik kayma farklı türlerde değişmesin (Hep Genel Popüler Kalsın)
       if (!searchQuery && newReleases.length === 0) {
         const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR`;
         const resCarousel = await axios.get(carouselUrl, { headers: { Authorization: API_TOKEN } });
@@ -135,7 +134,9 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.2); width: 28px; height: 28px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 18px; }
+        
+        /* 💖 GÜNCELLEME: KALBİN ARKASI DAHA SAYDAM (SİYAH KISIM SIFIRA YAKIN) */
+        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); width: 28px; height: 28px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 18px; }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
@@ -168,7 +169,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN ŞERİT (Sabit Popülerlik) */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">ÖNE ÇIKANLAR</h3>
@@ -193,8 +193,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎯 Dinamik Keşfet Başlığı */}
-      <h3 className="section-title">KEŞFET: {getGenreName()}</h3>
+      {/* 🎯 Başlık sadece tür adını yazacak */}
+      <h3 className="section-title">{getGenreName()}</h3>
 
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
