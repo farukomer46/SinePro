@@ -133,31 +133,15 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        
-        /* 💖 GÜNCELLEME: KALBİN ARKASI TAMAMEN SAYDAMLAŞTIRILDI */
-        .fav-heart-btn { 
-          position: absolute; 
-          top: 10px; 
-          right: 10px; 
-          background: transparent; /* Siyahlık tamamen kaldırıldı */
-          width: 32px; 
-          height: 32px; 
-          borderRadius: 50%; 
-          display: flex; 
-          alignItems: center; 
-          justify-content: center; 
-          z-index: 10; 
-          transition: 0.3s; 
-          font-size: 22px;
-          text-shadow: 0 0 5px rgba(0,0,0,0.8); /* Kalbin görünür kalması için hafif gölge */
-        }
+        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+          {/* 🎯 GÜNCELLEME: AMBLEM ARKASI PARILDASIN (GLOW EFEKTİ) */}
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
@@ -166,9 +150,13 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          {/* 🎯 GÜNCELLEME: POPÜLER KISMINA ZENGİN SEÇENEKLER EKLENDİ */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler</option>
-            <option value="vote_average.desc">⭐ Puan</option>
+            <option value="popularity.desc">🔥 Trendler (Popüler)</option>
+            <option value="vote_average.desc">⭐ En Yüksek Puan</option>
+            <option value="primary_release_date.desc">📅 En Yeniler</option>
+            <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
