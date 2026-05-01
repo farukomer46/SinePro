@@ -28,7 +28,6 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
-  // 🎯 Sadece tür ismini yazdıran yardımcı (KEŞFET yazısı kaldırıldı)
   const getGenreName = () => {
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "TÜMÜ";
@@ -135,8 +134,23 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         
-        /* 💖 GÜNCELLEME: KALBİN ARKASI DAHA SAYDAM (SİYAH KISIM SIFIRA YAKIN) */
-        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.1); width: 28px; height: 28px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 18px; }
+        /* 💖 GÜNCELLEME: KALBİN ARKASI TAMAMEN SAYDAMLAŞTIRILDI */
+        .fav-heart-btn { 
+          position: absolute; 
+          top: 10px; 
+          right: 10px; 
+          background: transparent; /* Siyahlık tamamen kaldırıldı */
+          width: 32px; 
+          height: 32px; 
+          borderRadius: 50%; 
+          display: flex; 
+          alignItems: center; 
+          justify-content: center; 
+          z-index: 10; 
+          transition: 0.3s; 
+          font-size: 22px;
+          text-shadow: 0 0 5px rgba(0,0,0,0.8); /* Kalbin görünür kalması için hafif gölge */
+        }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
@@ -193,7 +207,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎯 Başlık sadece tür adını yazacak */}
       <h3 className="section-title">{getGenreName()}</h3>
 
       <div className="movie-grid">
