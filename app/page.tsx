@@ -28,6 +28,12 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
+  // 🎯 Kategori ismini dinamik yazdıran yardımcı
+  const getGenreName = () => {
+    const genre = genres.find(g => g.id === selectedGenre);
+    return genre ? genre.name.toUpperCase() : "TÜMÜ";
+  };
+
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
     return `https://image.tmdb.org/t/p/${size}${path}`;
@@ -86,8 +92,9 @@ export default function Home() {
       ]);
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      if (!searchQuery) {
-        const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&language=tr-TR`;
+      // 🎯 Otomatik kayma farklı türlerde değişmesin (Hep Genel Popüler Kalsın)
+      if (!searchQuery && newReleases.length === 0) {
+        const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR`;
         const resCarousel = await axios.get(carouselUrl, { headers: { Authorization: API_TOKEN } });
         setNewReleases(resCarousel.data.results || []);
       }
@@ -128,10 +135,9 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; }
+        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.2); width: 28px; height: 28px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 18px; }
       ` }} />
 
-      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
@@ -148,13 +154,11 @@ export default function Home() {
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
             <option value="vote_average.desc">⭐ Puan</option>
-            <option value="primary_release_date.desc">📅 Yeni</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
-      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -164,7 +168,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN ŞERİT */}
+      {/* OTOMATİK KAYAN ŞERİT (Sabit Popülerlik) */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">ÖNE ÇIKANLAR</h3>
@@ -176,7 +180,7 @@ export default function Home() {
                 <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
                        {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
                     <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
@@ -189,15 +193,15 @@ export default function Home() {
         </div>
       )}
 
-      <h3 className="section-title">KEŞFET</h3>
+      {/* 🎯 Dinamik Keşfet Başlığı */}
+      <h3 className="section-title">KEŞFET: {getGenreName()}</h3>
 
-      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+              <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
               <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
@@ -207,7 +211,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -219,10 +222,9 @@ export default function Home() {
           </div>
           <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px' }}>
              <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-                {/* 🎯 MODALDAKİ AFİŞ VE KALP */}
                 <div style={{ position: 'relative' }}>
                     <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: '1px solid #333' }} alt="" />
-                    <div onClick={(e) => toggleFavorite(e, selectedItem)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === selectedItem.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', cursor: 'pointer' }}>
+                    <div onClick={(e) => toggleFavorite(e, selectedItem)} className="fav-heart-btn" style={{ cursor: 'pointer' }}>
                        {favorites.find(f => f.id === selectedItem.id) ? '❤️' : '🤍'}
                     </div>
                 </div>
@@ -251,7 +253,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
