@@ -9,7 +9,7 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<any[]>([]); 
-  const [newReleases, setNewReleases] = useState<any[]>([]); // Üst şerit için
+  const [newReleases, setNewReleases] = useState<any[]>([]); // Kategorinin altındaki otomatik kayan kısım
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [contentType, setContentType] = useState<"movie" | "tv">("movie");
@@ -33,7 +33,7 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
-  // Otomatik Kaydırma (Autoplay) Mantığı
+  // 🎯 OTOMATİK KAYDIRMA (3 saniyede bir sağa kayar)
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -87,10 +87,11 @@ export default function Home() {
       ]);
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
-      // Üst şerit için "Yeni/Popüler" verisi
+      // Üstteki otomatik kayan şerit için veriyi çek
       if (!searchQuery) {
-        const newRes = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&language=tr-TR`, { headers: { Authorization: API_TOKEN } });
-        setNewReleases(newRes.data.results || []);
+        const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&language=tr-TR`;
+        const resCarousel = await axios.get(carouselUrl, { headers: { Authorization: API_TOKEN } });
+        setNewReleases(resCarousel.data.results || []);
       }
     } catch (err) { console.error(err); }
   };
@@ -129,7 +130,6 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        .rating-badge { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
       ` }} />
 
       {/* NAVBAR */}
@@ -165,7 +165,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎯 OTOMATİK KAYAN ŞERİT (KATEGORİYE ÖZEL) */}
+      {/* 🎯 OTOMATİK KAYAN KATEGORİ ŞERİDİ */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
           <h3 className="section-title">ÖNE ÇIKANLAR</h3>
@@ -177,7 +177,8 @@ export default function Home() {
                 <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer' }}>
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
+                    {/* ✅ PUAN STİLİ ESKİSİ GİBİ */}
+                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
                   </div>
                   <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
@@ -198,7 +199,8 @@ export default function Home() {
               <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-              <div className="rating-badge">★ {item.vote_average?.toFixed(1)}</div>
+              {/* ✅ PUAN STİLİ ESKİSİ GİBİ */}
+              <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
           </div>
@@ -224,8 +226,6 @@ export default function Home() {
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
                 </div>
              </div>
-             
-             {/* BENZER FİLMLER */}
              <div style={{ marginTop: '80px', position: 'relative' }}>
                 <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'left')}>❮</button>
