@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
@@ -16,48 +17,36 @@ export default function Home() {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
-  const [cast, setCast] = useState<any[]>([]);
   const [similar, setSimilar] = useState<any[]>([]);
   
-  const similarScrollRef = useRef<HTMLDivElement>(null);
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
 
   const genres = useMemo(() => [
-    { id: 28, name: "Aksiyon" }, { id: 12, name: "Macera" }, { id: 35, name: "Komedi" },
+    { id: 28, name: "Aksiyon" }, { id: 35, name: "Komedi" },
     { id: 27, name: "Korku" }, { id: 878, name: "Bilim Kurgu" },
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
-
-  const currentCategoryName = useMemo(() => {
-    if (selectedGenre === null) return "TÜMÜ";
-    const genre = genres.find(g => g.id === selectedGenre);
-    return genre ? genre.name.toUpperCase() : "KEŞFET";
-  }, [selectedGenre, genres]);
-
-  // 🚀 OTOMATİK KAYDIRMA MANTIĞI
-  useEffect(() => {
-    if (!mounted || searchQuery || viewMode === "favorites") return;
-
-    const interval = setInterval(() => {
-      if (mainNewScrollRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-        
-        // Eğer sona yaklaştıysak başa dön, değilse bir sonraki film kadar kaydır
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          mainNewScrollRef.current.scrollTo({ left: scrollLeft + 200, behavior: 'smooth' });
-        }
-      }
-    }, 3000); // 3 saniyede bir kayar
-
-    return () => clearInterval(interval);
-  }, [mounted, newReleases, searchQuery, viewMode]);
 
   const getImgUrl = (path: string | null, size: string = "w500") => {
     if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
+
+  useEffect(() => {
+    if (!mounted || searchQuery || viewMode === "favorites") return;
+    const interval = setInterval(() => {
+      if (mainNewScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
+        if (scrollLeft + clientWidth >= scrollWidth - 10) {
+          mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          mainNewScrollRef.current.scrollTo({ left: scrollLeft + 220, behavior: 'smooth' });
+        }
+      }
+    }, 3000); 
+    return () => clearInterval(interval);
+  }, [mounted, newReleases, searchQuery, viewMode]);
 
   useEffect(() => {
     setMounted(true);
@@ -95,26 +84,21 @@ export default function Home() {
         axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
         axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
       ]);
-      
       setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
 
       if (!searchQuery) {
-        const type = contentType === "movie" ? "now_playing" : "on_the_air";
-        const newRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${type}?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
-        setNewReleases(newRes.data.results || []);
+        const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&language=tr-TR`;
+        const resCarousel = await axios.get(carouselUrl, { headers: { Authorization: API_TOKEN } });
+        setNewReleases(resCarousel.data.results || []);
       }
-    } catch (err) { console.error("Veri hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchExtraDetails = async (id: number) => {
     try {
-      const [castRes, similarRes] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } })
-      ]);
-      setCast(castRes.data.cast?.slice(0, 10) || []);
+      const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error("Detay hatası:", err); }
+    } catch (err) { console.error(err); }
   };
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
@@ -132,54 +116,26 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
       
-      <div style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: '60vw',
-        height: '60vw',
-        maxWidth: '600px',
-        maxHeight: '600px',
-        background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0.01) 40%, rgba(102,252,241,0) 60%)',
-        borderRadius: '50%',
-        zIndex: 0,
-        pointerEvents: 'none',
-        animation: 'pulseGlow 7s infinite ease-in-out'
-      }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes pulseGlow {
-          0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); }
-          50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.05); }
-        }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.2; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.05); } }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
-        .hover-effect { transition: 0.4s ease; cursor: pointer; }
+        .hover-effect { transition: 0.4s ease; cursor: pointer; position: relative; }
         .hover-effect:hover { transform: translateY(-10px); box-shadow: 0 0 25px rgba(102, 252, 241, 0.4); }
         .horizontal-scroll { display: flex; gap: 20px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; padding: 10px 0; }
         .horizontal-scroll::-webkit-scrollbar { display: none; }
-        .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: 0.3s; border-radius: 4px; }
-        .side-nav-btn:hover { background: #66FCF1; color: #0B0C10; }
-        .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        
-        .section-title { 
-          color: #66FCF1; 
-          padding: 0 10px; 
-          margin-top: 30px; 
-          font-size: 20px; 
-          letter-spacing: 1px; 
-          border-left: 4px solid #66FCF1; 
-          margin-left: 5%; 
-          font-weight: 900; 
-          display: flex;
-          align-items: center;
-        }
+        .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
+        .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
+        .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
+        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900' }}>SİNE</span>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
           </div>
           <div style={{ display: 'flex', gap: '15px' }}>
@@ -191,13 +147,14 @@ export default function Home() {
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
             <option value="popularity.desc">🔥 Trendler</option>
-            <option value="vote_average.desc">⭐ En Yüksek Puan</option>
-            <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
+            <option value="vote_average.desc">⭐ Puan</option>
+            <option value="primary_release_date.desc">📅 Yeni</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
       </nav>
 
+      {/* KATEGORİLER */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -207,18 +164,22 @@ export default function Home() {
         </div>
       )}
 
-      {/* OTOMATİK KAYAN YENİ VİZYONDAKİLER ŞERİDİ */}
+      {/* OTOMATİK KAYAN ŞERİT */}
       {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
         <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
-          <h3 className="section-title">YENİ VİZYONA GİRENLER</h3>
+          <h3 className="section-title">ÖNE ÇIKANLAR</h3>
           <div style={{ position: 'relative', padding: '0 5%' }}>
             <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
             <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
             <div className="horizontal-scroll" ref={mainNewScrollRef}>
               {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
+                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
+                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                    </div>
+                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
                   </div>
                   <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
@@ -228,14 +189,15 @@ export default function Home() {
         </div>
       )}
 
-      {viewMode === "home" && !searchQuery && <h3 className="section-title">{currentCategoryName}</h3>}
+      <h3 className="section-title">KEŞFET</h3>
 
+      {/* ANA LİSTE */}
       <div className="movie-grid">
         {(viewMode === "home" ? items : favorites).map((item, idx) => (
           <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
             <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+              <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === item.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)' }}>
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
               <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
@@ -245,6 +207,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -256,7 +219,13 @@ export default function Home() {
           </div>
           <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px' }}>
              <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: '1px solid #333' }} alt="" />
+                {/* 🎯 MODALDAKİ AFİŞ VE KALP */}
+                <div style={{ position: 'relative' }}>
+                    <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: '1px solid #333' }} alt="" />
+                    <div onClick={(e) => toggleFavorite(e, selectedItem)} className="fav-heart-btn" style={{ background: favorites.find(f => f.id === selectedItem.id) ? '#FF4B2B' : 'rgba(0,0,0,0.5)', cursor: 'pointer' }}>
+                       {favorites.find(f => f.id === selectedItem.id) ? '❤️' : '🤍'}
+                    </div>
+                </div>
                 <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
                    <p style={{ color: '#66FCF1', fontSize: '20px' }}>★ {selectedItem.vote_average?.toFixed(1)}</p>
@@ -265,11 +234,11 @@ export default function Home() {
              </div>
              <div style={{ marginTop: '80px', position: 'relative' }}>
                 <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(similarScrollRef, 'right')}>❯</button>
-                <div className="horizontal-scroll" ref={similarScrollRef}>
+                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'left')}>❮</button>
+                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'right')}>❯</button>
+                <div className="horizontal-scroll" ref={modalScrollRef}>
                    {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
+                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center' }}>
                         <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                         </div>
@@ -282,11 +251,13 @@ export default function Home() {
         </div>
       )}
 
+      {/* BAĞIŞ BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
         </a>
       </div>
+      <SpeedInsights />
     </main>
   );
 }
