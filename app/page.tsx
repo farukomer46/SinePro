@@ -17,12 +17,13 @@ export default function Home() {
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
+  const [viewMode, setViewMode] = useState<"home" | "favorites" | "my_comments">("home");
   const [similar, setSimilar] = useState<any[]>([]);
   
   const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
   const [commentRating, setCommentRating] = useState<number>(10);
+  const [commentsSort, setCommentsSort] = useState("newest"); // 🕒 Yorum Filtreleme State'i
 
   // 🔐 GİRİŞ & PROFİL SİSTEMİ STATELERİ
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -44,7 +45,7 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
-  // 🛡️ AUTH (EMAILJS)
+  // 🛡️ AUTH FONKSİYONLARI
   const sendVerificationEmail = async (email: string, code: string) => {
     try {
       const serviceID = "service_9d5qlk9";    
@@ -67,7 +68,7 @@ export default function Home() {
   const handleVerifyAndFinish = () => {
     if (verificationCode === generatedCode) {
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      const newUser = { ...formData, id: Date.now(), joined: new Date().toLocaleDateString('tr-TR') };
+      const newUser = { ...formData, id: Date.now(), joined: new Date().toLocaleDateString('tr-TR'), avatar: "default" };
       users.push(newUser);
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
       setAuthMode("login");
@@ -92,6 +93,16 @@ export default function Home() {
     setViewMode("home");
   };
 
+  const saveProfileSettings = () => {
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? currentUser : u);
+    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+    localStorage.setItem("sinepro_active_session", JSON.stringify(currentUser));
+    setShowProfileSettings(false);
+    alert("Profil başarıyla güncellendi!");
+  };
+
+  // 🔄 VERİ ÇEKME & DİĞER FONKSİYONLAR
   const getGenreName = () => {
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "TÜMÜ";
@@ -111,18 +122,18 @@ export default function Home() {
   };
 
   const addComment = () => {
-    if (!currentUser) {
-        setShowLogin(true);
-        return;
-    }
+    if (!currentUser) return setShowLogin(true);
     if (!newComment.trim()) return;
     const itemID = selectedItem.id;
     const commentObj = {
       id: Date.now(),
-      user: currentUser.username, // Değiştirildi
+      user: currentUser.username,
+      avatar: currentUser.avatar,
       text: newComment,
       rating: commentRating,
-      date: new Date().toLocaleDateString('tr-TR')
+      date: new Date().toLocaleDateString('tr-TR'),
+      itemTitle: selectedItem.title || selectedItem.name, // Hangi filme yapıldığı
+      itemID: selectedItem.id
     };
     const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
     setComments(updatedComments);
@@ -132,10 +143,7 @@ export default function Home() {
   };
 
   const deleteComment = (itemID: number, commentID: number) => {
-    const updatedComments = { 
-      ...comments, 
-      [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) 
-    };
+    const updatedComments = { ...comments, [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) };
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
   };
@@ -149,7 +157,6 @@ export default function Home() {
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedComments) setComments(JSON.parse(savedComments));
 
-    // Menü dışına tıklanınca kapatma
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowUserDropdown(false);
@@ -158,10 +165,6 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
-  }, [selectedItem, mounted]);
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
@@ -177,7 +180,7 @@ export default function Home() {
   };
 
   const fetchData = async () => {
-    if (!mounted || viewMode === "favorites") return;
+    if (!mounted || viewMode === "favorites" || viewMode === "my_comments") return;
     try {
       const getUrl = (page: number) => searchQuery 
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
@@ -216,12 +219,29 @@ export default function Home() {
     }
   };
 
-  // 🎨 AVATAR BİLEŞENİ (YENİ)
-  const UserAvatar = ({ name, size = "35px", fontSize = "14px" }: any) => (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize, textTransform: 'uppercase' }}>
-      {name?.charAt(0) || "?"}
-    </div>
-  );
+  // 💬 Kullanıcının Yorumlarını Getir ve Filtrele
+  const getMyComments = () => {
+    let myComments: any[] = [];
+    if (currentUser) {
+        Object.values(comments).forEach((itemComments: any) => {
+            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
+        });
+        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
+    }
+    return myComments;
+  };
+
+  // 🎨 AVATAR BİLEŞENİ (RESİM DESTEKLİ)
+  const UserAvatar = ({ user, size = "35px", fontSize = "14px" }: any) => {
+    if (user?.avatar && user.avatar !== "default") {
+        return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '2px solid #66FCF1' }} alt="" />;
+    }
+    return (
+        <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize, textTransform: 'uppercase' }}>
+        {user?.username?.charAt(0) || "?"}
+        </div>
+    );
+  };
 
   if (!mounted) return null;
 
@@ -248,27 +268,13 @@ export default function Home() {
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 8px rgba(0,0,0,1); }
         .comment-box { background: #1F2833; border-radius: 10px; padding: 15px; border-left: 3px solid #66FCF1; position: relative; }
-        
-        /* 🎯 GÜNCELLEME: PUAN KUTUCUĞU OKUNUR BOYUTA GETİRİLDİ (11px) */
-        .rating-badge-pro { 
-          position: absolute; 
-          bottom: 10px; 
-          left: 10px; 
-          background: rgba(0,0,0,0.8); 
-          color: #66FCF1; 
-          padding: 2px 8px; 
-          border-radius: 4px; 
-          font-size: 11px; 
-          font-weight: bold;
-          pointer-events: none;
-        }
+        .rating-badge-pro { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; pointer-events: none; }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div onClick={() => window.location.reload()} style={{ cursor: 'pointer' }}>
-             <SineProLogo />
-          </div>
+          <SineProLogo onClick={() => { setViewMode("home"); setSearchQuery(""); }} style={{ cursor: 'pointer' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -283,19 +289,18 @@ export default function Home() {
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
           
-          {/* DEĞİŞİKLİK 1: GİRİŞ BUTONU VE DROPDOWN */}
           {currentUser ? (
             <div style={{ position: 'relative' }} ref={dropdownRef}>
-              <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#1F2833', padding: '5px 12px', borderRadius: '25px', border: '1px solid #333' }}>
+              <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#1F2833', padding: '5px 12px', borderRadius: '25px', border: '1px solid #45A29E' }}>
                 <span style={{ color: '#66FCF1', fontWeight: 'bold' }}>{currentUser.username}</span>
-                <UserAvatar name={currentUser.username} size="30px" />
+                <UserAvatar user={currentUser} size="30px" />
               </div>
-
               {showUserDropdown && (
-                <div style={{ position: 'absolute', top: '50px', right: 0, width: '200px', background: '#1F2833', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333', overflow: 'hidden' }}>
-                  <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '15px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>⚙️ Profil Ayarlarım</div>
-                  <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '15px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>❤️ Takip Ettiklerim</div>
-                  <div onClick={handleLogout} style={{ padding: '15px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+                <div style={{ position: 'absolute', top: '45px', right: 0, width: '200px', background: '#1F2833', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333', overflow: 'hidden' }}>
+                  <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>⚙️ Profil Ayarlarım</div>
+                  <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>❤️ Takip Ettiklerim</div>
+                  <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>💬 Son Yorumlarım</div>
+                  <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
                 </div>
               )}
             </div>
@@ -305,7 +310,7 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* DEĞİŞİKLİK 2: GİRİŞ MODALİ */}
+      {/* 🔐 GİRİŞ MODALİ */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
           <div style={{ background: '#1F2833', padding: '40px', borderRadius: '25px', width: '380px', border: '1px solid #66FCF1' }}>
@@ -313,7 +318,7 @@ export default function Home() {
               <div style={{ textAlign: 'center' }}>
                 <h2 style={{ color: '#66FCF1', marginBottom: '10px' }}>Mail Doğrula</h2>
                 <input type="text" placeholder="6 Haneli Kod" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '15px', borderRadius: '12px', color: 'white', marginBottom: '20px', textAlign: 'center', fontSize: '20px' }} onChange={(e) => setVerificationCode(e.target.value)} />
-                <button onClick={handleVerifyAndFinish} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>DOĞRULA</button>
+                <button onClick={handleVerifyAndFinish} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>DOĞRULA</button>
               </div>
             ) : (
               <>
@@ -321,9 +326,9 @@ export default function Home() {
                   <button onClick={() => setAuthMode("login")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "login" ? '#66FCF1' : '#555', borderBottom: authMode === "login" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>GİRİŞ</button>
                   <button onClick={() => setAuthMode("register")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "register" ? '#66FCF1' : '#555', borderBottom: authMode === "register" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>KAYIT</button>
                 </div>
-                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, username: e.target.value})} />}
-                <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-                <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, username: e.target.value})} />}
+                <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                 <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
                   {authMode === "login" ? "GİRİŞ YAP" : "KOD GÖNDER"}
                 </button>
@@ -334,76 +339,142 @@ export default function Home() {
         </div>
       )}
 
-      {/* DEĞİŞİKLİK 3: PROFİL AYARLARI MODALİ */}
+      {/* ⚙️ PROFİL AYARLARI MODALİ (AVATAR SEÇİMİ DAHİL) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px' }}>
-            <h3 style={{ color: '#66FCF1', marginBottom: '25px', textAlign: 'center' }}>Profil Ayarları</h3>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><UserAvatar name={currentUser?.username} size="80px" fontSize="30px" /></div>
+            <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Profil Ayarları</h3>
+            
+            {/* Avatar Seçici */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                <UserAvatar user={currentUser} size="80px" fontSize="30px" />
+            </div>
+            <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '25px' }}>
+                {["default", "/1.jpg", "/2.jpg", "/3.jpg"].map((av, index) => (
+                    <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
+                        <UserAvatar user={{ username: currentUser?.username, avatar: av }} size="40px" />
+                    </div>
+                ))}
+            </div>
+
             <div style={{ marginBottom: '15px' }}>
                 <label style={{ fontSize: '12px', color: '#888' }}>E-Posta</label>
                 <input type="text" value={currentUser?.email} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555' }} />
             </div>
             <div style={{ marginBottom: '25px' }}>
                 <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
-                <input type="text" defaultValue={currentUser?.username} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white' }} />
+                <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white' }} />
             </div>
-            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>KAYDET</button>
+            <button onClick={saveProfileSettings} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>DEĞİŞİKLİKLERİ KAYDET</button>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
           </div>
         </div>
       )}
 
-      {viewMode === "home" && !searchQuery && (
-        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
-          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
-          {genres.map(g => (
-            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
-          ))}
-        </div>
-      )}
+      {/* 🎬 ANA İÇERİK (HOME / FAVORITES / MY_COMMENTS) */}
+      <div style={{ padding: '20px 5%' }}>
+        {viewMode === "home" ? (
+          <>
+            {/* Kategoriler ve Öne Çıkanlar (Eskisi gibi duruyor) */}
+            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none' }}>
+              <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
+              {genres.map(g => (
+                <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
+              ))}
+            </div>
 
-      {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
-        <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
-          <h3 className="section-title">ÖNE ÇIKANLAR</h3>
-          <div style={{ position: 'relative', padding: '0 5%' }}>
-            <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
-            <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
-            <div className="horizontal-scroll" ref={mainNewScrollRef}>
-              {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
+            {!searchQuery && newReleases.length > 0 && (
+              <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
+                <h3 className="section-title">ÖNE ÇIKANLAR</h3>
+                <div style={{ position: 'relative', padding: '0 5%' }}>
+                  <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
+                  <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
+                  <div className="horizontal-scroll" ref={mainNewScrollRef}>
+                    {newReleases.map((item) => (
+                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
+                          <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                          <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
+                            {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                          </div>
+                          <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+                        </div>
+                        <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <h3 className="section-title">{getGenreName()}</h3>
+
+            <div className="movie-grid">
+              {items.map((item, idx) => (
+                <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+                  <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                      {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
                     <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
-                  <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+                  <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
               ))}
             </div>
+          </>
+        ) : viewMode === "favorites" ? (
+          <div>
+             <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', marginBottom: '30px' }}>LİSTEM</h2>
+             <div className="movie-grid">
+                {favorites.map((item, idx) => (
+                  <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+                    <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+                      <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                      <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">❤️</div>
+                      <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+                    </div>
+                    <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+                  </div>
+                ))}
+             </div>
           </div>
-        </div>
-      )}
-
-      <h3 className="section-title">{getGenreName()}</h3>
-
-      <div className="movie-grid">
-        {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
-            <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
-              <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
-              </div>
-              <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+        ) : (
+          /* 💬 KULLANICI SON YORUMLARI EKRANI (YENİ) */
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #1F2833', paddingBottom: '15px' }}>
+                <h2 style={{ color: '#66FCF1', margin: 0, borderLeft: '4px solid #66FCF1', paddingLeft: '15px' }}>Son Yorumlarım</h2>
+                <select value={commentsSort} onChange={(e) => setCommentsSort(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                    <option value="newest">Zaman: En Yeni</option>
+                    <option value="oldest">Zaman: En Eski</option>
+                </select>
             </div>
-            <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
+                {getMyComments().length > 0 ? (
+                    getMyComments().map((c: any) => (
+                        <div key={c.id} style={{ background: '#1F2833', borderRadius: '15px', padding: '20px', borderLeft: '4px solid #45A29E' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                    <span style={{ background: '#0B0C10', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold' }}>🎬 {c.itemTitle}</span>
+                                    <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold' }}>Verdiğim Puan: {c.rating}/10</span>
+                                </div>
+                                <span style={{ color: '#555', fontSize: '13px' }}>{c.date}</span>
+                            </div>
+                            <p style={{ color: '#ccc', margin: 0, lineHeight: '1.6', fontSize: '15px' }}>"{c.text}"</p>
+                        </div>
+                    ))
+                ) : (
+                    <p style={{ color: '#555' }}>Henüz hiçbir filme yorum yapmadınız.</p>
+                )}
+            </div>
           </div>
-        ))}
+        )}
       </div>
 
+      {/* 🟡 DETAY MODALİ */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -432,7 +503,8 @@ export default function Home() {
                        </div>
                        {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
-                            <SineProLogo fontSize="18px" proSize="14px" />
+                            {/* DEĞİŞİKLİK: SADECE "PRO" LOGOSU */}
+                            <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', boxShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>PRO</span>
                             <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                             <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
                         </div>
@@ -462,8 +534,8 @@ export default function Home() {
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: '#1F2833', padding: '20px', borderRadius: '15px', border: '1px solid #45A29E' }}>
                    <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                     {/* DEĞİŞİKLİK 4: YORUM KISMINA AVATAR */}
-                     <UserAvatar name={currentUser?.username || "?"} />
+                     {/* YORUM YAPAN KİŞİNİN AVATARI */}
+                     <UserAvatar user={currentUser} size="45px" />
                      <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }} />
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
@@ -472,21 +544,22 @@ export default function Home() {
                    <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right' }}>GÖNDER</button>
                    <div style={{ clear: 'both' }} />
                 </div>
+                
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                    {(comments[selectedItem.id] || []).length > 0 ? (
                      comments[selectedItem.id].map((c: any) => (
                        <div key={c.id} className="comment-box">
                           <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                {/* DEĞİŞİKLİK 5: YAPILAN YORUMLARA AVATAR */}
-                                <UserAvatar name={c.user} size="24px" fontSize="12px" />
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                {/* YAPILMIŞ YORUMLARIN AVATARLARI */}
+                                <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" />
                                 <span style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
                                 <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '1px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Puan: {c.rating}/10</span>
                              </div>
                              <span style={{ color: '#45A29E', fontSize: '12px', marginRight: '25px' }}>{c.date}</span>
                           </div>
-                          <p style={{ margin: 0, color: '#ccc', lineHeight: '1.6' }}>{c.text}</p>
+                          <p style={{ margin: 0, color: '#ccc', lineHeight: '1.6', paddingLeft: '44px' }}>{c.text}</p>
                        </div>
                      ))
                    ) : <p style={{ color: '#555', textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
