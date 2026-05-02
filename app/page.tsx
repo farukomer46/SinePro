@@ -19,10 +19,13 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   const [similar, setSimilar] = useState<any[]>([]);
   
-  // SOSYAL & PUANLAMA STATE'LERİ
+  // SOSYAL & KULLANICI STATE'LERİ
   const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
   const [commentRating, setCommentRating] = useState<number>(10);
+  
+  // Geçici Kullanıcı Kimliği (E-posta sistemi gelene kadar tarayıcıya özel ID)
+  const [myUserID, setMyUserID] = useState<string>("");
 
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -56,6 +59,7 @@ export default function Home() {
     const itemID = selectedItem.id;
     const commentObj = {
       id: Date.now(),
+      ownerID: myUserID, // Yorumun sahibi kaydediliyor
       user: "SinePro Sever",
       text: newComment,
       rating: commentRating,
@@ -79,10 +83,19 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+    // Favorileri ve Yorumları Yükle
     const savedFavs = localStorage.getItem("sinepro_favs");
     const savedComments = localStorage.getItem("sinepro_comments");
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedComments) setComments(JSON.parse(savedComments));
+
+    // Kullanıcıya özel benzersiz bir ID oluştur (E-posta sistemi öncesi hazırlık)
+    let uID = localStorage.getItem("sinepro_uid");
+    if (!uID) {
+      uID = "user_" + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem("sinepro_uid", uID);
+    }
+    setMyUserID(uID);
   }, []);
 
   useEffect(() => {
@@ -144,11 +157,18 @@ export default function Home() {
 
   if (!mounted) return null;
 
-  const SineProLogo = ({ style, fontSize, proSize }: any) => (
-    <div style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))', ...style }}>
-        <span style={{ color: '#66FCF1', fontSize: fontSize || '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
-        <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: proSize || '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
-    </div>
+  // 🎯 SADECE [PRO] LOGOSU (Puanlar için)
+  const ProBadge = () => (
+    <span style={{ 
+      backgroundColor: '#66FCF1', 
+      color: '#0B0C10', 
+      padding: '2px 8px', 
+      borderRadius: '4px', 
+      fontSize: '14px', 
+      fontWeight: '900', 
+      boxShadow: '0 0 15px rgba(102, 252, 241, 0.6)',
+      filter: 'drop-shadow(0 0 5px rgba(102, 252, 241, 0.4))'
+    }}>PRO</span>
   );
 
   return (
@@ -172,7 +192,10 @@ export default function Home() {
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <SineProLogo onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
+          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))' }} onClick={() => window.location.reload()}>
+             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
+             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
+          </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -267,7 +290,7 @@ export default function Home() {
                       </div>
                       {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
-                           <SineProLogo fontSize="18px" proSize="14px" />
+                           <ProBadge />
                            <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                            <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
                         </div>
@@ -309,7 +332,10 @@ export default function Home() {
                    {(comments[selectedItem.id] || []).length > 0 ? (
                      comments[selectedItem.id].map((c: any) => (
                        <div key={c.id} className="comment-box">
-                          <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
+                          {/* 🎯 GÜVENLİK: Sadece yorumun sahibi X butonunu görebilir */}
+                          {c.ownerID === myUserID && (
+                            <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
+                          )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
