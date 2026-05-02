@@ -47,7 +47,7 @@ export default function Home() {
     { id: 16, name: "Animasyon" }, { id: 53, name: "Gerilim" }
   ], []);
 
-  // 🛡️ AUTH FONKSİYONLARI
+  // 🛡️ AUTH FONKSİYONLARI (EMAILJS & BENZERSİZ KULLANICI KONTROLÜ)
   const sendVerificationEmail = async (email: string, code: string) => {
     try {
       const serviceID = "service_9d5qlk9";    
@@ -67,13 +67,13 @@ export default function Home() {
         return alert("Bu e-posta zaten kayıtlı!");
     }
     if (users.find((u: any) => u.username.toLowerCase() === formData.username.toLowerCase())) {
-        return alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
+        return alert("Bu kullanıcı adı başkası tarafından kullanılıyor! Lütfen başka bir ad seçin.");
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
     if (await sendVerificationEmail(formData.email, code)) {
-      alert("Kod mailine gönderildi!");
+      alert("Doğrulama kodu e-posta adresinize gönderildi!");
       setAuthMode("verify");
     } else { alert("Mail gönderilirken hata oluştu!"); }
   };
@@ -85,8 +85,8 @@ export default function Home() {
       users.push(newUser);
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
       setAuthMode("login");
-      alert("Kayıt başarılı!");
-    } else { alert("Kod yanlış!"); }
+      alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
+    } else { alert("Girdiğiniz kod yanlış!"); }
   };
 
   const handleLogin = () => {
@@ -96,7 +96,7 @@ export default function Home() {
       setCurrentUser(userMatch);
       localStorage.setItem("sinepro_active_session", JSON.stringify(userMatch));
       setShowLogin(false);
-    } else { alert("Hatalı bilgiler!"); }
+    } else { alert("E-posta veya şifre hatalı!"); }
   };
 
   const handleLogout = () => {
@@ -121,7 +121,7 @@ export default function Home() {
     setCurrentUser(updatedUser);
     setProfilePassword("");
     setShowProfileSettings(false);
-    alert("Profil güncellendi!");
+    alert("Profil bilgileriniz başarıyla güncellendi!");
   };
 
   // 🔄 VERİ ÇEKME & LİSTELEME
@@ -259,6 +259,7 @@ export default function Home() {
     }
   };
 
+  // 🎨 AVATAR BİLEŞENİ
   const UserAvatar = ({ user, size = "35px", fontSize = "14px" }: any) => {
     if (user?.avatar && user.avatar !== "default") {
         return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '2px solid #66FCF1' }} alt="" />;
