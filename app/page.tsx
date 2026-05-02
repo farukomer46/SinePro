@@ -23,7 +23,7 @@ export default function Home() {
   const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
   const [commentRating, setCommentRating] = useState<number>(10);
-  const [commentsSort, setCommentsSort] = useState("newest"); // 🕒 Yorum Filtreleme State'i
+  const [commentsSort, setCommentsSort] = useState("newest");
 
   // 🔐 GİRİŞ & PROFİL SİSTEMİ STATELERİ
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -34,6 +34,10 @@ export default function Home() {
   const [formData, setFormData] = useState({ email: "", password: "", username: "" });
   const [verificationCode, setVerificationCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
+  
+  // ⚙️ YENİ: Profil sekmeleri ve şifre değiştirme için state
+  const [profileTab, setProfileTab] = useState<"profile" | "security">("profile");
+  const [profilePassword, setProfilePassword] = useState("");
 
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -59,7 +63,15 @@ export default function Home() {
 
   const handleRegisterStart = async () => {
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    if (users.find((u: any) => u.email === formData.email)) return alert("Bu e-posta zaten kayıtlı!");
+    
+    // BENZERSİZ MAİL VE KULLANICI ADI KONTROLÜ
+    if (users.find((u: any) => u.email.toLowerCase() === formData.email.toLowerCase())) {
+        return alert("Bu e-posta zaten kayıtlı!");
+    }
+    if (users.find((u: any) => u.username.toLowerCase() === formData.username.toLowerCase())) {
+        return alert("Bu kullanıcı adı başka biri tarafından kullanılıyor! Lütfen farklı bir ad seçin.");
+    }
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
     if (await sendVerificationEmail(formData.email, code)) { setAuthMode("verify"); }
@@ -93,13 +105,30 @@ export default function Home() {
     setViewMode("home");
   };
 
+  // ⚙️ YENİ: GÜVENLİ PROFİL KAYDETME
   const saveProfileSettings = () => {
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? currentUser : u);
+    
+    // Kullanıcı adını başkası kullanıyor mu kontrolü (Kendi maili hariç)
+    const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.toLowerCase() && u.email !== currentUser.email);
+    if (isUsernameTaken) {
+        return alert("Bu kullanıcı adı zaten başka birisi tarafından kullanılıyor!");
+    }
+
+    let updatedUser = { ...currentUser };
+    // Eğer güvenlik kısmında yeni şifre yazıldıysa onu da güncelle
+    if (profilePassword.trim().length > 0) {
+        updatedUser.password = profilePassword;
+    }
+
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    localStorage.setItem("sinepro_active_session", JSON.stringify(currentUser));
+    localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
+    
+    setCurrentUser(updatedUser);
+    setProfilePassword(""); // Şifre kutusunu sıfırla
     setShowProfileSettings(false);
-    alert("Profil başarıyla güncellendi!");
+    alert("Profil bilgileri başarıyla güncellendi!");
   };
 
   // 🔄 VERİ ÇEKME & DİĞER FONKSİYONLAR
@@ -132,7 +161,7 @@ export default function Home() {
       text: newComment,
       rating: commentRating,
       date: new Date().toLocaleDateString('tr-TR'),
-      itemTitle: selectedItem.title || selectedItem.name, // Hangi filme yapıldığı
+      itemTitle: selectedItem.title || selectedItem.name, 
       itemID: selectedItem.id
     };
     const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
@@ -219,7 +248,6 @@ export default function Home() {
     }
   };
 
-  // 💬 Kullanıcının Yorumlarını Getir ve Filtrele
   const getMyComments = () => {
     let myComments: any[] = [];
     if (currentUser) {
@@ -231,7 +259,7 @@ export default function Home() {
     return myComments;
   };
 
-  // 🎨 AVATAR BİLEŞENİ (RESİM DESTEKLİ)
+  // 🎨 AVATAR BİLEŞENİ
   const UserAvatar = ({ user, size = "35px", fontSize = "14px" }: any) => {
     if (user?.avatar && user.avatar !== "default") {
         return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '2px solid #66FCF1' }} alt="" />;
@@ -274,7 +302,9 @@ export default function Home() {
       {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <SineProLogo onClick={() => { setViewMode("home"); setSearchQuery(""); }} style={{ cursor: 'pointer' }} />
+          <div onClick={() => { setViewMode("home"); setSearchQuery(""); }} style={{ cursor: 'pointer' }}>
+            <SineProLogo />
+          </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -326,9 +356,9 @@ export default function Home() {
                   <button onClick={() => setAuthMode("login")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "login" ? '#66FCF1' : '#555', borderBottom: authMode === "login" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>GİRİŞ</button>
                   <button onClick={() => setAuthMode("register")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "register" ? '#66FCF1' : '#555', borderBottom: authMode === "register" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>KAYIT</button>
                 </div>
-                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, username: e.target.value})} />}
-                <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-                <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, username: e.target.value})} />}
+                <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                 <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>
                   {authMode === "login" ? "GİRİŞ YAP" : "KOD GÖNDER"}
                 </button>
@@ -339,44 +369,60 @@ export default function Home() {
         </div>
       )}
 
-      {/* ⚙️ PROFİL AYARLARI MODALİ (AVATAR SEÇİMİ DAHİL) */}
+      {/* ⚙️ PROFİL AYARLARI MODALİ (SEKMELİ) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px' }}>
-            <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Profil Ayarları</h3>
+          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
+            <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Ayarlar</h3>
             
-            {/* Avatar Seçici */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-                <UserAvatar user={currentUser} size="80px" fontSize="30px" />
-            </div>
-            <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '25px' }}>
-                {["default", "/1.jpg", "/2.jpg", "/3.jpg"].map((av, index) => (
-                    <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
-                        <UserAvatar user={{ username: currentUser?.username, avatar: av }} size="40px" />
-                    </div>
-                ))}
+            {/* Sekme Butonları */}
+            <div style={{ display: 'flex', marginBottom: '25px', borderBottom: '1px solid #333' }}>
+                <button onClick={() => setProfileTab("profile")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "profile" ? '#66FCF1' : '#555', borderBottom: profileTab === "profile" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Profil</button>
+                <button onClick={() => setProfileTab("security")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "security" ? '#66FCF1' : '#555', borderBottom: profileTab === "security" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Güvenlik</button>
             </div>
 
-            <div style={{ marginBottom: '15px' }}>
-                <label style={{ fontSize: '12px', color: '#888' }}>E-Posta</label>
-                <input type="text" value={currentUser?.email} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555' }} />
-            </div>
-            <div style={{ marginBottom: '25px' }}>
-                <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
-                <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white' }} />
-            </div>
+            {profileTab === "profile" ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                    <UserAvatar user={currentUser} size="80px" fontSize="30px" />
+                </div>
+                <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
+                {/* 8 Tane Avatar Desteği Eklendi */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap' }}>
+                    {["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"].map((av, index) => (
+                        <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
+                            <UserAvatar user={{ username: currentUser?.username, avatar: av }} size="40px" />
+                        </div>
+                    ))}
+                </div>
+                <div style={{ marginBottom: '25px' }}>
+                    <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
+                    <input type="text" value={currentUser?.username || ""} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '12px', color: '#888' }}>E-Posta Adresiniz (Değiştirilemez)</label>
+                    <input type="text" value={currentUser?.email || ""} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555', marginTop: '5px' }} />
+                </div>
+                <div style={{ marginBottom: '25px' }}>
+                    <label style={{ fontSize: '12px', color: '#ccc' }}>Yeni Şifre</label>
+                    <input type="password" placeholder="Şifrenizi değiştirmek için yazın..." value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
+                </div>
+              </>
+            )}
+
             <button onClick={saveProfileSettings} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>DEĞİŞİKLİKLERİ KAYDET</button>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
           </div>
         </div>
       )}
 
-      {/* 🎬 ANA İÇERİK (HOME / FAVORITES / MY_COMMENTS) */}
+      {/* 🎬 ANA İÇERİK */}
       <div style={{ padding: '20px 5%' }}>
         {viewMode === "home" ? (
           <>
-            {/* Kategoriler ve Öne Çıkanlar (Eskisi gibi duruyor) */}
             <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none' }}>
               <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
               {genres.map(g => (
@@ -442,7 +488,7 @@ export default function Home() {
              </div>
           </div>
         ) : (
-          /* 💬 KULLANICI SON YORUMLARI EKRANI (YENİ) */
+          /* 💬 KULLANICI SON YORUMLARI EKRANI */
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #1F2833', paddingBottom: '15px' }}>
                 <h2 style={{ color: '#66FCF1', margin: 0, borderLeft: '4px solid #66FCF1', paddingLeft: '15px' }}>Son Yorumlarım</h2>
@@ -503,7 +549,6 @@ export default function Home() {
                        </div>
                        {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
-                            {/* DEĞİŞİKLİK: SADECE "PRO" LOGOSU */}
                             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', boxShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>PRO</span>
                             <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                             <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
@@ -534,7 +579,6 @@ export default function Home() {
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: '#1F2833', padding: '20px', borderRadius: '15px', border: '1px solid #45A29E' }}>
                    <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                     {/* YORUM YAPAN KİŞİNİN AVATARI */}
                      <UserAvatar user={currentUser} size="45px" />
                      <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }} />
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -552,7 +596,6 @@ export default function Home() {
                           <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                {/* YAPILMIŞ YORUMLARIN AVATARLARI */}
                                 <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" />
                                 <span style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
                                 <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '1px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Puan: {c.rating}/10</span>
