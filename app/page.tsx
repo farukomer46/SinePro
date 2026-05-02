@@ -368,7 +368,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* PROFİL AYARLARI MODALİ (SEKMELİ) */}
+      {/* PROFİL AYARLARI MODALİ (TAM İSTEDİĞİN GİBİ 2 SEKME) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
@@ -381,6 +381,7 @@ export default function Home() {
 
             {profileTab === "profile" ? (
               <>
+                {/* SADECE AVATAR SEÇME VE KULLANICI ADI YAZMA KISMI */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
                     <UserAvatar user={currentUser} size="80px" fontSize="30px" />
                 </div>
@@ -399,8 +400,9 @@ export default function Home() {
               </>
             ) : (
               <>
+                {/* SADECE E-POSTA VE ŞİFRE DEĞİŞTİRME KISMI */}
                 <div style={{ marginBottom: '20px' }}>
-                    <label style={{ fontSize: '12px', color: '#888' }}>E-Posta Adresiniz (Değiştirilemez)</label>
+                    <label style={{ fontSize: '12px', color: '#888' }}>E-Posta Adresiniz</label>
                     <input type="text" value={currentUser?.email || ""} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555', marginTop: '5px' }} />
                 </div>
                 <div style={{ marginBottom: '25px' }}>
