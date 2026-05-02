@@ -19,10 +19,10 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   const [similar, setSimilar] = useState<any[]>([]);
   
-  // SOSYAL STATE'LER
-  const [comments, setComments] = useState<any>({}); // { itemID: [comments] }
-  const [userRating, setUserRating] = useState<any>({}); // { itemID: rating }
+  // SOSYAL & PUANLAMA STATE'LERİ
+  const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
+  const [commentRating, setCommentRating] = useState<number>(10);
 
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -43,7 +43,14 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
-  // SOSYAL FONKSİYONLAR
+  const calculateProRating = (itemID: number) => {
+    const itemComments = comments[itemID] || [];
+    const ratedComments = itemComments.filter((c: any) => c.rating);
+    if (ratedComments.length === 0) return null;
+    const totalScore = ratedComments.reduce((sum: number, c: any) => sum + c.rating, 0);
+    return (totalScore / ratedComments.length).toFixed(1);
+  };
+
   const addComment = () => {
     if (!newComment.trim()) return;
     const itemID = selectedItem.id;
@@ -51,46 +58,36 @@ export default function Home() {
       id: Date.now(),
       user: "SinePro Sever",
       text: newComment,
+      rating: commentRating,
       date: new Date().toLocaleDateString('tr-TR')
     };
     const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
     setNewComment("");
+    setCommentRating(10);
   };
 
-  const rateItem = (rating: number) => {
-    const updatedRatings = { ...userRating, [selectedItem.id]: rating };
-    setUserRating(updatedRatings);
-    localStorage.setItem("sinepro_ratings", JSON.stringify(updatedRatings));
+  const deleteComment = (itemID: number, commentID: number) => {
+    const updatedComments = { 
+      ...comments, 
+      [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) 
+    };
+    setComments(updatedComments);
+    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
   };
 
   useEffect(() => {
     setMounted(true);
     const savedFavs = localStorage.getItem("sinepro_favs");
     const savedComments = localStorage.getItem("sinepro_comments");
-    const savedRatings = localStorage.getItem("sinepro_ratings");
-
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedComments) setComments(JSON.parse(savedComments));
-    if (savedRatings) setUserRating(JSON.parse(savedRatings));
   }, []);
 
-  // Otomatik Kaydırma
   useEffect(() => {
-    if (!mounted || searchQuery || viewMode === "favorites") return;
-    const interval = setInterval(() => {
-      if (mainNewScrollRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          mainNewScrollRef.current.scrollTo({ left: scrollLeft + 220, behavior: 'smooth' });
-        }
-      }
-    }, 3000); 
-    return () => clearInterval(interval);
-  }, [mounted, newReleases, searchQuery, viewMode]);
+    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
+  }, [selectedItem, mounted]);
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
@@ -147,9 +144,15 @@ export default function Home() {
 
   if (!mounted) return null;
 
+  const SineProLogo = ({ style, fontSize, proSize }: any) => (
+    <div style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))', ...style }}>
+        <span style={{ color: '#66FCF1', fontSize: fontSize || '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
+        <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: proSize || '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
+    </div>
+  );
+
   return (
     <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
-      
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(102,252,241,0.12) 0%, rgba(102,252,241,0) 60%)', borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'pulseGlow 7s infinite ease-in-out' }} />
 
       <style dangerouslySetInnerHTML={{ __html: `
@@ -162,18 +165,14 @@ export default function Home() {
         .side-nav-btn { position: absolute; top: 120px; transform: translateY(-50%); background: rgba(0,0,0,0.8); color: #66FCF1; border: 1px solid #333; width: 40px; height: 70px; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 20px; border-radius: 4px; }
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
-        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
-        .comment-box { background: #1F2833; border-radius: 10px; padding: 15px; margin-bottom: 10px; border-left: 3px solid #66FCF1; }
-        .star { cursor: pointer; font-size: 24px; transition: 0.2s; }
-        .star:hover { transform: scale(1.2); color: #66FCF1; }
+        .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 8px rgba(0,0,0,1); }
+        .comment-box { background: #1F2833; border-radius: 10px; padding: 15px; border-left: 3px solid #66FCF1; position: relative; }
+        .puan-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; borderRadius: 4px; fontSize: 11px; fontWeight: bold; }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))' }} onClick={() => window.location.reload()}>
-             <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
-             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
-          </div>
+          <SineProLogo onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -213,7 +212,7 @@ export default function Home() {
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
                        {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
-                    <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
+                    <div className="puan-label">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
                   <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
@@ -233,7 +232,7 @@ export default function Home() {
               <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
                 {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
               </div>
-              <div style={{ position: 'absolute', bottom: '10px', left: '10px', background: 'rgba(0,0,0,0.8)', color: '#66FCF1', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>★ {item.vote_average?.toFixed(1)}</div>
+              <div className="puan-label">★ {item.vote_average?.toFixed(1)}</div>
             </div>
             <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
           </div>
@@ -261,52 +260,24 @@ export default function Home() {
                 </div>
                 <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
-                   
-                   {/* PUANLAMA ALANI */}
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px', margin: '15px 0' }}>
-                      <p style={{ color: '#66FCF1', fontSize: '20px', margin: 0 }}>TMDB: ★ {selectedItem.vote_average?.toFixed(1)}</p>
-                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center', borderLeft: '1px solid #333', paddingLeft: '20px' }}>
-                         <span style={{ color: '#ccc', fontSize: '14px' }}>Senin Puanın:</span>
-                         {[1,2,3,4,5].map(star => (
-                           <span key={star} onClick={() => rateItem(star)} className="star" style={{ color: star <= (userRating[selectedItem.id] || 0) ? '#66FCF1' : '#444' }}>★</span>
-                         ))}
+                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '30px', margin: '20px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '20px' }}>⭐ TMDB:</span>
+                        <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{selectedItem.vote_average?.toFixed(1)}</span>
                       </div>
+                      {calculateProRating(selectedItem.id) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
+                           <SineProLogo fontSize="18px" proSize="14px" />
+                           <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
+                           <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
+                        </div>
+                      )}
                    </div>
-
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
                 </div>
              </div>
 
-             {/* YORUMLAR BÖLÜMÜ */}
-             <div style={{ marginTop: '60px' }}>
-                <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI</h3>
-                <div style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
-                   <input 
-                      type="text" 
-                      placeholder="Bu film hakkında ne düşünüyorsun?" 
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      style={{ flex: 1, background: '#1F2833', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }}
-                   />
-                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '0 25px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>GÖNDER</button>
-                </div>
-                <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '10px' }}>
-                   {(comments[selectedItem.id] || []).length > 0 ? (
-                     comments[selectedItem.id].map((c: any) => (
-                       <div key={c.id} className="comment-box">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                             <span style={{ color: '#66FCF1', fontWeight: 'bold' }}>@{c.user}</span>
-                             <span style={{ color: '#45A29E', fontSize: '12px' }}>{c.date}</span>
-                          </div>
-                          <p style={{ margin: 0, color: '#ccc' }}>{c.text}</p>
-                       </div>
-                     ))
-                   ) : <p style={{ color: '#555' }}>Henüz yorum yapılmamış. İlk yorumu sen yap!</p>}
-                </div>
-             </div>
-
-             {/* BENZER FİLMLER */}
-             <div style={{ marginTop: '80px', position: 'relative' }}>
+             <div style={{ marginTop: '60px', position: 'relative' }}>
                 <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'left')}>❮</button>
                 <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'right')}>❯</button>
@@ -321,11 +292,41 @@ export default function Home() {
                    ))}
                 </div>
              </div>
+
+             <div style={{ marginTop: '80px' }}>
+                <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
+                <div style={{ margin: '30px 0', background: '#1F2833', padding: '20px', borderRadius: '15px', border: '1px solid #45A29E' }}>
+                   <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                     <input type="text" placeholder="Bu film hakkında ne düşünüyorsun?" value={newComment} onChange={(e) => setNewComment(e.target.value)} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }} />
+                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                        {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
+                     </select>
+                   </div>
+                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right' }}>GÖNDER</button>
+                   <div style={{ clear: 'both' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                   {(comments[selectedItem.id] || []).length > 0 ? (
+                     comments[selectedItem.id].map((c: any) => (
+                       <div key={c.id} className="comment-box">
+                          <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
+                                <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '1px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Puan: {c.rating}/10</span>
+                             </div>
+                             <span style={{ color: '#45A29E', fontSize: '12px', marginRight: '25px' }}>{c.date}</span>
+                          </div>
+                          <p style={{ margin: 0, color: '#ccc', lineHeight: '1.6' }}>{c.text}</p>
+                       </div>
+                     ))
+                   ) : <p style={{ color: '#555', textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
+                </div>
+             </div>
           </div>
         </div>
       )}
 
-      {/* DESTEK BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
