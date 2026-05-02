@@ -40,27 +40,27 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
-  // 🛡️ GERÇEK AUTH SİSTEMİ
+ // 🎯 GÜNCELLENMİŞ MAİL FONKSİYONU
   const sendVerificationEmail = async (email: string, code: string) => {
     try {
-      const serviceID = "service_9d5qlk9";    // Aldığın Service ID
-      const templateID = "template_tlqw67x";   // Aldığın Template ID
-      const publicKey = "OGQEmxiu2oahk21gg";     // Aldığın Public Key
+      const serviceID = "service_9d5qlk9";    
+      const templateID = "template_tlqw67x";   
+      const publicKey = "OGQEmxiu2oahk21gg";     
 
       const templateParams = {
-        to_email: email,
+        email: email,              // 👈 Burayı 'email' yaptık (Paneldeki {{email}} ile eşleşti)
         user_name: formData.username,
         auth_code: code,
       };
 
+      // Parametreleri gönderiyoruz
       await emailjs.send(serviceID, templateID, templateParams, publicKey);
       return true;
     } catch (error) {
-      console.error("Mail hatası:", error);
+      console.error("Mail hatası detayları:", error);
       return false;
     }
   };
-
   const handleRegisterStart = async () => {
     if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
     if (formData.password.length < 6) return alert("Şifre en az 6 karakter olmalı!");
