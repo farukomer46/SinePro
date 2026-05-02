@@ -19,6 +19,11 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   const [similar, setSimilar] = useState<any[]>([]);
   
+  // SOSYAL STATE'LER
+  const [comments, setComments] = useState<any>({}); // { itemID: [comments] }
+  const [userRating, setUserRating] = useState<any>({}); // { itemID: rating }
+  const [newComment, setNewComment] = useState("");
+
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +43,40 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
+  // SOSYAL FONKSİYONLAR
+  const addComment = () => {
+    if (!newComment.trim()) return;
+    const itemID = selectedItem.id;
+    const commentObj = {
+      id: Date.now(),
+      user: "SinePro Sever",
+      text: newComment,
+      date: new Date().toLocaleDateString('tr-TR')
+    };
+    const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
+    setComments(updatedComments);
+    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
+    setNewComment("");
+  };
+
+  const rateItem = (rating: number) => {
+    const updatedRatings = { ...userRating, [selectedItem.id]: rating };
+    setUserRating(updatedRatings);
+    localStorage.setItem("sinepro_ratings", JSON.stringify(updatedRatings));
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    const savedFavs = localStorage.getItem("sinepro_favs");
+    const savedComments = localStorage.getItem("sinepro_comments");
+    const savedRatings = localStorage.getItem("sinepro_ratings");
+
+    if (savedFavs) setFavorites(JSON.parse(savedFavs));
+    if (savedComments) setComments(JSON.parse(savedComments));
+    if (savedRatings) setUserRating(JSON.parse(savedRatings));
+  }, []);
+
+  // Otomatik Kaydırma
   useEffect(() => {
     if (!mounted || searchQuery || viewMode === "favorites") return;
     const interval = setInterval(() => {
@@ -52,16 +91,6 @@ export default function Home() {
     }, 3000); 
     return () => clearInterval(interval);
   }, [mounted, newReleases, searchQuery, viewMode]);
-
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("sinepro_favs");
-    if (saved) setFavorites(JSON.parse(saved));
-  }, []);
-
-  useEffect(() => {
-    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
-  }, [selectedItem, mounted]);
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
@@ -134,11 +163,13 @@ export default function Home() {
         .nav-link { background: none; border: none; font-weight: bold; cursor: pointer; }
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+        .comment-box { background: #1F2833; border-radius: 10px; padding: 15px; margin-bottom: 10px; border-left: 3px solid #66FCF1; }
+        .star { cursor: pointer; font-size: 24px; transition: 0.2s; }
+        .star:hover { transform: scale(1.2); color: #66FCF1; }
       ` }} />
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          {/* 🎯 GÜNCELLEME: AMBLEM ARKASI PARILDASIN (GLOW EFEKTİ) */}
           <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))' }} onClick={() => window.location.reload()}>
              <span style={{ color: '#66FCF1', fontSize: '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
              <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
@@ -150,13 +181,10 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* 🎯 GÜNCELLEME: POPÜLER KISMINA ZENGİN SEÇENEKLER EKLENDİ */}
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler (Popüler)</option>
-            <option value="vote_average.desc">⭐ En Yüksek Puan</option>
-            <option value="primary_release_date.desc">📅 En Yeniler</option>
-            <option value="revenue.desc">💰 Gişe Rekortmenleri</option>
-            <option value="vote_count.desc">🗣️ Çok Oylananlar</option>
+            <option value="popularity.desc">🔥 Trendler</option>
+            <option value="vote_average.desc">⭐ Puan</option>
+            <option value="primary_release_date.desc">📅 Yeni</option>
           </select>
           <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
         </div>
@@ -218,9 +246,11 @@ export default function Home() {
              <h2 style={{ color: '#66FCF1', margin: 0 }}>{selectedItem.title || selectedItem.name}</h2>
              <button onClick={() => setSelectedItem(null)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 25px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
           </div>
+
           <div style={{ width: '100%', height: '55vh', backgroundImage: `linear-gradient(to bottom, transparent, #0B0C10), url(${getImgUrl(selectedItem.backdrop_path, 'original')})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedItem.title || selectedItem.name)}+fragman`} target="_blank" rel="noreferrer" style={{ background: '#66FCF1', color: '#0B0C10', padding: '12px 35px', borderRadius: '50px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 0 20px rgba(102, 252, 241, 0.5)' }}>▶ FRAGMANI İZLE</a>
           </div>
+
           <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px' }}>
              <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
                 <div style={{ position: 'relative' }}>
@@ -231,17 +261,58 @@ export default function Home() {
                 </div>
                 <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
-                   <p style={{ color: '#66FCF1', fontSize: '20px' }}>★ {selectedItem.vote_average?.toFixed(1)}</p>
+                   
+                   {/* PUANLAMA ALANI */}
+                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px', margin: '15px 0' }}>
+                      <p style={{ color: '#66FCF1', fontSize: '20px', margin: 0 }}>TMDB: ★ {selectedItem.vote_average?.toFixed(1)}</p>
+                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center', borderLeft: '1px solid #333', paddingLeft: '20px' }}>
+                         <span style={{ color: '#ccc', fontSize: '14px' }}>Senin Puanın:</span>
+                         {[1,2,3,4,5].map(star => (
+                           <span key={star} onClick={() => rateItem(star)} className="star" style={{ color: star <= (userRating[selectedItem.id] || 0) ? '#66FCF1' : '#444' }}>★</span>
+                         ))}
+                      </div>
+                   </div>
+
                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
                 </div>
              </div>
+
+             {/* YORUMLAR BÖLÜMÜ */}
+             <div style={{ marginTop: '60px' }}>
+                <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI</h3>
+                <div style={{ margin: '20px 0', display: 'flex', gap: '10px' }}>
+                   <input 
+                      type="text" 
+                      placeholder="Bu film hakkında ne düşünüyorsun?" 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      style={{ flex: 1, background: '#1F2833', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }}
+                   />
+                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '0 25px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>GÖNDER</button>
+                </div>
+                <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '10px' }}>
+                   {(comments[selectedItem.id] || []).length > 0 ? (
+                     comments[selectedItem.id].map((c: any) => (
+                       <div key={c.id} className="comment-box">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                             <span style={{ color: '#66FCF1', fontWeight: 'bold' }}>@{c.user}</span>
+                             <span style={{ color: '#45A29E', fontSize: '12px' }}>{c.date}</span>
+                          </div>
+                          <p style={{ margin: 0, color: '#ccc' }}>{c.text}</p>
+                       </div>
+                     ))
+                   ) : <p style={{ color: '#555' }}>Henüz yorum yapılmamış. İlk yorumu sen yap!</p>}
+                </div>
+             </div>
+
+             {/* BENZER FİLMLER */}
              <div style={{ marginTop: '80px', position: 'relative' }}>
                 <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
                 <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'left')}>❮</button>
                 <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'right')}>❯</button>
                 <div className="horizontal-scroll" ref={modalScrollRef}>
                    {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center' }}>
+                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
                         <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                         </div>
@@ -254,6 +325,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* DESTEK BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
