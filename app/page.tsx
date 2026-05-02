@@ -19,9 +19,13 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<"home" | "favorites">("home");
   const [similar, setSimilar] = useState<any[]>([]);
   
+  // SOSYAL & GİRİŞ SİSTEMİ STATE'LERİ
   const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
   const [commentRating, setCommentRating] = useState<number>(10);
+  const [user, setUser] = useState<string | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginInput, setLoginInput] = useState("");
 
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
@@ -52,10 +56,12 @@ export default function Home() {
 
   const addComment = () => {
     if (!newComment.trim()) return;
+    if (!user) { alert("Yorum yapmak için giriş yapmalısın!"); setShowLogin(true); return; }
+    
     const itemID = selectedItem.id;
     const commentObj = {
       id: Date.now(),
-      user: "SinePro Sever",
+      user: user,
       text: newComment,
       rating: commentRating,
       date: new Date().toLocaleDateString('tr-TR')
@@ -76,17 +82,33 @@ export default function Home() {
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
   };
 
+  const handleLogin = () => {
+    if (loginInput.trim()) {
+      setUser(loginInput);
+      localStorage.setItem("sinepro_user", loginInput);
+      setShowLogin(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("sinepro_user");
+  };
+
   useEffect(() => {
     setMounted(true);
     const savedFavs = localStorage.getItem("sinepro_favs");
     const savedComments = localStorage.getItem("sinepro_comments");
+    const savedUser = localStorage.getItem("sinepro_user");
+
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedComments) setComments(JSON.parse(savedComments));
+    if (savedUser) setUser(savedUser);
   }, []);
 
   useEffect(() => {
-    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
-  }, [selectedItem, mounted]);
+    if (mounted) document.body.style.overflow = (selectedItem || showLogin) ? 'hidden' : 'unset';
+  }, [selectedItem, showLogin, mounted]);
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
@@ -143,8 +165,8 @@ export default function Home() {
 
   if (!mounted) return null;
 
-  const SineProLogo = ({ style, fontSize, proSize }: any) => (
-    <div style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))', ...style }}>
+  const SineProLogo = ({ style, fontSize, proSize, onClick }: any) => (
+    <div onClick={onClick} style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))', ...style }}>
         <span style={{ color: '#66FCF1', fontSize: fontSize || '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
         <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: proSize || '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
     </div>
@@ -166,22 +188,10 @@ export default function Home() {
         .section-title { color: #66FCF1; padding: 0 10px; margin-top: 30px; font-size: 20px; letter-spacing: 1px; border-left: 4px solid #66FCF1; margin-left: 5%; font-weight: 900; }
         .fav-heart-btn { position: absolute; top: 10px; right: 10px; background: transparent; width: 32px; height: 32px; borderRadius: 50%; display: flex; alignItems: center; justifyContent: center; z-index: 10; transition: 0.3s; font-size: 22px; text-shadow: 0 0 8px rgba(0,0,0,1); }
         .comment-box { background: #1F2833; border-radius: 10px; padding: 15px; border-left: 3px solid #66FCF1; position: relative; }
-        
-        /* 🎯 GÜNCELLEME: PUAN KUTUCUĞU OKUNUR BOYUTA GETİRİLDİ (11px) */
-        .rating-badge-pro { 
-          position: absolute; 
-          bottom: 10px; 
-          left: 10px; 
-          background: rgba(0,0,0,0.8); 
-          color: #66FCF1; 
-          padding: 2px 8px; 
-          border-radius: 4px; 
-          font-size: 11px; 
-          font-weight: bold;
-          pointer-events: none;
-        }
+        .rating-badge-pro { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; pointer-events: none; }
       ` }} />
 
+      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <SineProLogo onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
@@ -191,16 +201,44 @@ export default function Home() {
             <button onClick={() => setViewMode("favorites")} className="nav-link" style={{ color: viewMode === "favorites" ? '#66FCF1' : '#45A29E' }}>LİSTEM ({favorites.length})</button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler</option>
-            <option value="vote_average.desc">⭐ Puan</option>
-            <option value="primary_release_date.desc">📅 Yeni</option>
-          </select>
-          <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none', width: '150px' }} />
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: '#66FCF1', fontWeight: 'bold' }}>@{user}</span>
+                <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #FF4B2B', color: '#FF4B2B', padding: '5px 12px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px' }}>ÇIKIŞ</button>
+              </div>
+            ) : (
+              <button onClick={() => setShowLogin(true)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 20px', borderRadius: '25px', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 0 10px rgba(102, 252, 241, 0.4)' }}>GİRİŞ YAP</button>
+            )}
+          </div>
         </div>
       </nav>
 
+      {/* GİRİŞ MODALI */}
+      {showLogin && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(5px)' }}>
+          <div style={{ background: '#1F2833', padding: '40px', borderRadius: '20px', width: '350px', border: '1px solid #66FCF1', textAlign: 'center', boxShadow: '0 0 30px rgba(102, 252, 241, 0.2)' }}>
+            <SineProLogo style={{ justifyContent: 'center', marginBottom: '25px' }} fontSize="32px" proSize="26px" />
+            <h3 style={{ color: '#66FCF1', marginBottom: '10px' }}>Hoş Geldin SinePro Sever!</h3>
+            <p style={{ color: '#ccc', fontSize: '13px', marginBottom: '25px' }}>Yorum yapmak ve puan vermek için kullanıcı adını belirle.</p>
+            <input 
+              type="text" 
+              placeholder="Kullanıcı adın..." 
+              value={loginInput}
+              onChange={(e) => setLoginInput(e.target.value)}
+              style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px', outline: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowLogin(false)} style={{ flex: 1, background: 'transparent', border: '1px solid #555', color: '#555', padding: '12px', borderRadius: '10px', cursor: 'pointer' }}>İPTAL</button>
+              <button onClick={handleLogin} style={{ flex: 2, background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>DEVAM ET</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANA İÇERİK (HAYALET/HOME) */}
       {viewMode === "home" && !searchQuery && (
         <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
           <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
@@ -251,6 +289,7 @@ export default function Home() {
         ))}
       </div>
 
+      {/* DETAY MODALI */}
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -277,11 +316,12 @@ export default function Home() {
                         <span style={{ fontSize: '20px' }}>⭐ TMDB:</span>
                         <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{selectedItem.vote_average?.toFixed(1)}</span>
                       </div>
+                      
+                      {/* 🎯 GÜNCELLEME: PRO PUANI AMLEMİ SADECE LOGO VE DEĞER */}
                       {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
                            <SineProLogo fontSize="18px" proSize="14px" />
                            <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
-                           <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
                         </div>
                       )}
                    </div>
@@ -305,23 +345,25 @@ export default function Home() {
                 </div>
              </div>
 
+             {/* YORUMLAR */}
              <div style={{ marginTop: '80px' }}>
                 <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: '#1F2833', padding: '20px', borderRadius: '15px', border: '1px solid #45A29E' }}>
                    <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                     <input type="text" placeholder="Bu film hakkında ne düşünüyorsun?" value={newComment} onChange={(e) => setNewComment(e.target.value)} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }} />
-                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                     <input type="text" placeholder={user ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısın..."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!user} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none', opacity: user ? 1 : 0.5 }} />
+                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!user} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold', opacity: user ? 1 : 0.5 }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
                      </select>
                    </div>
-                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right' }}>GÖNDER</button>
+                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right', opacity: user ? 1 : 0.5 }}>GÖNDER</button>
+                   {!user && <button onClick={() => setShowLogin(true)} style={{ color: '#66FCF1', background: 'transparent', border: 'none', fontSize: '13px', cursor: 'pointer', float: 'left', marginTop: '15px' }}>Hemen Giriş Yap</button>}
                    <div style={{ clear: 'both' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                    {(comments[selectedItem.id] || []).length > 0 ? (
                      comments[selectedItem.id].map((c: any) => (
                        <div key={c.id} className="comment-box">
-                          <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
+                          {user === c.user && <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>}
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <span style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
@@ -339,6 +381,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* DESTEK BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
           <span>💎 DESTEK OL</span>
