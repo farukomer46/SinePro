@@ -23,7 +23,7 @@ export default function Home() {
   const [newComment, setNewComment] = useState("");
   const [commentRating, setCommentRating] = useState<number>(10);
 
-  // 🔐 GİRİŞ & UI STATELERİ
+  // 🔐 GİRİŞ & PROFİL STATELERİ
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
@@ -56,14 +56,12 @@ export default function Home() {
   };
 
   const handleRegisterStart = async () => {
-    if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
     if (users.find((u: any) => u.email === formData.email)) return alert("Bu e-posta zaten kayıtlı!");
-    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
     if (await sendVerificationEmail(formData.email, code)) {
-      alert("Kod mailine gönderildi!");
+      alert("Kod gönderildi!");
       setAuthMode("verify");
     }
   };
@@ -76,7 +74,7 @@ export default function Home() {
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
       setAuthMode("login");
       alert("Kayıt başarılı!");
-    } else { alert("Kod yanlış!"); }
+    } else { alert("Hatalı kod!"); }
   };
 
   const handleLogin = () => {
@@ -89,74 +87,21 @@ export default function Home() {
     } else { alert("Hatalı bilgiler!"); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("sinepro_active_session");
-    setCurrentUser(null);
-    setShowUserDropdown(false);
-    setViewMode("home");
+  // ❤️ TOGGLE FAVORITE (DÜZELTİLDİ)
+  const toggleFavorite = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    let updated;
+    const isFav = favorites.find(f => f.id === item.id);
+    if (isFav) {
+      updated = favorites.filter(f => f.id !== item.id);
+    } else {
+      updated = [...favorites, item];
+    }
+    setFavorites(updated);
+    localStorage.setItem("sinepro_favs", JSON.stringify(updated));
   };
 
-  // 🔄 VERİ ÇEKME & DİĞERLERİ
-  const getGenreName = () => {
-    const genre = genres.find(g => g.id === selectedGenre);
-    return genre ? genre.name.toUpperCase() : "TÜMÜ";
-  };
-
-  const getImgUrl = (path: string | null, size: string = "w500") => {
-    if (!path) return `https://via.placeholder.com/500x750?text=SİNEPRO`;
-    return `https://image.tmdb.org/t/p/${size}${path}`;
-  };
-
-  const calculateProRating = (itemID: number) => {
-    const itemComments = comments[itemID] || [];
-    const ratedComments = itemComments.filter((c: any) => c.rating);
-    if (ratedComments.length === 0) return null;
-    const totalScore = ratedComments.reduce((sum: number, c: any) => sum + c.rating, 0);
-    return (totalScore / ratedComments.length).toFixed(1);
-  };
-
-  const addComment = () => {
-    if (!currentUser) return setShowLogin(true);
-    if (!newComment.trim()) return;
-    const itemID = selectedItem.id;
-    const commentObj = {
-      id: Date.now(),
-      user: currentUser.username,
-      text: newComment,
-      rating: commentRating,
-      date: new Date().toLocaleDateString('tr-TR')
-    };
-    const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
-    setNewComment("");
-    setCommentRating(10);
-  };
-
-  const deleteComment = (itemID: number, commentID: number) => {
-    const updatedComments = { ...comments, [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) };
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
-  };
-
-  useEffect(() => {
-    setMounted(true);
-    const session = localStorage.getItem("sinepro_active_session");
-    if (session) setCurrentUser(JSON.parse(session));
-    const savedFavs = localStorage.getItem("sinepro_favs");
-    const savedComments = localStorage.getItem("sinepro_comments");
-    if (savedFavs) setFavorites(JSON.parse(savedFavs));
-    if (savedComments) setComments(JSON.parse(savedComments));
-
-    const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-          setShowUserDropdown(false);
-        }
-      };
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  // 🔄 VERİ ÇEKME
   const fetchData = async () => {
     if (!mounted || viewMode === "favorites") return;
     try {
@@ -164,290 +109,103 @@ export default function Home() {
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
         : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
       
-      const [res1, res2, res3, res4] = await Promise.all([
+      const [res1, res2, res3] = await Promise.all([
         axios.get(getUrl(1), { headers: { Authorization: API_TOKEN } }),
         axios.get(getUrl(2), { headers: { Authorization: API_TOKEN } }),
-        axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
-        axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
+        axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } })
       ]);
-      setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || []), ...(res4.data.results || [])]);
+      setItems([...(res1.data.results || []), ...(res2.data.results || []), ...(res3.data.results || [])]);
 
       if (!searchQuery && newReleases.length === 0) {
-        const carouselUrl = `https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR`;
-        const resCarousel = await axios.get(carouselUrl, { headers: { Authorization: API_TOKEN } });
-        setNewReleases(resCarousel.data.results || []);
+        const carouselRes = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR`, { headers: { Authorization: API_TOKEN } });
+        setNewReleases(carouselRes.data.results || []);
       }
     } catch (err) { console.error(err); }
   };
 
-  const fetchExtraDetails = async (id: number) => {
-    try {
-      const similarRes = await axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
-      setSimilar(similarRes.data.results?.slice(0, 15) || []);
-    } catch (err) { console.error(err); }
-  };
+  useEffect(() => {
+    setMounted(true);
+    const session = localStorage.getItem("sinepro_active_session");
+    if (session) setCurrentUser(JSON.parse(session));
+    const savedFavs = localStorage.getItem("sinepro_favs");
+    if (savedFavs) setFavorites(JSON.parse(savedFavs));
+    const savedComments = localStorage.getItem("sinepro_comments");
+    if (savedComments) setComments(JSON.parse(savedComments));
+  }, []);
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
-  const handleScroll = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
-    if (ref.current) {
-      const { scrollLeft, clientWidth } = ref.current;
-      const scrollTo = direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth;
-      ref.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-    }
-  };
+  const getImgUrl = (path: string | null) => path ? `https://image.tmdb.org/t/p/w500/${path}` : `https://via.placeholder.com/500x750?text=SİNEPRO`;
 
-  const UserAvatar = ({ name, size = "35px", fontSize = "14px" }: any) => (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize, textTransform: 'uppercase' }}>
-      {name?.charAt(0)}
+  const UserAvatar = ({ name, size = "35px" }: any) => (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+      {name?.charAt(0).toUpperCase()}
     </div>
   );
 
   if (!mounted) return null;
 
-  const SineProLogo = ({ style, fontSize, proSize }: any) => (
-    <div style={{ display: 'flex', alignItems: 'center', filter: 'drop-shadow(0 0 10px rgba(102, 252, 241, 0.6))', ...style }}>
-        <span style={{ color: '#66FCF1', fontSize: fontSize || '28px', fontWeight: '900', letterSpacing: '-1.5px', textShadow: '0 0 15px rgba(102, 252, 241, 0.8)' }}>SİNE</span>
-        <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: proSize || '22px', fontWeight: '900', marginLeft: '4px', boxShadow: '0 0 20px rgba(102, 252, 241, 0.9)' }}>PRO</span>
-    </div>
-  );
-
   return (
-    <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', position: 'relative', overflow: 'hidden' }}>
+    <main style={{ backgroundColor: '#0B0C10', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
       
       {/* NAVBAR */}
-      <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
+      <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0B0C10', borderBottom: '1px solid #1F2833', position: 'sticky', top: 0, zIndex: 1000 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <SineProLogo onClick={() => setViewMode("home")} style={{ cursor: 'pointer' }} />
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
-            <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
-            <button onClick={() => setViewMode("favorites")} className="nav-link" style={{ color: viewMode === "favorites" ? '#66FCF1' : '#45A29E' }}>LİSTEM ({favorites.length})</button>
+          <div onClick={() => setViewMode("home")} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: '#66FCF1', fontSize: '26px', fontWeight: '900' }}>SİNE</span>
+            <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 6px', borderRadius: '4px', fontSize: '20px', fontWeight: '900', marginLeft: '4px' }}>PRO</span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 12px', borderRadius: '10px', outline: 'none', cursor: 'pointer' }}>
-            <option value="popularity.desc">🔥 Trendler</option>
-            <option value="vote_average.desc">⭐ Puan</option>
-            <option value="primary_release_date.desc">📅 Yeni</option>
-          </select>
-          <input type="text" placeholder="Ara..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ background: '#1F2833', border: '1px solid #45A29E', padding: '10px 20px', borderRadius: '25px', color: 'white', outline: 'none' }} />
-          
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           {currentUser ? (
             <div style={{ position: 'relative' }} ref={dropdownRef}>
-              <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#1F2833', padding: '5px 15px', borderRadius: '25px', border: '1px solid #45A29E' }}>
-                <span style={{ color: '#66FCF1', fontWeight: 'bold' }}>{currentUser.username}</span>
+              <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#1F2833', padding: '5px 12px', borderRadius: '25px' }}>
+                <span style={{ color: '#66FCF1' }}>{currentUser.username}</span>
                 <UserAvatar name={currentUser.username} size="30px" />
               </div>
               {showUserDropdown && (
-                <div style={{ position: 'absolute', top: '45px', right: 0, width: '200px', background: '#1F2833', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333', overflow: 'hidden' }}>
-                  <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>⚙️ Profil Ayarlarım</div>
-                  <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>❤️ Takip Ettiklerim</div>
-                  <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+                <div style={{ position: 'absolute', top: '45px', right: 0, width: '180px', background: '#1F2833', borderRadius: '10px', border: '1px solid #333', overflow: 'hidden' }}>
+                  <div onClick={() => {setShowProfileSettings(true); setShowUserDropdown(false);}} style={{ padding: '12px', cursor: 'pointer', borderBottom: '1px solid #222' }}>⚙️ Profil Ayarları</div>
+                  <div onClick={() => setViewMode("favorites")} style={{ padding: '12px', cursor: 'pointer', borderBottom: '1px solid #222' }}>❤️ Listem</div>
+                  <div onClick={() => {localStorage.removeItem("sinepro_active_session"); window.location.reload();}} style={{ padding: '12px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
                 </div>
               )}
             </div>
           ) : (
-            <button onClick={() => setShowLogin(true)} style={{ background: '#66FCF1', color: '#0B0C10', padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>GİRİŞ YAP</button>
+            <button onClick={() => setShowLogin(true)} style={{ background: '#66FCF1', color: '#0B0C10', padding: '8px 20px', borderRadius: '20px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>GİRİŞ</button>
           )}
         </div>
       </nav>
 
-      {/* 🔐 GİRİŞ / KAYIT MODALİ */}
-      {showLogin && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
-          <div style={{ background: '#1F2833', padding: '40px', borderRadius: '25px', width: '380px', border: '1px solid #66FCF1' }}>
-            {authMode === "verify" ? (
-              <div style={{ textAlign: 'center' }}>
-                <h2 style={{ color: '#66FCF1' }}>Mail Doğrula</h2>
-                <input type="text" placeholder="6 Haneli Kod" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '15px', borderRadius: '12px', color: 'white', marginBottom: '20px', textAlign: 'center', fontSize: '20px' }} onChange={(e) => setVerificationCode(e.target.value)} />
-                <button onClick={handleVerifyAndFinish} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>DOĞRULA</button>
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'flex', marginBottom: '25px', borderBottom: '1px solid #333' }}>
-                  <button onClick={() => setAuthMode("login")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "login" ? '#66FCF1' : '#555', borderBottom: authMode === "login" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>GİRİŞ</button>
-                  <button onClick={() => setAuthMode("register")} style={{ flex: 1, padding: '15px', background: 'none', border: 'none', color: authMode === "register" ? '#66FCF1' : '#555', borderBottom: authMode === "register" ? '3px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>KAYIT</button>
-                </div>
-                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, username: e.target.value})} />}
-                <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '15px' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
-                <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
-                <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>{authMode === "login" ? "GİRİŞ" : "KOD GÖNDER"}</button>
-              </>
-            )}
-            <p onClick={() => setShowLogin(false)} style={{ textAlign: 'center', color: '#555', marginTop: '20px', cursor: 'pointer' }}>Kapat</p>
-          </div>
-        </div>
-      )}
-
-      {/* ⚙️ PROFİL AYARLARI MODALİ */}
-      {showProfileSettings && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px' }}>
-            <h3 style={{ color: '#66FCF1', marginBottom: '25px', textAlign: 'center' }}>Profil Ayarları</h3>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><UserAvatar name={currentUser?.username} size="80px" fontSize="30px" /></div>
-            <div style={{ marginBottom: '15px' }}>
-                <label style={{ fontSize: '12px', color: '#888' }}>E-Posta</label>
-                <input type="text" value={currentUser?.email} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555' }} />
+      {/* İÇERİK GRID */}
+      <div style={{ padding: '20px 5%' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '25px' }}>
+          {(viewMode === "home" ? items : favorites).map((item) => (
+            <div key={item.id} onClick={() => setSelectedItem(item)} style={{ cursor: 'pointer', textAlign: 'center', position: 'relative' }}>
+               <img src={getImgUrl(item.poster_path)} style={{ width: '100%', borderRadius: '15px', border: '1px solid #1F2833' }} />
+               <div onClick={(e) => toggleFavorite(e, item)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.5)', borderRadius: '50%', padding: '5px' }}>
+                  {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+               </div>
+               <p style={{ marginTop: '10px', fontSize: '13px' }}>{item.title || item.name}</p>
             </div>
-            <div style={{ marginBottom: '25px' }}>
-                <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
-                <input type="text" defaultValue={currentUser?.username} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white' }} />
-            </div>
-            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>KAYDET</button>
-            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
-          </div>
-        </div>
-      )}
-
-      {/* ANA İÇERİK */}
-      {viewMode === "home" && !searchQuery && (
-        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
-          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
-          {genres.map(g => (
-            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
           ))}
         </div>
-      )}
+      </div>
 
-      {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
-        <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
-          <h3 className="section-title">ÖNE ÇIKANLAR</h3>
-          <div style={{ position: 'relative', padding: '0 5%' }}>
-            <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
-            <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
-            <div className="horizontal-scroll" ref={mainNewScrollRef}>
-              {newReleases.map((item) => (
-                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
-                    <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                    <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
-                    </div>
-                    <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
-                  </div>
-                  <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
-                </div>
-              ))}
-            </div>
+      {/* LOGIN MODAL */}
+      {showLogin && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1F2833', padding: '30px', borderRadius: '20px', width: '320px', border: '1px solid #66FCF1' }}>
+             <h2 style={{ color: '#66FCF1', textAlign: 'center' }}>SinePro Giriş</h2>
+             <input type="email" placeholder="E-posta" style={{ width: '100%', background: '#0B0C10', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '10px', border: '1px solid #333' }} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+             <input type="password" placeholder="Şifre" style={{ width: '100%', background: '#0B0C10', padding: '12px', borderRadius: '10px', color: 'white', marginBottom: '20px', border: '1px solid #333' }} onChange={(e) => setFormData({...formData, password: e.target.value})} />
+             <button onClick={handleLogin} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '12px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>GİRİŞ YAP</button>
+             <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '15px', cursor: 'pointer' }}>Kapat</button>
           </div>
         </div>
       )}
 
-      <h3 className="section-title">{getGenreName()}</h3>
-
-      <div className="movie-grid">
-        {(viewMode === "home" ? items : favorites).map((item, idx) => (
-          <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
-            <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
-              <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-              <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
-              </div>
-              <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
-            </div>
-            <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
-          </div>
-        ))}
-      </div>
-
-      {selectedItem && (
-        <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
-          <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
-             <h2 style={{ color: '#66FCF1', margin: 0 }}>{selectedItem.title || selectedItem.name}</h2>
-             <button onClick={() => setSelectedItem(null)} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '8px 25px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
-          </div>
-
-          <div style={{ width: '100%', height: '55vh', backgroundImage: `linear-gradient(to bottom, transparent, #0B0C10), url(${getImgUrl(selectedItem.backdrop_path, 'original')})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(selectedItem.title || selectedItem.name)}+fragman`} target="_blank" rel="noreferrer" style={{ background: '#66FCF1', color: '#0B0C10', padding: '12px 35px', borderRadius: '50px', fontWeight: 'bold', textDecoration: 'none', boxShadow: '0 0 20px rgba(102, 252, 241, 0.5)' }}>▶ FRAGMANI İZLE</a>
-          </div>
-
-          <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5% 100px' }}>
-             <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-                <div style={{ position: 'relative' }}>
-                    <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: '1px solid #333' }} alt="" />
-                    <div onClick={(e) => toggleFavorite(e, selectedItem)} className="fav-heart-btn" style={{ cursor: 'pointer' }}>
-                       {favorites.find(f => f.id === selectedItem.id) ? '❤️' : '🤍'}
-                    </div>
-                </div>
-                <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
-                    <h1 style={{ fontSize: '44px', fontWeight: '900', color: '#66FCF1' }}>{selectedItem.title || selectedItem.name}</h1>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '30px', margin: '20px 0' }}>
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                         <span style={{ fontSize: '20px' }}>⭐ TMDB:</span>
-                         <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{selectedItem.vote_average?.toFixed(1)}</span>
-                       </div>
-                       {calculateProRating(selectedItem.id) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
-                            <SineProLogo fontSize="18px" proSize="14px" />
-                            <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
-                            <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
-                        </div>
-                       )}
-                    </div>
-                    <p style={{ color: '#ccc', lineHeight: '1.8', fontSize: '18px' }}>{selectedItem.overview}</p>
-                </div>
-             </div>
-
-             <div style={{ marginTop: '60px', position: 'relative' }}>
-                <h3 style={{ color: '#66FCF1', marginBottom: '20px', borderBottom: '1px solid #333', paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScroll(modalScrollRef, 'right')}>❯</button>
-                <div className="horizontal-scroll" ref={modalScrollRef}>
-                   {similar.map((s) => (
-                     <div key={s.id} onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); document.getElementById('modal-content')?.scrollTo(0,0); }} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '240px', border: '1px solid #333' }}>
-                           <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                        </div>
-                        <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
-                     </div>
-                   ))}
-                </div>
-             </div>
-
-             <div style={{ marginTop: '80px' }}>
-                <h3 style={{ color: '#66FCF1', borderBottom: '1px solid #333', paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
-                <div style={{ margin: '30px 0', background: '#1F2833', padding: '20px', borderRadius: '15px', border: '1px solid #45A29E' }}>
-                   <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                     <UserAvatar name={currentUser?.username || "?"} />
-                     <input type="text" placeholder="Bu film hakkında ne düşünüyorsun?" value={newComment} onChange={(e) => setNewComment(e.target.value)} style={{ flex: 1, background: '#0B0C10', border: '1px solid #45A29E', padding: '12px 20px', borderRadius: '10px', color: 'white', outline: 'none' }} />
-                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} style={{ background: '#0B0C10', color: '#66FCF1', border: '1px solid #45A29E', padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                        {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
-                     </select>
-                   </div>
-                   <button onClick={addComment} style={{ background: '#66FCF1', color: '#0B0C10', border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right' }}>GÖNDER</button>
-                   <div style={{ clear: 'both' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                   {(comments[selectedItem.id] || []).length > 0 ? (
-                     comments[selectedItem.id].map((c: any) => (
-                       <div key={c.id} className="comment-box">
-                          <button onClick={() => deleteComment(selectedItem.id, c.id)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: '#555', cursor: 'pointer', fontSize: '14px' }}>❌</button>
-                          <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '10px' }}>
-                             <UserAvatar name={c.user} size="40px" />
-                             <div>
-                               <div style={{ color: '#66FCF1', fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</div>
-                               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                 <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '1px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Puan: {c.rating}/10</span>
-                                 <span style={{ color: '#45A29E', fontSize: '12px' }}>{c.date}</span>
-                               </div>
-                             </div>
-                          </div>
-                          <p style={{ margin: 0, color: '#ccc', lineHeight: '1.6', paddingLeft: '55px' }}>{c.text}</p>
-                       </div>
-                     ))
-                   ) : <p style={{ color: '#555', textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
-                </div>
-             </div>
-          </div>
-        </div>
-      )}
-
-      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
-        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: 'linear-gradient(45deg, #66FCF1, #45A29E)', color: '#0B0C10', padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(102, 252, 241, 0.3)', transition: '0.3s' }}>
-          <span>💎 DESTEK OL</span>
-        </a>
-      </div>
       <SpeedInsights />
     </main>
   );
