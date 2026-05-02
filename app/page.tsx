@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import emailjs from '@emailjs/browser'; // Bunu yüklediğinden emin ol: npm install @emailjs/browser
+import emailjs from '@emailjs/browser';
 
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
@@ -18,7 +18,6 @@ export default function Home() {
   const [favorites, setFavorites] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"home" | "favorites" | "profile" | "settings">("home");
   
-  // 🔐 GERÇEK MAİL DOĞRULAMALI ÜYELİK SİSTEMİ
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register" | "verify">("login");
@@ -40,7 +39,6 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
- // 🎯 GÜNCELLENMİŞ MAİL FONKSİYONU
   const sendVerificationEmail = async (email: string, code: string) => {
     try {
       const serviceID = "service_9d5qlk9";    
@@ -48,12 +46,11 @@ export default function Home() {
       const publicKey = "OGQEmxiu2oahk21gg";     
 
       const templateParams = {
-        email: email,              // 👈 Burayı 'email' yaptık (Paneldeki {{email}} ile eşleşti)
+        email: email,
         user_name: formData.username,
         auth_code: code,
       };
 
-      // Parametreleri gönderiyoruz
       await emailjs.send(serviceID, templateID, templateParams, publicKey);
       return true;
     } catch (error) {
@@ -61,10 +58,20 @@ export default function Home() {
       return false;
     }
   };
+
   const handleRegisterStart = async () => {
     if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
     if (formData.password.length < 6) return alert("Şifre en az 6 karakter olmalı!");
     
+    // 🛡️ ÇİFT KAYIT ENGELLEME SİSTEMİ
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const mailVarMi = users.find((u: any) => u.email === formData.email);
+
+    if (mailVarMi) {
+      return alert("Bu e-posta adresi zaten bir hesaba bağlı! Lütfen giriş yapın.");
+    }
+    // 🛡️ ENGELLEME BİTTİ
+
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
 
@@ -73,7 +80,7 @@ export default function Home() {
       alert("Doğrulama kodu mail adresine gönderildi!");
       setAuthMode("verify");
     } else {
-      alert("Mail gönderilirken hata oluştu. EmailJS ayarlarını kontrol et!");
+      alert("Mail gönderilirken hata oluştu. Ayarları kontrol et!");
     }
   };
 
@@ -98,11 +105,10 @@ export default function Home() {
       localStorage.setItem("sinepro_active_session", JSON.stringify(userMatch));
       setShowLogin(false);
     } else {
-      alert("Mail veya şifre hatalı! Sallama bilgilerle girilemez.");
+      alert("Mail veya şifre hatalı!");
     }
   };
 
-  // 🔄 VERİ ÇEKME
   useEffect(() => {
     setMounted(true);
     const session = localStorage.getItem("sinepro_active_session");
@@ -184,15 +190,6 @@ export default function Home() {
 
       {/* ANA SAYFA İÇERİĞİ */}
       <div style={{ padding: '20px 5%' }}>
-        {/* KATEGORİLER */}
-        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none' }}>
-          <button onClick={() => setSelectedGenre(null)} style={{ padding: '10px 25px', borderRadius: '25px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>Tümü</button>
-          {genres.map(g => (
-            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '10px 25px', borderRadius: '25px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{g.name}</button>
-          ))}
-        </div>
-
-        {/* ÖNE ÇIKANLAR (YATAY ŞERİT) */}
         <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', marginBottom: '20px' }}>ÖNE ÇIKANLAR</h2>
         <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '30px', scrollbarWidth: 'none' }}>
           {newReleases.map(item => (
@@ -203,8 +200,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* TÜMÜ / KEŞFET (GRID) */}
-        <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', margin: '40px 0 20px' }}>{selectedGenre ? genres.find(g => g.id === selectedGenre)?.name.toUpperCase() : "TÜMÜ"}</h2>
+        <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', margin: '40px 0 20px' }}>TÜMÜ</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '25px' }}>
           {items.map(item => (
             <div key={item.id} onClick={() => setSelectedItem(item)} style={{ cursor: 'pointer' }}>
