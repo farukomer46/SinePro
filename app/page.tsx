@@ -29,12 +29,12 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showSecuritySettings, setShowSecuritySettings] = useState(false); // YENİ: Güvenlik Ayarları Modali
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register" | "verify">("login");
   const [formData, setFormData] = useState({ email: "", password: "", username: "" });
   const [verificationCode, setVerificationCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
-  const [profileTab, setProfileTab] = useState<"profile" | "security">("profile");
   const [profilePassword, setProfilePassword] = useState("");
 
   const mainNewScrollRef = useRef<HTMLDivElement>(null);
@@ -111,17 +111,28 @@ export default function Home() {
     const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.toLowerCase() && u.email !== currentUser.email);
     if (isUsernameTaken) return alert("Bu kullanıcı adı başka birisi tarafından kullanılıyor!");
 
-    let updatedUser = { ...currentUser };
-    if (profilePassword.trim().length > 0) updatedUser.password = profilePassword;
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? currentUser : u);
+    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+    localStorage.setItem("sinepro_active_session", JSON.stringify(currentUser));
+    
+    setShowProfileSettings(false);
+    alert("Profil bilgileriniz başarıyla güncellendi!");
+  };
 
+  const saveSecuritySettings = () => {
+    if (profilePassword.trim().length === 0) return alert("Lütfen yeni bir şifre girin.");
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    
+    let updatedUser = { ...currentUser, password: profilePassword };
     const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
+    
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
     localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
     
     setCurrentUser(updatedUser);
     setProfilePassword("");
-    setShowProfileSettings(false);
-    alert("Profil bilgileriniz başarıyla güncellendi!");
+    setShowSecuritySettings(false);
+    alert("Şifreniz başarıyla güncellendi!");
   };
 
   // 🔄 VERİ ÇEKME & LİSTELEME
@@ -325,11 +336,15 @@ export default function Home() {
                 <UserAvatar user={currentUser} size="30px" />
               </div>
               {showUserDropdown && (
-                <div style={{ position: 'absolute', top: '45px', right: 0, width: '200px', background: '#1F2833', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: '#1F2833', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid #333', overflow: 'hidden' }}>
+                  
+                  {/* AYRI SEÇENEKLER BURADA */}
                   <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>⚙️ Profil Ayarlarım</div>
+                  <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>🔒 Güvenlik Ayarları</div>
                   <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>❤️ Takip Ettiklerim</div>
                   <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #222' }}>💬 Son Yorumlarım</div>
                   <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+
                 </div>
               )}
             </div>
@@ -368,52 +383,51 @@ export default function Home() {
         </div>
       )}
 
-      {/* PROFİL AYARLARI MODALİ (TAM İSTEDİĞİN GİBİ 2 SEKME) */}
+      {/* SADECE PROFİL AYARLARI MODALİ (Avatar ve İsim) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
-            <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Ayarlar</h3>
+            <h3 style={{ color: '#66FCF1', marginBottom: '25px', textAlign: 'center', borderBottom: '1px solid #333', paddingBottom: '15px' }}>Profil Ayarlarım</h3>
             
-            <div style={{ display: 'flex', marginBottom: '25px', borderBottom: '1px solid #333' }}>
-                <button onClick={() => setProfileTab("profile")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "profile" ? '#66FCF1' : '#555', borderBottom: profileTab === "profile" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Profil</button>
-                <button onClick={() => setProfileTab("security")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "security" ? '#66FCF1' : '#555', borderBottom: profileTab === "security" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Güvenlik</button>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
+                <UserAvatar user={currentUser} size="80px" fontSize="30px" />
+            </div>
+            <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap' }}>
+                {["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"].map((av, index) => (
+                    <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
+                        <UserAvatar user={{ username: currentUser?.username, avatar: av }} size="40px" />
+                    </div>
+                ))}
+            </div>
+            <div style={{ marginBottom: '25px' }}>
+                <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
+                <input type="text" value={currentUser?.username || ""} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
             </div>
 
-            {profileTab === "profile" ? (
-              <>
-                {/* SADECE AVATAR SEÇME VE KULLANICI ADI YAZMA KISMI */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}>
-                    <UserAvatar user={currentUser} size="80px" fontSize="30px" />
-                </div>
-                <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap' }}>
-                    {["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"].map((av, index) => (
-                        <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
-                            <UserAvatar user={{ username: currentUser?.username, avatar: av }} size="40px" />
-                        </div>
-                    ))}
-                </div>
-                <div style={{ marginBottom: '25px' }}>
-                    <label style={{ fontSize: '12px', color: '#ccc' }}>Kullanıcı Adı</label>
-                    <input type="text" value={currentUser?.username || ""} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
-                </div>
-              </>
-            ) : (
-              <>
-                {/* SADECE E-POSTA VE ŞİFRE DEĞİŞTİRME KISMI */}
-                <div style={{ marginBottom: '20px' }}>
-                    <label style={{ fontSize: '12px', color: '#888' }}>E-Posta Adresiniz</label>
-                    <input type="text" value={currentUser?.email || ""} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555', marginTop: '5px' }} />
-                </div>
-                <div style={{ marginBottom: '25px' }}>
-                    <label style={{ fontSize: '12px', color: '#ccc' }}>Yeni Şifre</label>
-                    <input type="password" placeholder="Şifrenizi değiştirmek için yazın..." value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
-                </div>
-              </>
-            )}
+            <button onClick={saveProfileSettings} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>PROFİLİ KAYDET</button>
+            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>İptal</button>
+          </div>
+        </div>
+      )}
 
-            <button onClick={saveProfileSettings} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>DEĞİŞİKLİKLERİ KAYDET</button>
-            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
+      {/* SADECE GÜVENLİK AYARLARI MODALİ (Mail ve Şifre) */}
+      {showSecuritySettings && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
+            <h3 style={{ color: '#66FCF1', marginBottom: '25px', textAlign: 'center', borderBottom: '1px solid #333', paddingBottom: '15px' }}>Güvenlik Ayarları</h3>
+            
+            <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '12px', color: '#888' }}>E-Posta Adresiniz (Değiştirilemez)</label>
+                <input type="text" value={currentUser?.email || ""} disabled style={{ width: '100%', background: '#0B0C10', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#555', marginTop: '5px' }} />
+            </div>
+            <div style={{ marginBottom: '25px' }}>
+                <label style={{ fontSize: '12px', color: '#ccc' }}>Yeni Şifre Belirle</label>
+                <input type="password" placeholder="Şifrenizi değiştirmek için yazın..." value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: '#0B0C10', border: '1px solid #45A29E', padding: '12px', borderRadius: '8px', color: 'white', marginTop: '5px' }} />
+            </div>
+
+            <button onClick={saveSecuritySettings} style={{ width: '100%', background: '#66FCF1', color: '#0B0C10', padding: '15px', borderRadius: '10px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>ŞİFREYİ GÜNCELLE</button>
+            <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: '#555', marginTop: '10px', cursor: 'pointer' }}>İptal</button>
           </div>
         </div>
       )}
