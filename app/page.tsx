@@ -34,8 +34,6 @@ export default function Home() {
   const [formData, setFormData] = useState({ email: "", password: "", username: "" });
   const [verificationCode, setVerificationCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
-  
-  // ⚙️ YENİ: Profil sekmeleri ve şifre değiştirme için state
   const [profileTab, setProfileTab] = useState<"profile" | "security">("profile");
   const [profilePassword, setProfilePassword] = useState("");
 
@@ -62,19 +60,22 @@ export default function Home() {
   };
 
   const handleRegisterStart = async () => {
+    if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
     
-    // BENZERSİZ MAİL VE KULLANICI ADI KONTROLÜ
     if (users.find((u: any) => u.email.toLowerCase() === formData.email.toLowerCase())) {
         return alert("Bu e-posta zaten kayıtlı!");
     }
     if (users.find((u: any) => u.username.toLowerCase() === formData.username.toLowerCase())) {
-        return alert("Bu kullanıcı adı başka biri tarafından kullanılıyor! Lütfen farklı bir ad seçin.");
+        return alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
-    if (await sendVerificationEmail(formData.email, code)) { setAuthMode("verify"); }
+    if (await sendVerificationEmail(formData.email, code)) {
+      alert("Kod mailine gönderildi!");
+      setAuthMode("verify");
+    } else { alert("Mail gönderilirken hata oluştu!"); }
   };
 
   const handleVerifyAndFinish = () => {
@@ -85,7 +86,7 @@ export default function Home() {
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
       setAuthMode("login");
       alert("Kayıt başarılı!");
-    }
+    } else { alert("Kod yanlış!"); }
   };
 
   const handleLogin = () => {
@@ -105,33 +106,25 @@ export default function Home() {
     setViewMode("home");
   };
 
-  // ⚙️ YENİ: GÜVENLİ PROFİL KAYDETME
   const saveProfileSettings = () => {
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    
-    // Kullanıcı adını başkası kullanıyor mu kontrolü (Kendi maili hariç)
     const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.toLowerCase() && u.email !== currentUser.email);
-    if (isUsernameTaken) {
-        return alert("Bu kullanıcı adı zaten başka birisi tarafından kullanılıyor!");
-    }
+    if (isUsernameTaken) return alert("Bu kullanıcı adı başka birisi tarafından kullanılıyor!");
 
     let updatedUser = { ...currentUser };
-    // Eğer güvenlik kısmında yeni şifre yazıldıysa onu da güncelle
-    if (profilePassword.trim().length > 0) {
-        updatedUser.password = profilePassword;
-    }
+    if (profilePassword.trim().length > 0) updatedUser.password = profilePassword;
 
     const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
     localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
     
     setCurrentUser(updatedUser);
-    setProfilePassword(""); // Şifre kutusunu sıfırla
+    setProfilePassword("");
     setShowProfileSettings(false);
-    alert("Profil bilgileri başarıyla güncellendi!");
+    alert("Profil güncellendi!");
   };
 
-  // 🔄 VERİ ÇEKME & DİĞER FONKSİYONLAR
+  // 🔄 VERİ ÇEKME & LİSTELEME (SENİN KODUN)
   const getGenreName = () => {
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "TÜMÜ";
@@ -161,7 +154,7 @@ export default function Home() {
       text: newComment,
       rating: commentRating,
       date: new Date().toLocaleDateString('tr-TR'),
-      itemTitle: selectedItem.title || selectedItem.name, 
+      itemTitle: selectedItem.title || selectedItem.name,
       itemID: selectedItem.id
     };
     const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
@@ -172,9 +165,23 @@ export default function Home() {
   };
 
   const deleteComment = (itemID: number, commentID: number) => {
-    const updatedComments = { ...comments, [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) };
+    const updatedComments = { 
+      ...comments, 
+      [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) 
+    };
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
+  };
+
+  const getMyComments = () => {
+    let myComments: any[] = [];
+    if (currentUser) {
+        Object.values(comments).forEach((itemComments: any) => {
+            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
+        });
+        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
+    }
+    return myComments;
   };
 
   useEffect(() => {
@@ -194,6 +201,10 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (mounted) document.body.style.overflow = selectedItem ? 'hidden' : 'unset';
+  }, [selectedItem, mounted]);
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
@@ -248,18 +259,6 @@ export default function Home() {
     }
   };
 
-  const getMyComments = () => {
-    let myComments: any[] = [];
-    if (currentUser) {
-        Object.values(comments).forEach((itemComments: any) => {
-            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
-        });
-        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
-    }
-    return myComments;
-  };
-
-  // 🎨 AVATAR BİLEŞENİ
   const UserAvatar = ({ user, size = "35px", fontSize = "14px" }: any) => {
     if (user?.avatar && user.avatar !== "default") {
         return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: '2px solid #66FCF1' }} alt="" />;
@@ -299,12 +298,9 @@ export default function Home() {
         .rating-badge-pro { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #66FCF1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; pointer-events: none; }
       ` }} />
 
-      {/* NAVBAR */}
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <div onClick={() => { setViewMode("home"); setSearchQuery(""); }} style={{ cursor: 'pointer' }}>
-            <SineProLogo />
-          </div>
+          <SineProLogo onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -340,7 +336,7 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 🔐 GİRİŞ MODALİ */}
+      {/* GİRİŞ MODALİ */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
           <div style={{ background: '#1F2833', padding: '40px', borderRadius: '25px', width: '380px', border: '1px solid #66FCF1' }}>
@@ -369,13 +365,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* ⚙️ PROFİL AYARLARI MODALİ (SEKMELİ) */}
+      {/* PROFİL AYARLARI MODALİ (SEKMELİ) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
+          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px' }}>
             <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Ayarlar</h3>
             
-            {/* Sekme Butonları */}
             <div style={{ display: 'flex', marginBottom: '25px', borderBottom: '1px solid #333' }}>
                 <button onClick={() => setProfileTab("profile")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "profile" ? '#66FCF1' : '#555', borderBottom: profileTab === "profile" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Profil</button>
                 <button onClick={() => setProfileTab("security")} style={{ flex: 1, padding: '10px', background: 'none', border: 'none', color: profileTab === "security" ? '#66FCF1' : '#555', borderBottom: profileTab === "security" ? '2px solid #66FCF1' : 'none', fontWeight: 'bold', cursor: 'pointer' }}>Güvenlik</button>
@@ -387,7 +382,6 @@ export default function Home() {
                     <UserAvatar user={currentUser} size="80px" fontSize="30px" />
                 </div>
                 <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginBottom: '10px' }}>Bir Avatar Seçin:</p>
-                {/* 8 Tane Avatar Desteği Eklendi */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '25px', flexWrap: 'wrap' }}>
                     {["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"].map((av, index) => (
                         <div key={index} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ border: currentUser?.avatar === av ? '2px solid #66FCF1' : '2px solid transparent', borderRadius: '50%', cursor: 'pointer', padding: '2px', transition: '0.3s' }}>
@@ -419,108 +413,108 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🎬 ANA İÇERİK */}
-      <div style={{ padding: '20px 5%' }}>
-        {viewMode === "home" ? (
-          <>
-            <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '20px', scrollbarWidth: 'none' }}>
-              <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
-              {genres.map(g => (
-                <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
-              ))}
-            </div>
+      {viewMode === "home" && !searchQuery && (
+        <div style={{ padding: '10px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
+          <button onClick={() => setSelectedGenre(null)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === null ? '#66FCF1' : 'transparent', color: selectedGenre === null ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>Tümü</button>
+          {genres.map(g => (
+            <button key={g.id} onClick={() => setSelectedGenre(g.id)} style={{ padding: '6px 18px', borderRadius: '20px', border: '1px solid #45A29E', background: selectedGenre === g.id ? '#66FCF1' : 'transparent', color: selectedGenre === g.id ? '#0B0C10' : '#66FCF1', cursor: 'pointer', whiteSpace: 'nowrap' }}>{g.name}</button>
+          ))}
+        </div>
+      )}
 
-            {!searchQuery && newReleases.length > 0 && (
-              <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
-                <h3 className="section-title">ÖNE ÇIKANLAR</h3>
-                <div style={{ position: 'relative', padding: '0 5%' }}>
-                  <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
-                  <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
-                  <div className="horizontal-scroll" ref={mainNewScrollRef}>
-                    {newReleases.map((item) => (
-                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
-                        <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
-                          <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                          <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                            {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
-                          </div>
-                          <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
-                        </div>
-                        <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <h3 className="section-title">{getGenreName()}</h3>
-
-            <div className="movie-grid">
-              {items.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
-                  <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+      {viewMode === "home" && !searchQuery && newReleases.length > 0 && (
+        <div style={{ position: 'relative', marginTop: '20px', zIndex: 1 }}>
+          <h3 className="section-title">ÖNE ÇIKANLAR</h3>
+          <div style={{ position: 'relative', padding: '0 5%' }}>
+            <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'left')}>❮</button>
+            <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScroll(mainNewScrollRef, 'right')}>❯</button>
+            <div className="horizontal-scroll" ref={mainNewScrollRef}>
+              {newReleases.map((item) => (
+                <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer', position: 'relative' }}>
+                  <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                      {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
                     <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
-                  <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+                  <p style={{ marginTop: '12px', fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
                 </div>
               ))}
             </div>
-          </>
-        ) : viewMode === "favorites" ? (
-          <div>
-             <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', marginBottom: '30px' }}>LİSTEM</h2>
-             <div className="movie-grid">
-                {favorites.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
-                    <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
-                      <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                      <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">❤️</div>
-                      <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
-                    </div>
-                    <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
-                  </div>
-                ))}
-             </div>
           </div>
-        ) : (
-          /* 💬 KULLANICI SON YORUMLARI EKRANI */
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #1F2833', paddingBottom: '15px' }}>
-                <h2 style={{ color: '#66FCF1', margin: 0, borderLeft: '4px solid #66FCF1', paddingLeft: '15px' }}>Son Yorumlarım</h2>
-                <select value={commentsSort} onChange={(e) => setCommentsSort(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                    <option value="newest">Zaman: En Yeni</option>
-                    <option value="oldest">Zaman: En Eski</option>
-                </select>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
-                {getMyComments().length > 0 ? (
-                    getMyComments().map((c: any) => (
-                        <div key={c.id} style={{ background: '#1F2833', borderRadius: '15px', padding: '20px', borderLeft: '4px solid #45A29E' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                    <span style={{ background: '#0B0C10', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold' }}>🎬 {c.itemTitle}</span>
-                                    <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold' }}>Verdiğim Puan: {c.rating}/10</span>
-                                </div>
-                                <span style={{ color: '#555', fontSize: '13px' }}>{c.date}</span>
-                            </div>
-                            <p style={{ color: '#ccc', margin: 0, lineHeight: '1.6', fontSize: '15px' }}>"{c.text}"</p>
-                        </div>
-                    ))
-                ) : (
-                    <p style={{ color: '#555' }}>Henüz hiçbir filme yorum yapmadınız.</p>
-                )}
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* 🟡 DETAY MODALİ */}
+      {viewMode === "home" && (
+        <>
+          <h3 className="section-title">{getGenreName()}</h3>
+          <div className="movie-grid">
+            {items.map((item, idx) => (
+              <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+                <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+                  <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
+                    {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                  </div>
+                  <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+                </div>
+                <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {viewMode === "favorites" && (
+        <div style={{ padding: '0 5%' }}>
+          <h2 style={{ color: '#66FCF1', borderLeft: '4px solid #66FCF1', paddingLeft: '15px', marginTop: '30px' }}>LİSTEM</h2>
+          <div className="movie-grid" style={{ padding: '30px 0' }}>
+            {favorites.map((item, idx) => (
+              <div key={`${item.id}-${idx}`} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); }} style={{ textAlign: 'center' }}>
+                <div className="hover-effect" style={{ borderRadius: '15px', overflow: 'hidden', border: '1px solid #333', height: '270px', position: 'relative' }}>
+                  <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">❤️</div>
+                  <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+                </div>
+                <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* KULLANICI SON YORUMLARI EKRANI */}
+      {viewMode === "my_comments" && (
+        <div style={{ padding: '30px 5%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '1px solid #1F2833', paddingBottom: '15px' }}>
+              <h2 style={{ color: '#66FCF1', margin: 0, borderLeft: '4px solid #66FCF1', paddingLeft: '15px' }}>Son Yorumlarım</h2>
+              <select value={commentsSort} onChange={(e) => setCommentsSort(e.target.value)} style={{ background: '#1F2833', color: '#66FCF1', border: '1px solid #45A29E', padding: '8px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                  <option value="newest">Zaman: En Yeni</option>
+                  <option value="oldest">Zaman: En Eski</option>
+              </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '800px' }}>
+              {getMyComments().length > 0 ? (
+                  getMyComments().map((c: any) => (
+                      <div key={c.id} style={{ background: '#1F2833', borderRadius: '15px', padding: '20px', borderLeft: '4px solid #45A29E' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                  <span style={{ background: '#0B0C10', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: 'bold' }}>🎬 {c.itemTitle}</span>
+                                  <span style={{ background: 'rgba(102,252,241,0.1)', color: '#66FCF1', padding: '5px 12px', borderRadius: '10px', fontSize: '13px', fontWeight: 'bold' }}>Verdiğim Puan: {c.rating}/10</span>
+                              </div>
+                              <span style={{ color: '#555', fontSize: '13px' }}>{c.date}</span>
+                          </div>
+                          <p style={{ color: '#ccc', margin: 0, lineHeight: '1.6', fontSize: '15px' }}>"{c.text}"</p>
+                      </div>
+                  ))
+              ) : (
+                  <p style={{ color: '#555' }}>Henüz hiçbir filme yorum yapmadınız.</p>
+              )}
+          </div>
+        </div>
+      )}
+
       {selectedItem && (
         <div id="modal-content" style={{ position: 'fixed', inset: 0, background: '#0B0C10', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: 'rgba(11, 12, 16, 0.95)', padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
@@ -549,6 +543,7 @@ export default function Home() {
                        </div>
                        {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
+                            {/* PRO LOGOSU */}
                             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', boxShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>PRO</span>
                             <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                             <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
