@@ -124,7 +124,7 @@ export default function Home() {
     alert("Profil güncellendi!");
   };
 
-  // 🔄 VERİ ÇEKME & LİSTELEME (SENİN KODUN)
+  // 🔄 VERİ ÇEKME & LİSTELEME
   const getGenreName = () => {
     const genre = genres.find(g => g.id === selectedGenre);
     return genre ? genre.name.toUpperCase() : "TÜMÜ";
@@ -300,7 +300,9 @@ export default function Home() {
 
       <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(11, 12, 16, 0.98)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #1F2833' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-          <SineProLogo onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
+          <div onClick={() => { setViewMode("home"); setSearchQuery(""); }} style={{ cursor: 'pointer' }}>
+            <SineProLogo />
+          </div>
           <div style={{ display: 'flex', gap: '15px' }}>
             <button onClick={() => { setViewMode("home"); setContentType("movie"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "movie" ? '#66FCF1' : '#45A29E' }}>FİLMLER</button>
             <button onClick={() => { setViewMode("home"); setContentType("tv"); setSelectedGenre(null); }} className="nav-link" style={{ color: viewMode === "home" && contentType === "tv" ? '#66FCF1' : '#45A29E' }}>DİZİLER</button>
@@ -368,7 +370,7 @@ export default function Home() {
       {/* PROFİL AYARLARI MODALİ (SEKMELİ) */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px' }}>
+          <div style={{ background: '#1F2833', width: '450px', borderRadius: '20px', border: '1px solid #66FCF1', padding: '30px', position: 'relative' }}>
             <h3 style={{ color: '#66FCF1', marginBottom: '20px', textAlign: 'center' }}>Ayarlar</h3>
             
             <div style={{ display: 'flex', marginBottom: '25px', borderBottom: '1px solid #333' }}>
@@ -434,7 +436,7 @@ export default function Home() {
                   <div className="hover-effect" style={{ borderRadius: '12px', overflow: 'hidden', height: '280px', border: '1px solid #333', position: 'relative' }}>
                     <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                     <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">
-                       {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
+                      {favorites.find(f => f.id === item.id) ? '❤️' : '🤍'}
                     </div>
                     <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
                   </div>
@@ -543,7 +545,6 @@ export default function Home() {
                        </div>
                        {calculateProRating(selectedItem.id) && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '1px solid #333', paddingLeft: '30px' }}>
-                            {/* PRO LOGOSU */}
                             <span style={{ backgroundColor: '#66FCF1', color: '#0B0C10', padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', boxShadow: '0 0 10px rgba(102, 252, 241, 0.6)' }}>PRO</span>
                             <span style={{ color: '#66FCF1', fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                             <span style={{ color: '#555', fontSize: '12px' }}>({(comments[selectedItem.id] || []).filter((c: any) => c.rating).length} yorum)</span>
