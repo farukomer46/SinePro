@@ -20,7 +20,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState(""); 
   const [liveResults, setLiveResults] = useState<any[]>([]); 
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // 🚀 Arama çubuğunun açık/kapalı durumu
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false); 
   
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [cast, setCast] = useState<any[]>([]); 
@@ -50,6 +50,7 @@ export default function Home() {
   const [showSecuritySettings, setShowSecuritySettings] = useState(false);
   const [showThemeSettings, setShowThemeSettings] = useState(false); 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false); // 🚀 MOBİL PROFİL MENÜSÜ İÇİN
   const [authMode, setAuthMode] = useState<"login" | "register" | "verify" | "forgot_password" | "verify_forgot" | "new_password" | "security_verify">("login");
   
   const [zoomedAvatar, setZoomedAvatar] = useState<{username: string, avatar: string} | null>(null);
@@ -74,7 +75,7 @@ export default function Home() {
   const castScrollRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null); 
-  const searchInputRef = useRef<HTMLInputElement | null>(null); // 🚀 Inputa odaklanmak için ref
+  const searchInputRef = useRef<HTMLInputElement | null>(null); 
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
@@ -586,6 +587,10 @@ export default function Home() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-3px); }
         }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
         .hover-effect { transition: 0.4s ease; position: relative; border-radius: 12px; border: 1px solid ${borderColor}; }
         .hover-effect:hover { transform: translateY(-10px); box-shadow: 0 0 25px ${activeColor}66; }
@@ -655,13 +660,20 @@ export default function Home() {
         .detail-poster-img { width: 280px; }
         .detail-title-text { font-size: 44px; }
         .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; }
+        
+        /* MOBİL ALT MENÜ (Masaüstünde Gizli) */
+        .bottom-bar { display: none; }
+        .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
 
         /* 📱 MOBİL EKRANLAR İÇİN KUSURSUZ UYUM (@media queries) */
         @media (max-width: 768px) {
-          .nav-wrapper { flex-direction: column; gap: 15px; padding: 15px 2%; }
-          .nav-wrapper > div { width: 100%; justify-content: center; flex-wrap: wrap; }
-          .search-container { width: 100%; justify-content: center; margin-top: 5px; }
-          .search-input-box { width: ${isSearchExpanded ? '100%' : '40px'} !important; min-width: ${isSearchExpanded ? '250px' : '40px'}; }
+          .nav-wrapper { flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; padding: 15px 5% !important; }
+          .nav-wrapper > div { width: auto !important; justify-content: flex-start !important; flex-wrap: nowrap !important; }
+          .hide-on-mobile { display: none !important; }
+          .search-container { margin-top: 0 !important; width: auto !important; }
+          .search-input-box { width: ${isSearchExpanded ? '200px' : '40px'} !important; min-width: ${isSearchExpanded ? '200px' : '40px'}; }
+          
           .side-nav-btn { display: none !important; } 
           .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; padding: 20px 2% !important; }
           .detail-title-text { font-size: 28px !important; text-align: center; }
@@ -673,16 +685,38 @@ export default function Home() {
           .auth-modal, .theme-modal, .profile-modal { padding: 25px !important; }
           .stats-container { padding: 30px 5% !important; }
           .comments-inputs { flex-direction: column; }
+          
+          /* MOBİL ALT MENÜYÜ GÖSTER */
+          body { padding-bottom: 70px; }
+          .bottom-bar { 
+             display: flex; position: fixed; bottom: 0; left: 0; width: 100%; 
+             background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; 
+             z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; 
+             justify-content: space-between; align-items: center; 
+          }
+          .bottom-bar-item {
+             display: flex; flex-direction: column; align-items: center; justify-content: center; 
+             flex: 1; color: ${textLight}; cursor: pointer; font-size: 11px; font-weight: bold; gap: 4px; transition: 0.3s;
+          }
+          .bottom-bar-item.active { color: ${activeColor}; }
+          .bottom-bar-item.active span:first-child { transform: scale(1.2); }
+          .ai-center-btn {
+             background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; 
+             display: flex; align-items: center; justify-content: center; font-size: 26px; 
+             transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; 
+          }
+          .donate-btn { bottom: 100px !important; }
         }
       ` }} />
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
-      {/* NAVBAR */}
+      {/* 🚀 NAVBAR (Mobilde Sadece Logo ve Arama Var) */}
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div onClick={() => {setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput("");}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          {/* MASAÜSTÜ FİLM/DİZİ BUTONLARI (Mobilde Gizli) */}
+          <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
@@ -690,8 +724,9 @@ export default function Home() {
         
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
           
-          {/* 🤖 SİNE Aİ BUTONU */}
+          {/* MASAÜSTÜ SİNE Aİ BUTONU (Mobilde Gizli) */}
           <button 
+             className="hide-on-mobile"
              onClick={() => setShowSineAI(true)}
              style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }}
              title="SİNE Aİ Asistan"
@@ -714,7 +749,7 @@ export default function Home() {
                  if (e.key === 'Enter') { 
                     setSearchQuery(searchInput); 
                     setIsSearchFocused(false); 
-                    setIsSearchExpanded(false); // Aramadan sonra çubuğu kapat
+                    setIsSearchExpanded(false); 
                     setViewMode("home");
                  } 
                }}
@@ -724,12 +759,10 @@ export default function Home() {
                 className="search-icon-btn"
                 onClick={() => {
                     if (isSearchExpanded) {
-                        // Eğer açıksa ve tıklandıysa kapat
                         setIsSearchExpanded(false);
                         setSearchInput("");
                         setIsSearchFocused(false);
                     } else {
-                        // Eğer kapalıysa aç ve içine odaklan
                         setIsSearchExpanded(true);
                         setTimeout(() => searchInputRef.current?.focus(), 100);
                     }
@@ -786,28 +819,79 @@ export default function Home() {
              {isDarkMode ? "☀️" : "🌙"}
           </button>
 
-          {/* KULLANICI SEÇENEKLERİ */}
-          {currentUser ? (
-            <div style={{ position: 'relative' }} ref={dropdownRef}>
-              <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: bgCard, padding: '5px 12px', borderRadius: '25px', border: `1px solid ${borderColor}` }}>
-                <span style={{ color: activeColor, fontWeight: 'bold' }}>{currentUser.username}</span>
-                <UserAvatar user={currentUser} size="30px" />
-              </div>
-              {showUserDropdown && (
-                <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                  <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
-                  <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
-                  <div onClick={() => { setViewMode("stats"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
-                  <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
-                  <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
-                  <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
-                  <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+          {/* MASAÜSTÜ KULLANICI PROFİLİ (Mobilde Gizli) */}
+          <div className="hide-on-mobile">
+            {currentUser ? (
+              <div style={{ position: 'relative' }} ref={dropdownRef}>
+                <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: bgCard, padding: '5px 12px', borderRadius: '25px', border: `1px solid ${borderColor}` }}>
+                  <span style={{ color: activeColor, fontWeight: 'bold' }}>{currentUser.username}</span>
+                  <UserAvatar user={currentUser} size="30px" />
                 </div>
-              )}
-            </div>
-          ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>GİRİŞ YAP</button>}
+                {showUserDropdown && (
+                  <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+                    <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
+                    <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
+                    <div onClick={() => { setViewMode("stats"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
+                    <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
+                    <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
+                    <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
+                    <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+                  </div>
+                )}
+              </div>
+            ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>GİRİŞ YAP</button>}
+          </div>
         </div>
       </nav>
+
+      {/* 📱 MOBİL ALT MENÜ ÇUBUĞU (Sadece Telefonda Görünür) */}
+      <div className="bottom-bar">
+         <div className={`bottom-bar-item ${viewMode === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }}>
+             <span style={{ fontSize: '22px', transition: '0.3s' }}>🏠</span>
+             <span>Keşfet</span>
+         </div>
+         <div className={`bottom-bar-item ${contentType === 'movie' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }}>
+             <span style={{ fontSize: '22px', transition: '0.3s' }}>🎬</span>
+             <span>Filmler</span>
+         </div>
+         <div className="bottom-bar-item" onClick={() => setShowSineAI(true)}>
+             <div className="ai-center-btn">🤖</div>
+             <span style={{ color: activeColor, marginTop: '-15px', textShadow: `0 0 5px ${activeColor}80` }}>SİNE Aİ</span>
+         </div>
+         <div className={`bottom-bar-item ${contentType === 'tv' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }}>
+             <span style={{ fontSize: '22px', transition: '0.3s' }}>📺</span>
+             <span>Diziler</span>
+         </div>
+         <div className={`bottom-bar-item ${viewMode !== 'home' ? 'active' : ''}`} onClick={() => { currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
+             {currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" /></div> : <span style={{ fontSize: '22px', transition: '0.3s' }}>👤</span>}
+             <span style={{ color: currentUser && viewMode !== 'home' ? activeColor : textLight }}>{currentUser ? "Profil" : "Giriş"}</span>
+         </div>
+      </div>
+
+      {/* 📱 MOBİL PROFİL MENÜSÜ (Aşağıdan Yukarı Kayarak Açılan Şık Panel) */}
+      {showMobileMenu && currentUser && (
+        <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9950, display: 'flex', alignItems: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', background: bgCard, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', padding: '25px', borderTop: `2px solid ${activeColor}`, boxShadow: `0 -10px 40px ${activeColor}40`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><div style={{ width: '40px', height: '5px', background: borderColor, borderRadius: '10px' }}></div></div>
+             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '20px' }}>
+                <UserAvatar user={currentUser} size="60px" fontSize="24px" />
+                <div>
+                   <h3 style={{ margin: 0, color: activeColor, fontSize: '20px' }}>@{currentUser.username}</h3>
+                   <p style={{ margin: 0, fontSize: '13px', color: textLight }}>{currentUser.email}</p>
+                </div>
+             </div>
+             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <button onClick={() => { setShowProfileSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">⚙️ Profil Ayarları</button>
+                <button onClick={() => { setShowSecuritySettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🔒 Güvenlik</button>
+                <button onClick={() => { setViewMode("stats"); setShowMobileMenu(false); }} className="mobile-menu-btn">📊 İstatistiklerim</button>
+                <button onClick={() => { setShowThemeSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🎨 Tema Seç</button>
+                <button onClick={() => { setViewMode("favorites"); setShowMobileMenu(false); }} className="mobile-menu-btn">❤️ Favorilerim</button>
+                <button onClick={() => { setViewMode("my_comments"); setShowMobileMenu(false); }} className="mobile-menu-btn">💬 Yorumlarım</button>
+             </div>
+             <button onClick={() => { handleLogout(); setShowMobileMenu(false); }} style={{ width: '100%', padding: '15px', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,0,0,0.3)', borderRadius: '15px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', fontSize: '16px' }}>🚪 Çıkış Yap</button>
+          </div>
+        </div>
+      )}
 
       {/* 🤖 Aİ SOHBET EKRANI (MODAL) */}
       {showSineAI && (
@@ -1277,7 +1361,7 @@ export default function Home() {
              </div>
              
              {/* FOOTER API BİLGİSİ */}
-             <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px' }}>
+             <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}>
                  <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
                  <p>Bu ürün TMDB API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.</p>
              </div>
@@ -1431,8 +1515,9 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
-        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" className="donate-btn" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px ${activeColor}40` }}>
+      {/* 💎 DESTEK OL BUTONU */}
+      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9900 }} className="donate-btn">
+        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px ${activeColor}40` }}>
           <span>💎 DESTEK OL</span>
         </a>
       </div>
