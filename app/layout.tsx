@@ -3,7 +3,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "SİNEPRO | Film ve Dizi Portalı",
-  description: "En güncel içerikler, reklamsız HD film ve dizi keyfi SinePro'da!", // Açıklamayı biraz daha ilgi çekici yaptık
+  description: "Film ve dizi tutkunlarının buluşma noktası SİNEPRO! İzlediğin yapımları puanla, kendi eleştirilerini yaz ve SİNE Aİ ile yeni favorilerini anında keşfet.", 
+  applicationName: "SİNEPRO", 
+  keywords: ["film yorumları", "dizi inceleme", "sinepro", "film önerisi", "sinema topluluğu", "film puanlama", "yapay zeka film bulucu"], // Keywords kısmını da yorum sitesine göre güncelledim!
   icons: {
     icon: "/icon.png",
     apple: "/icon.png",
@@ -14,12 +16,13 @@ export const metadata: Metadata = {
   // WHATSAPP VE SOSYAL MEDYA ÖNİZLEMESİ İÇİN:
   openGraph: {
     title: "SİNEPRO | Film ve Dizi Portalı",
-    description: "En güncel içerikler, reklamsız HD film ve dizi keyfi SinePro'da!",
+    description: "Film ve dizi tutkunlarının buluşma noktası SİNEPRO! İzlediğin yapımları puanla, kendi eleştirilerini yaz ve SİNE Aİ ile yeni favorilerini anında keşfet.",
+    siteName: "SİNEPRO", 
     type: "website",
-    url: "https://farukomer46.vercel.app/", // Kendi site adresin
+    url: "https://sinepro.vercel.app/", // Vercel'den ismini değiştirince burayı da aynı isimle güncellemeyi unutma!
     images: [
       {
-        url: "/icon.png", // Link atınca görünecek resim (logosunu koyduk)
+        url: "/icon.png", 
         width: 800,
         height: 600,
       },
