@@ -567,6 +567,7 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
+      {/* 🚀 MOBİL UYUMLULUK CSS BLOKLARI EKLENDİ */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes heartbeat {
           0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
@@ -603,15 +604,45 @@ export default function Home() {
         .load-more-btn:hover { background: ${activeColor}; color: ${badgeText}; box-shadow: 0 0 20px ${activeColor}66; }
 
         .search-item-hover:hover { background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; }
+
+        /* ESNEK KUTULAR İÇİN SINIFLAR (Masaüstü) */
+        .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; }
+        .ai-modal { max-width: 500px; height: 650px; }
+        .auth-modal { max-width: 380px; padding: 40px; }
+        .profile-modal { max-width: 450px; padding: 30px; }
+        .theme-modal { max-width: 400px; padding: 40px; }
+        .search-input-box { width: 220px; }
+        .search-dropdown { width: 320px; max-width: 90vw; }
+        .detail-poster-img { width: 280px; }
+        .detail-title-text { font-size: 44px; }
+        .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; }
+
+        /* 📱 MOBİL EKRANLAR İÇİN KUSURSUZ UYUM (@media queries) */
+        @media (max-width: 768px) {
+          .nav-wrapper { flex-direction: column; gap: 15px; padding: 15px 2%; }
+          .nav-wrapper > div { width: 100%; justify-content: center; flex-wrap: wrap; }
+          .search-input-box { width: 100% !important; min-width: 250px; }
+          .side-nav-btn { display: none !important; } /* Mobilde kaydırma parmakla yapıldığı için okları gizliyoruz */
+          .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; padding: 20px 2% !important; }
+          .detail-title-text { font-size: 28px !important; text-align: center; }
+          .detail-poster-img { width: 200px !important; max-width: 80vw; margin: 0 auto; display: block; }
+          .detail-top-flex { flex-direction: column; align-items: center; gap: 20px !important; }
+          .ai-modal { height: 85vh !important; }
+          .category-btn { font-size: 13px; padding: 6px 14px; }
+          .section-title { font-size: 16px !important; margin-left: 2% !important; }
+          .auth-modal, .theme-modal, .profile-modal { padding: 25px !important; }
+          .stats-container { padding: 30px 5% !important; }
+          .comments-inputs { flex-direction: column; }
+        }
       ` }} />
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
       {/* NAVBAR */}
-      <nav style={{ padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
+      <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div onClick={() => {setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput("");}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
-          <div style={{ display: 'flex', gap: '15px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
@@ -630,9 +661,10 @@ export default function Home() {
           </button>
 
           {/* 🔍 CANLI ARAMA */}
-          <div style={{ position: 'relative' }} ref={searchRef}>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }} ref={searchRef}>
             <input 
                type="text" 
+               className="search-input-box"
                placeholder="Film veya Dizi Ara..." 
                value={searchInput}
                onChange={(e) => setSearchInput(e.target.value)} 
@@ -644,10 +676,10 @@ export default function Home() {
                     setViewMode("home");
                  } 
                }}
-               style={{ background: bgCard, border: `1px solid ${borderColor}`, padding: '10px 20px', borderRadius: '25px', color: textMain, outline: 'none', width: '220px' }} 
+               style={{ background: bgCard, border: `1px solid ${borderColor}`, padding: '10px 20px', borderRadius: '25px', color: textMain, outline: 'none' }} 
             />
             {searchInput && isSearchFocused && (
-              <div style={{ position: 'absolute', top: '45px', right: 0, width: '320px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+              <div className="search-dropdown" style={{ position: 'absolute', top: '45px', right: 0, background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
                 {liveResults.length > 0 ? (
                   <>
                     {liveResults.slice(0, 5).map(item => (
@@ -711,14 +743,14 @@ export default function Home() {
                 </div>
               )}
             </div>
-          ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 25px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer' }}>GİRİŞ YAP</button>}
+          ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>GİRİŞ YAP</button>}
         </div>
       </nav>
 
       {/* 🤖 Aİ SOHBET EKRANI (MODAL) */}
       {showSineAI && (
-        <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: aiModalContentBg, border: `1px solid ${activeColor}`, borderRadius: '25px', width: '500px', height: '650px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
+        <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: aiModalContentBg, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
             
             <div style={{ background: aiHeaderBg, padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${activeColor}40` }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -796,9 +828,9 @@ export default function Home() {
 
       {/* 📊 İSTATİSTİK SAYFASI */}
       {viewMode === "stats" && (
-        <div style={{ padding: '50px 10%', position: 'relative', zIndex: 1 }}>
+        <div className="stats-container" style={{ padding: '50px 10%', position: 'relative', zIndex: 1 }}>
           <h2 style={{ color: activeColor, fontSize: '32px', marginBottom: '40px' }}>📊 KULLANICI İSTATİSTİKLERİ</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
             <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', border: `1px solid ${borderColor}` }}>
               <h4 style={{ color: textLight, marginBottom: '10px' }}>Toplam Favori</h4>
               <p style={{ fontSize: '48px', fontWeight: 'bold', color: activeColor }}>{favorites.length}</p>
@@ -975,8 +1007,8 @@ export default function Home() {
 
       {/* 🎨 TEMA SEÇİCİ MODAL */}
       {showThemeSettings && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: bgCard, padding: '40px', borderRadius: '25px', width: '400px', border: `1px solid ${activeColor}` }}>
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box theme-modal" style={{ background: bgCard }}>
             <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '30px' }}>RENK TEMANI SEÇ</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
               {themes.map(t => {
@@ -995,9 +1027,9 @@ export default function Home() {
 
       {/* 🎬 UYGULAMA İÇİ FRAGMAN MODALI */}
       {activeTrailerKey && (
-        <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <div style={{ position: 'relative', width: '85%', maxWidth: '1000px', aspectRatio: '16/9' }} onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setActiveTrailerKey(null)} style={{ position: 'absolute', top: '-20px', right: '-20px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80`, zIndex: 10 }}>✕</button>
+        <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+           <div style={{ position: 'relative', width: '100%', maxWidth: '1000px', aspectRatio: '16/9' }} onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setActiveTrailerKey(null)} style={{ position: 'absolute', top: '-15px', right: '-10px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '35px', height: '35px', fontSize: '18px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80`, zIndex: 10 }}>✕</button>
               <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen style={{ borderRadius: '15px', border: `2px solid ${activeColor}`, background: 'black', boxShadow: `0 10px 40px ${activeColor}40` }}></iframe>
            </div>
         </div>
@@ -1006,9 +1038,9 @@ export default function Home() {
       {/* 🎬 FİLM DETAY MODALİ */}
       {selectedItem && (
         <div style={{ position: 'fixed', inset: 0, background: bgMain, zIndex: 1000, overflowY: 'auto', paddingBottom: '100px' }}>
-          <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: navBg, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${borderColor}` }}>
-            <h2 style={{ color: activeColor }}>{selectedItem.title || selectedItem.name}</h2>
-            <button onClick={() => { setSelectedItem(null); setTrailerKey(null); setActiveTrailerKey(null); }} style={{ background: activeColor, color: badgeText, padding: '8px 25px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
+          <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: navBg, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}` }}>
+            <h2 style={{ color: activeColor, fontSize: '18px', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{selectedItem.title || selectedItem.name}</h2>
+            <button onClick={() => { setSelectedItem(null); setTrailerKey(null); setActiveTrailerKey(null); }} style={{ background: activeColor, color: badgeText, padding: '8px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>KAPAT</button>
           </div>
           
           <div style={{ width: '100%', height: '55vh', backgroundImage: `linear-gradient(to bottom, transparent, ${bgMain}), url(${getImgUrl(selectedItem.backdrop_path, 'original')})`, backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1021,31 +1053,31 @@ export default function Home() {
           </div>
           
           <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5%' }}>
-            <div style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
-              <div>
-                <img src={getImgUrl(selectedItem.poster_path)} style={{ width: '280px', borderRadius: '15px', border: `1px solid ${borderColor}`, boxShadow: `0 0 20px ${activeColor}40` }} alt="" />
+            <div className="detail-top-flex" style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
+              <div className="detail-poster-container">
+                <img src={getImgUrl(selectedItem.poster_path)} className="detail-poster-img" style={{ borderRadius: '15px', border: `1px solid ${borderColor}`, boxShadow: `0 0 20px ${activeColor}40` }} alt="" />
               </div>
               <div style={{ flex: 1, minWidth: '300px', paddingTop: '40px' }}>
-                <h1 style={{ fontSize: '44px', color: activeColor, fontWeight: '900', marginBottom: '5px' }}>{selectedItem.title || selectedItem.name}</h1>
+                <h1 className="detail-title-text" style={{ color: activeColor, fontWeight: '900', marginBottom: '5px' }}>{selectedItem.title || selectedItem.name}</h1>
                 
                 {selectedItem.tagline && (
                   <p style={{ fontStyle: 'italic', color: activeColor, fontSize: '16px', marginTop: '0', marginBottom: '20px', opacity: 0.8 }}>"{selectedItem.tagline}"</p>
                 )}
                 
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '30px', margin: '20px 0' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', margin: '20px 0' }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                      <span style={{ fontSize: '20px' }}>⭐ TMDB:</span>
                      <span style={{ color: activeColor, fontSize: '24px', fontWeight: 'bold' }}>{selectedItem.vote_average?.toFixed(1)}</span>
                    </div>
                    {calculateProRating(selectedItem.id) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: `1px solid ${borderColor}`, paddingLeft: '30px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderLeft: `1px solid ${borderColor}`, paddingLeft: '20px' }}>
                         <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', boxShadow: `0 0 10px ${activeColor}99` }}>PRO</span>
                         <span style={{ color: activeColor, fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                     </div>
                    )}
                 </div>
 
-                <p style={{ color: textMuted, lineHeight: '1.8', fontSize: '18px', marginBottom: '25px' }}>
+                <p style={{ color: textMuted, lineHeight: '1.8', fontSize: '16px', marginBottom: '25px' }}>
                     {selectedItem.overview || "Bu içerik için henüz bir özet bulunmuyor."}
                 </p>
 
@@ -1110,10 +1142,10 @@ export default function Home() {
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>OYUNCU KADROSU</h3>
                 <div className="horizontal-scroll" ref={castScrollRef}>
                   {cast.map(person => (
-                    <div key={person.id} style={{ minWidth: '120px', textAlign: 'center' }}>
+                    <div key={person.id} style={{ minWidth: '100px', textAlign: 'center' }}>
                       <img src={person.profile_path ? getImgUrl(person.profile_path, 'w185') : 'https://via.placeholder.com/100x100?text=👤'} 
-                        style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${theme.secondary}` }} alt="" />
-                      <p style={{ fontSize: '12px', fontWeight: 'bold', marginTop: '10px', color: textMain }}>{person.name}</p>
+                        style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${theme.secondary}`, margin: '0 auto' }} alt="" />
+                      <p style={{ fontSize: '11px', fontWeight: 'bold', marginTop: '10px', color: textMain }}>{person.name}</p>
                       <p style={{ fontSize: '10px', color: textLight }}>{person.character}</p>
                     </div>
                   ))}
@@ -1125,17 +1157,17 @@ export default function Home() {
             {similar.length > 0 && (
               <div style={{ marginTop: '60px', position: 'relative' }}>
                 <h3 style={{ color: activeColor, marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
-                <button className="side-nav-btn" style={{ left: '-50px' }} onClick={() => handleScrollClick(modalScrollRef, 'left')}>❮</button>
-                <button className="side-nav-btn" style={{ right: '-50px' }} onClick={() => handleScrollClick(modalScrollRef, 'right')}>❯</button>
+                <button className="side-nav-btn" style={{ left: '-20px' }} onClick={() => handleScrollClick(modalScrollRef, 'left')}>❮</button>
+                <button className="side-nav-btn" style={{ right: '-20px' }} onClick={() => handleScrollClick(modalScrollRef, 'right')}>❯</button>
                 <div className="horizontal-scroll" ref={modalScrollRef}>
                    {similar.map((s) => (
-                     <div key={s.id} style={{ minWidth: '160px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); }} className="hover-effect" style={{ height: '240px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}>
+                     <div key={s.id} style={{ minWidth: '140px', textAlign: 'center', cursor: 'pointer' }}>
+                        <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); }} className="hover-effect" style={{ height: '210px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                            <div onClick={(e) => toggleFavorite(e, s)} className="fav-heart-btn">{favorites.find(f => f.id === s.id) ? '❤️' : '🤍'}</div>
                            <div className="rating-badge-pro">★ {s.vote_average?.toFixed(1)}</div>
                         </div>
-                        <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
+                        <p style={{ marginTop: '10px', fontWeight: 'bold', fontSize: '13px', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
                      </div>
                    ))}
                 </div>
@@ -1146,15 +1178,16 @@ export default function Home() {
             <div id="comments-section" style={{ marginTop: '80px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: bgCard, padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
-                   <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                     <UserAvatar user={currentUser} size="45px" />
-                     <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
-                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '0 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                   <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                     <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
+                        <UserAvatar user={currentUser} size="45px" />
+                        <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
+                     </div>
+                     <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
                      </select>
                    </div>
-                   <button onClick={addComment} style={{ background: activeColor, color: badgeText, border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', float: 'right' }}>GÖNDER</button>
-                   <div style={{ clear: 'both' }} />
+                   <button onClick={addComment} style={{ background: activeColor, color: badgeText, border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}>GÖNDER</button>
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1169,16 +1202,22 @@ export default function Home() {
                                 <div onClick={(e) => { e.stopPropagation(); setZoomedAvatar({ username: c.user, avatar: c.avatar }); }} style={{ cursor: 'pointer' }} title="Profili Büyüt">
                                    <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" />
                                 </div>
-                                <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '16px' }}>@{c.user}</span>
-                                <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '1px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>Puan: {c.rating}/10</span>
+                                <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
                              </div>
-                             <span style={{ color: textLight, fontSize: '12px', marginRight: '25px' }}>{c.date}</span>
+                             <span style={{ color: textLight, fontSize: '11px' }}>{c.date}</span>
                           </div>
-                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', paddingLeft: '44px' }}>{c.text}</p>
+                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px' }}>{c.text}</p>
                        </div>
                      ))
                    ) : <p style={{ color: textLight, textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
                 </div>
+             </div>
+             
+             {/* FOOTER API BİLGİSİ */}
+             <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px' }}>
+                 <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
+                 <p>Bu ürün TMDB API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.</p>
              </div>
           </div>
         </div>
@@ -1186,9 +1225,9 @@ export default function Home() {
 
       {/* 🔐 AUTH MODAL */}
       {showLogin && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: bgCard, padding: '40px', borderRadius: '25px', width: '380px', border: `1px solid ${activeColor}` }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo fontSize="34px" /></div>
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box auth-modal" style={{ background: bgCard }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo fontSize="30px" /></div>
             
             {authMode === "security_verify" ? (
               <>
@@ -1224,7 +1263,7 @@ export default function Home() {
                 {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
 
                 <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
-                <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
+                <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
               </>
             )}
             <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
@@ -1234,9 +1273,9 @@ export default function Home() {
 
       {/* 📸 PROFİL AYARLARI */}
       {showProfileSettings && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: bgCard, width: '450px', borderRadius: '20px', border: `1px solid ${activeColor}`, padding: '30px' }}>
-            <h3 style={{ color: activeColor, textAlign: 'center' }}>Profil Ayarlarım</h3>
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard }}>
+            <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>Profil Ayarlarım</h3>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" /></div>
             
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
@@ -1308,9 +1347,9 @@ export default function Home() {
 
       {/* 🔒 GÜVENLİK AYARLARI */}
       {showSecuritySettings && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: bgCard, padding: '40px', borderRadius: '25px', width: '400px', border: `1px solid ${activeColor}` }}>
-            <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px' }}>🔒 GÜVENLİK AYARLARI</h3>
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard }}>
+            <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
             <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
             <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
             <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
@@ -1323,7 +1362,7 @@ export default function Home() {
       {zoomedAvatar && (
         <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', cursor: 'zoom-out' }}>
            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-              <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="250px" fontSize="100px" />
+              <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="200px" fontSize="80px" />
               <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80` }}>✕</button>
            </div>
            <h3 style={{ color: activeColor, marginTop: '25px', fontSize: '28px', textShadow: `0 0 10px ${activeColor}66` }}>@{zoomedAvatar.username}</h3>
