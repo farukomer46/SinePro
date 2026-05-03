@@ -20,6 +20,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState(""); 
   const [liveResults, setLiveResults] = useState<any[]>([]); 
   const [isSearchFocused, setIsSearchFocused] = useState(false); 
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false); // 🚀 Arama çubuğunun açık/kapalı durumu
   
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [cast, setCast] = useState<any[]>([]); 
@@ -73,6 +74,7 @@ export default function Home() {
   const castScrollRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null); 
+  const searchInputRef = useRef<HTMLInputElement | null>(null); // 🚀 Inputa odaklanmak için ref
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
@@ -474,7 +476,11 @@ export default function Home() {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) setIsSearchFocused(false);
+      // Dışarı tıklanınca arama kutusu kapansın
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+          setIsSearchFocused(false);
+          setIsSearchExpanded(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -567,7 +573,6 @@ export default function Home() {
   return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
-      {/* 🚀 MOBİL UYUMLULUK CSS BLOKLARI EKLENDİ */}
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes heartbeat {
           0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
@@ -611,7 +616,41 @@ export default function Home() {
         .auth-modal { max-width: 380px; padding: 40px; }
         .profile-modal { max-width: 450px; padding: 30px; }
         .theme-modal { max-width: 400px; padding: 40px; }
-        .search-input-box { width: 220px; }
+        
+        /* 🚀 ARAMA ÇUBUĞU ANİMASYONLARI */
+        .search-container { position: relative; display: flex; align-items: center; justify-content: flex-end; }
+        .search-input-box {
+            width: ${isSearchExpanded ? '250px' : '40px'};
+            height: 40px;
+            border-radius: 20px;
+            background: ${isSearchExpanded ? bgCard : 'transparent'};
+            border: 1px solid ${isSearchExpanded ? borderColor : 'transparent'};
+            color: ${textMain};
+            padding: ${isSearchExpanded ? '0 40px 0 20px' : '0'};
+            outline: none;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: ${isSearchExpanded ? 1 : 0};
+            cursor: ${isSearchExpanded ? 'text' : 'default'};
+        }
+        .search-icon-btn {
+            position: absolute;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: ${isSearchExpanded ? 'transparent' : activeColor};
+            color: ${isSearchExpanded ? textLight : badgeText};
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: 0.3s;
+            z-index: 10;
+            box-shadow: ${isSearchExpanded ? 'none' : `0 0 10px ${activeColor}80`};
+        }
+        
         .search-dropdown { width: 320px; max-width: 90vw; }
         .detail-poster-img { width: 280px; }
         .detail-title-text { font-size: 44px; }
@@ -621,8 +660,9 @@ export default function Home() {
         @media (max-width: 768px) {
           .nav-wrapper { flex-direction: column; gap: 15px; padding: 15px 2%; }
           .nav-wrapper > div { width: 100%; justify-content: center; flex-wrap: wrap; }
-          .search-input-box { width: 100% !important; min-width: 250px; }
-          .side-nav-btn { display: none !important; } /* Mobilde kaydırma parmakla yapıldığı için okları gizliyoruz */
+          .search-container { width: 100%; justify-content: center; margin-top: 5px; }
+          .search-input-box { width: ${isSearchExpanded ? '100%' : '40px'} !important; min-width: ${isSearchExpanded ? '250px' : '40px'}; }
+          .side-nav-btn { display: none !important; } 
           .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; padding: 20px 2% !important; }
           .detail-title-text { font-size: 28px !important; text-align: center; }
           .detail-poster-img { width: 200px !important; max-width: 80vw; margin: 0 auto; display: block; }
@@ -643,8 +683,8 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div onClick={() => {setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput("");}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
-            <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
+            <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
+            <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
         </div>
         
@@ -660,11 +700,12 @@ export default function Home() {
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
 
-          {/* 🔍 CANLI ARAMA */}
-          <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }} ref={searchRef}>
+          {/* 🚀 AÇILIR KAPANIR ARAMA ÇUBUĞU */}
+          <div className="search-container" ref={searchRef}>
             <input 
                type="text" 
                className="search-input-box"
+               ref={searchInputRef}
                placeholder="Film veya Dizi Ara..." 
                value={searchInput}
                onChange={(e) => setSearchInput(e.target.value)} 
@@ -673,17 +714,37 @@ export default function Home() {
                  if (e.key === 'Enter') { 
                     setSearchQuery(searchInput); 
                     setIsSearchFocused(false); 
+                    setIsSearchExpanded(false); // Aramadan sonra çubuğu kapat
                     setViewMode("home");
                  } 
                }}
-               style={{ background: bgCard, border: `1px solid ${borderColor}`, padding: '10px 20px', borderRadius: '25px', color: textMain, outline: 'none' }} 
             />
-            {searchInput && isSearchFocused && (
+            {/* BÜYÜTEÇ VEYA ÇARPI BUTONU */}
+            <button 
+                className="search-icon-btn"
+                onClick={() => {
+                    if (isSearchExpanded) {
+                        // Eğer açıksa ve tıklandıysa kapat
+                        setIsSearchExpanded(false);
+                        setSearchInput("");
+                        setIsSearchFocused(false);
+                    } else {
+                        // Eğer kapalıysa aç ve içine odaklan
+                        setIsSearchExpanded(true);
+                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                    }
+                }}
+            >
+                {isSearchExpanded ? "✕" : "🔍"}
+            </button>
+            
+            {/* ARAMA DROPDOWN MENU */}
+            {isSearchExpanded && searchInput && isSearchFocused && (
               <div className="search-dropdown" style={{ position: 'absolute', top: '45px', right: 0, background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
                 {liveResults.length > 0 ? (
                   <>
                     {liveResults.slice(0, 5).map(item => (
-                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); addToRecentlyViewed(item); setIsSearchFocused(false); setSearchInput(""); setSearchQuery(""); }} style={{ display: 'flex', gap: '12px', padding: '10px', borderBottom: `1px solid ${borderColor}`, cursor: 'pointer', transition: '0.3s' }} className="search-item-hover">
+                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); addToRecentlyViewed(item); setIsSearchFocused(false); setIsSearchExpanded(false); setSearchInput(""); setSearchQuery(""); }} style={{ display: 'flex', gap: '12px', padding: '10px', borderBottom: `1px solid ${borderColor}`, cursor: 'pointer', transition: '0.3s' }} className="search-item-hover">
                         <img src={getImgUrl(item.poster_path, 'w92')} style={{ width: '40px', height: '60px', borderRadius: '6px', objectFit: 'cover' }} alt="" />
                         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                           <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px', color: textMain, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title || item.name}</p>
@@ -696,6 +757,7 @@ export default function Home() {
                         e.preventDefault(); 
                         setSearchQuery(searchInput); 
                         setIsSearchFocused(false); 
+                        setIsSearchExpanded(false);
                         setViewMode("home"); 
                       }} 
                       style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderTop: `1px solid ${borderColor}` }} 
