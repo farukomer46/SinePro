@@ -59,7 +59,7 @@ export default function Home() {
   const [showSineAI, setShowSineAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
-  const [isListening, setIsListening] = useState(false); // 🎤 SİNE Aİ Sesli Komut Durumu
+  const [isListening, setIsListening] = useState(false); 
   
   const initialAIMessage = { role: "ai", text: "Merhaba! Ben SİNE Aİ Asistanın 🤖. Bugün ne tür bir şeyler izlemek istersin? Bana modunu veya sevdiğin konuları anlat, sana en uygun içerikleri anında bulayım!" };
   const [aiChatHistory, setAiChatHistory] = useState<any[]>([initialAIMessage]);
@@ -135,14 +135,12 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
-  // 📳 TİTREŞİM MOTORU (HAPTIC FEEDBACK)
   const triggerHaptic = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(50); // 50 milisaniye hafif dokunmatik hissi
+      navigator.vibrate(50); 
     }
   };
 
-  // 📱 DİNAMİK DURUM ÇUBUĞU (STATUS BAR)
   useEffect(() => {
     if (!mounted) return;
     let metaThemeColor = document.querySelector("meta[name=theme-color]");
@@ -151,7 +149,6 @@ export default function Home() {
       metaThemeColor.setAttribute("name", "theme-color");
       document.head.appendChild(metaThemeColor);
     }
-    // Seçilen temanın rengini telefonun durum çubuğuna aktar
     metaThemeColor.setAttribute("content", activeColor);
   }, [activeColor, mounted]);
 
@@ -227,16 +224,15 @@ export default function Home() {
     }
   }, [aiChatHistory, isAITyping]);
 
-  // 🎤 SİNE Aİ SESLİ KOMUT FONKSİYONU
   const startListening = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
       alert("Cihazınız veya tarayıcınız (örn: iOS Safari) sesli komutu doğrudan desteklemiyor. Lütfen klavye mikrofonunu kullanın.");
       return;
     }
-    triggerHaptic(); // Dinleme başlarken titreşim
+    triggerHaptic(); 
     const recognition = new SpeechRec();
-    recognition.lang = 'tr-TR'; // Türkçe algılama
+    recognition.lang = 'tr-TR'; 
     recognition.interimResults = false;
     
     recognition.onstart = () => setIsListening(true);
@@ -245,7 +241,7 @@ export default function Home() {
       const transcript = event.results[0][0].transcript;
       setAiPrompt(prev => prev + (prev ? " " : "") + transcript);
       setIsListening(false);
-      triggerHaptic(); // Algılama bitince titreşim
+      triggerHaptic(); 
     };
     
     recognition.onerror = () => setIsListening(false);
@@ -291,7 +287,7 @@ export default function Home() {
               }
 
               setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
-              triggerHaptic(); // Aİ cevap verdiğinde titreşim
+              triggerHaptic(); 
           } catch(e) {
               setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! API ile bağlantı kurarken ufak bir hata oluştu. Lütfen tekrar dene." }]);
           }
@@ -474,9 +470,8 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
-  // 📤 ORİJİNAL MOBİL PAYLAŞIM (NATIVE WEB SHARE)
   const shareMovie = async (item: any) => {
-    triggerHaptic(); // Butona basıldığında titreşim
+    triggerHaptic(); 
     if (navigator.share) {
       try {
         await navigator.share({
@@ -516,7 +511,7 @@ export default function Home() {
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
     setNewComment("");
-    triggerHaptic(); // Yorum gönderildiğinde titreşim
+    triggerHaptic(); 
   };
 
   const deleteComment = (itemID: number, commentID: number) => {
@@ -543,7 +538,6 @@ export default function Home() {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
-      // Dışarı tıklanınca arama kutusu kapansın
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
           setIsSearchFocused(false);
           setIsSearchExpanded(false);
@@ -605,7 +599,7 @@ export default function Home() {
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
-    triggerHaptic(); // Favoriye eklerken titreşim
+    triggerHaptic(); 
     let updated = favorites.find(f => f.id === item.id) ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
     setFavorites(updated);
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
@@ -764,11 +758,15 @@ export default function Home() {
           </div>
         </div>
         
+        {/* 🚀 ÜST MENÜ SAĞ TARAF SIRALAMASI DEĞİŞTİ: 1. AI 2. TEMA 3. ARAMA 4. PROFİL */}
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+          
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
              <span style={{ color: activeColor, fontWeight: '900', fontSize: '18px' }}>SİNE</span>
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
+
+          <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
 
           <div className="search-container" ref={searchRef}>
             <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film veya Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
@@ -794,8 +792,6 @@ export default function Home() {
               </div>
             )}
           </div>
-
-          <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
 
           <div className="hide-on-mobile">
             {currentUser ? (
@@ -1006,7 +1002,6 @@ export default function Home() {
                     </div>
                    )}
                    
-                   {/* 📤 YENİ MOBİL PAYLAŞIM BUTONU BURAYA GELDİ */}
                    <button onClick={() => shareMovie(selectedItem)} style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '8px 15px', borderRadius: '8px', border: `1px solid ${borderColor}`, fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
                        📤 Paylaş
                    </button>
@@ -1205,11 +1200,9 @@ export default function Home() {
             </div>
 
             <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px', alignItems: 'center' }}>
-               {/* 🎤 YENİ EKLENEN MİKROFON BUTONU */}
                <button onClick={startListening} title="Sesli Komut" style={{ background: isListening ? '#ff4d4d' : inputBg, color: isListening ? 'white' : activeColor, border: `1px solid ${borderColor}`, width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', fontSize: '18px', boxShadow: isListening ? '0 0 15px rgba(255,0,0,0.6)' : 'none' }}>
                   🎤
                </button>
-               
                <input type="text" placeholder={isListening ? "Dinleniyor..." : "Örn: Komik uzay filmi..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleAISubmit(); }} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
                <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>
                   <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
@@ -1219,6 +1212,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODALLAR */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
@@ -1227,33 +1221,33 @@ export default function Home() {
             {authMode === "security_verify" ? (
               <>
                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Güvenlik Doğrulaması</h4>
-                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSecurityUpdate(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
                 <button onClick={handleSecurityUpdate} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>ŞİFREYİ DEĞİŞTİR</button>
               </>
             ) : authMode === "verify" || authMode === "verify_forgot" ? (
               <>
                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>E-posta Doğrulama</h4>
-                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "verify" ? handleVerifyAndFinish() : handleVerifyForgot(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
                 <button onClick={authMode === "verify" ? handleVerifyAndFinish : handleVerifyForgot} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>DOĞRULA</button>
               </>
             ) : authMode === "new_password" ? (
               <>
                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
-                 <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                 <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleSaveNewPassword(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
                  <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
               </>
             ) : authMode === "forgot_password" ? (
               <>
                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Şifremi Unuttum</h4>
-                 <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                 <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleForgotPasswordStart(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
                  <button onClick={handleForgotPasswordStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KOD GÖNDER</button>
                  <p onClick={() => setAuthMode("login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: activeColor }}>Giriş Yap'a Dön</p>
               </>
             ) : (
               <>
-                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
-                <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
-                <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleRegisterStart(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
+                <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "login" ? handleLogin() : handleRegisterStart(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "login" ? handleLogin() : handleRegisterStart(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
                 {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
                 <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
                 <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
@@ -1299,7 +1293,7 @@ export default function Home() {
             </div>
 
             <label style={{ fontSize: '12px', color: textMuted }}>Kullanıcı Adı</label>
-            <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
+            <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') saveProfileSettings(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', background: inputBg, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${borderColor}` }}>
                 <span style={{ fontSize: '13px', color: textMuted }}>Son Baktıklarımı Göster</span>
                 <button onClick={toggleHistoryPref} style={{ background: showHistory ? activeColor : borderColor, color: showHistory ? badgeText : textLight, border: 'none', padding: '5px 15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}>{showHistory ? "AÇIK" : "KAPALI"}</button>
@@ -1315,7 +1309,7 @@ export default function Home() {
           <div className="modal-box profile-modal" style={{ background: bgCard }}>
             <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
             <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
-            <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
+            <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') startSecurityVerify(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
             <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
             <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Vazgeç</button>
           </div>
@@ -1360,7 +1354,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 💎 DESTEK OL BUTONU */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9900 }} className="donate-btn">
         <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px ${activeColor}40` }}>
           <span>💎 DESTEK OL</span>
