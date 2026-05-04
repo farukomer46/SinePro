@@ -81,6 +81,9 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
+  
+  // MOBİL İÇİN YENİ AKTİF SEKME YÖNETİCİSİ
+  const [activeBottomTab, setActiveBottomTab] = useState("home"); 
 
   const genres = useMemo(() => {
     if (contentType === "tv") {
@@ -344,13 +347,18 @@ export default function Home() {
   };
 
   const handleRegisterStart = () => {
+    if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
+        return alert("Lütfen Kullanıcı Adı, E-posta ve Şifre alanlarının tamamını eksiksiz doldurun!");
+    }
     if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
+    
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    if (users.find((u: any) => u.email.toLowerCase() === formData.email.toLowerCase())) return alert("Bu e-posta zaten kayıtlı!");
-    if (users.find((u: any) => u.username.toLowerCase() === formData.username.toLowerCase())) return alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
+    if (users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase())) return alert("Bu e-posta zaten kayıtlı!");
+    if (users.find((u: any) => u.username.toLowerCase() === formData.username.trim().toLowerCase())) return alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
+    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
-    sendEmail(formData.email, code, formData.username).then((success) => {
+    sendEmail(formData.email.trim(), code, formData.username.trim()).then((success) => {
         if (success) {
             alert("Doğrulama kodu mailinize gönderildi!");
             setAuthMode("verify");
@@ -359,9 +367,18 @@ export default function Home() {
   };
 
   const handleVerifyAndFinish = () => {
+    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
+    
     if (verificationCode.trim() === generatedCode.trim()) {
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      const newUser = { ...formData, id: Date.now(), joined: new Date().toLocaleDateString('tr-TR'), avatar: "default" };
+      const newUser = { 
+          email: formData.email.trim(), 
+          password: formData.password.trim(), 
+          username: formData.username.trim(), 
+          id: Date.now(), 
+          joined: new Date().toLocaleDateString('tr-TR'), 
+          avatar: "default" 
+      };
       users.push(newUser);
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
       setAuthMode("login");
@@ -371,13 +388,16 @@ export default function Home() {
   };
 
   const handleForgotPasswordStart = () => {
+    if (!formData.email.trim()) return alert("Lütfen e-posta adresinizi girin!");
     if (!formData.email.includes("@")) return alert("Lütfen geçerli bir e-posta girin!");
+    
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const userMatch = users.find((u: any) => u.email.toLowerCase() === formData.email.toLowerCase());
+    const userMatch = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase());
     if (!userMatch) return alert("Bu e-posta adresi ile kayıtlı bir hesap bulunamadı!");
+    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
-    sendEmail(formData.email, code, userMatch.username).then((success) => {
+    sendEmail(formData.email.trim(), code, userMatch.username).then((success) => {
         if (success) {
             alert("Şifre sıfırlama kodu mail adresinize gönderildi!");
             setAuthMode("verify_forgot");
@@ -386,6 +406,7 @@ export default function Home() {
   };
 
   const handleVerifyForgot = () => {
+    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
     if (verificationCode.trim() === generatedCode.trim()) {
       setAuthMode("new_password");
       setVerificationCode(""); 
@@ -393,27 +414,37 @@ export default function Home() {
   };
 
   const handleSaveNewPassword = () => {
-    if (formData.password.trim().length === 0) return alert("Lütfen yeni bir şifre belirleyin!");
+    if (!formData.password.trim()) return alert("Lütfen yeni bir şifre belirleyin! Bu alan boş bırakılamaz.");
+    
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const updatedUsers = users.map((u: any) => u.email === formData.email ? { ...u, password: formData.password } : u);
+    const updatedUsers = users.map((u: any) => u.email === formData.email.trim() ? { ...u, password: formData.password.trim() } : u);
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
     alert("Şifreniz başarıyla yenilendi! Şimdi giriş yapabilirsiniz.");
     setAuthMode("login");
   };
 
   const saveProfileSettings = () => {
+    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
+    
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.toLowerCase() && u.email !== currentUser.email);
+    const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.trim().toLowerCase() && u.email !== currentUser.email);
     if (isUsernameTaken) return alert("Bu kullanıcı adı başka birisi tarafından kullanılıyor!");
-    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? currentUser : u);
+    
+    const updatedUser = { ...currentUser, username: currentUser.username.trim() };
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
+    
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    localStorage.setItem("sinepro_active_session", JSON.stringify(currentUser));
+    localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
+    setCurrentUser(updatedUser);
     setShowProfileSettings(false);
   };
 
   const handleLogin = () => {
+    if (!formData.email.trim() || !formData.password.trim()) {
+        return alert("Lütfen e-posta ve şifrenizi eksiksiz girin!");
+    }
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const match = users.find((u: any) => u.email === formData.email && u.password === formData.password);
+    const match = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase() && u.password === formData.password.trim());
     if (match) { 
       setCurrentUser(match); 
       localStorage.setItem("sinepro_active_session", JSON.stringify(match)); 
@@ -427,9 +458,12 @@ export default function Home() {
     setCurrentUser(null);
     setShowUserDropdown(false);
     setViewMode("home");
+    setActiveBottomTab("home");
   };
 
   const startSecurityVerify = () => {
+    if (!profilePassword.trim()) return alert("Lütfen belirlemek istediğiniz yeni şifreyi girin!");
+    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
     sendEmail(currentUser.email, code, currentUser.username).then((success) => {
@@ -443,15 +477,18 @@ export default function Home() {
   };
 
   const handleSecurityUpdate = () => {
+    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
+    
     if (verificationCode.trim() === generatedCode.trim()) {
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      const updatedUser = { ...currentUser, password: profilePassword };
+      const updatedUser = { ...currentUser, password: profilePassword.trim() };
       const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
       localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
       localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
       setShowLogin(false);
       setVerificationCode("");
+      setProfilePassword("");
       alert("Şifreniz güvenli bir şekilde güncellendi!");
     } else { alert("Kod yanlış! Kopyala-yapıştır yaparken fazladan boşluk bırakmadığınıza emin olun."); }
   };
@@ -507,7 +544,7 @@ export default function Home() {
     if (!newComment.trim()) return;
     const itemID = selectedItem.id;
     const commentObj = {
-      id: Date.now(), user: currentUser.username, avatar: currentUser.avatar, text: newComment,
+      id: Date.now(), user: currentUser.username, avatar: currentUser.avatar, text: newComment.trim(),
       rating: commentRating, date: new Date().toLocaleDateString('tr-TR'),
       itemTitle: selectedItem.title || selectedItem.name, itemID: selectedItem.id,
       itemData: selectedItem, 
@@ -645,7 +682,6 @@ export default function Home() {
     </div>
   );
 
-  // 🚀 TÜM FORM KUTUCUKLARI İÇİN "ENTER" YAKALAYICI FONKSİYON
   const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, action: () => void) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -728,12 +764,17 @@ export default function Home() {
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
         @media (max-width: 768px) {
-          .nav-wrapper { flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; padding: 15px 10px !important; }
-          .nav-wrapper > div { width: auto !important; justify-content: flex-start !important; flex-wrap: nowrap !important; }
+          /* MOBİL ÜST MENÜ (NAVBAR) DÜZENLEMESİ - AMBLEM SOLA, BUTONLAR SAĞA */
+          .nav-wrapper { padding: 12px 20px !important; }
+          .nav-wrapper > div:first-child { flex: 1; justify-content: flex-start !important; }
+          .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 15px !important; }
           .hide-on-mobile { display: none !important; }
           .search-container { margin-top: 0 !important; width: auto !important; }
           .search-input-box { width: ${isSearchExpanded ? '200px' : '40px'} !important; min-width: ${isSearchExpanded ? '200px' : '40px'}; }
           
+          /* MOBİLDE FİLMLER VE DİZİLER EKRANINDA CAROUSEL GİZLEME (FARKLI EKRAN HİSSİ) */
+          .hide-carousels-mobile { display: none !important; }
+
           .horizontal-scroll { scroll-snap-type: x mandatory; padding-bottom: 15px; scroll-padding-left: 5%; }
           .horizontal-scroll > div { scroll-snap-align: start; scroll-snap-stop: always; }
           
@@ -754,9 +795,15 @@ export default function Home() {
           
           body { padding-bottom: 70px; }
           .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; }
-          .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; font-size: 11px; font-weight: bold; gap: 4px; transition: 0.3s; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-          .bottom-bar-item.active { color: ${activeColor}; }
-          .bottom-bar-item.active span:first-child { transform: scale(1.2); }
+          
+          /* YENİ ALT MENÜ (BOTTOM BAR) AKTİF TASARIMI */
+          .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; gap: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; }
+          .bottom-icon { font-size: 22px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
+          .bottom-text { font-size: 11px; font-weight: bold; transition: 0.3s; opacity: 0.7; }
+          
+          .bottom-bar-item.active .bottom-icon { background: ${activeColor}; color: ${badgeText}; transform: translateY(-4px) scale(1.1); box-shadow: 0 4px 15px ${activeColor}80; }
+          .bottom-bar-item.active .bottom-text { opacity: 1; color: ${activeColor}; }
+
           .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; }
           .donate-btn { bottom: 100px !important; }
         }
@@ -764,13 +811,12 @@ export default function Home() {
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
-      {/* 🚀 NAVBAR SIRALAMASI GÜNCELLENDİ: [AI] -> [TEMA] -> [ARAMA] -> [PROFİL] */}
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div onClick={() => {setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
+          <div onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
           <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
-            <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
+            <button onClick={() => { setActiveBottomTab("movies"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "movies" ? activeColor : theme.secondary }}>FİLMLER</button>
+            <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
         </div>
         
@@ -783,7 +829,6 @@ export default function Home() {
 
           <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
 
-          {/* 🚀 ARAMA KUTUSU BURAYA (PROFİLİN SOLUNA) ALINDI */}
           <div className="search-container" ref={searchRef}>
             <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film veya Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
             <button className="search-icon-btn" onClick={() => { if (isSearchExpanded) { setIsSearchExpanded(false); setSearchInput(""); setIsSearchFocused(false); } else { setIsSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 100); } }}>
@@ -835,21 +880,21 @@ export default function Home() {
       </nav>
 
       <div className="bottom-bar">
-         <div className={`bottom-bar-item ${viewMode === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
-             <span style={{ fontSize: '22px', transition: '0.3s' }}>🏠</span><span>Keşfet</span>
+         <div className={`bottom-bar-item ${activeBottomTab === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setActiveBottomTab("home"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
+             <span className="bottom-icon">🏠</span><span className="bottom-text">Anasayfa</span>
          </div>
-         <div className={`bottom-bar-item ${contentType === 'movie' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
-             <span style={{ fontSize: '22px', transition: '0.3s' }}>🎬</span><span>Filmler</span>
+         <div className={`bottom-bar-item ${activeBottomTab === 'movies' && !searchQuery ? 'active' : ''}`} onClick={() => { setActiveBottomTab("movies"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
+             <span className="bottom-icon">🎬</span><span className="bottom-text">Filmler</span>
          </div>
          <div className="bottom-bar-item" onClick={() => setShowSineAI(true)}>
-             <div className="ai-center-btn">🤖</div><span style={{ color: activeColor, marginTop: '-15px', textShadow: `0 0 5px ${activeColor}80` }}>SİNE Aİ</span>
+             <div className="ai-center-btn">🤖</div><span style={{ color: activeColor, marginTop: '-15px', textShadow: `0 0 5px ${activeColor}80`, fontWeight: 'bold' }}>SİNE Aİ</span>
          </div>
-         <div className={`bottom-bar-item ${contentType === 'tv' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
-             <span style={{ fontSize: '22px', transition: '0.3s' }}>📺</span><span>Diziler</span>
+         <div className={`bottom-bar-item ${activeBottomTab === 'tv' && !searchQuery ? 'active' : ''}`} onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
+             <span className="bottom-icon">📺</span><span className="bottom-text">Diziler</span>
          </div>
-         <div className={`bottom-bar-item ${viewMode !== 'home' ? 'active' : ''}`} onClick={() => { currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
-             {currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" /></div> : <span style={{ fontSize: '22px', transition: '0.3s' }}>👤</span>}
-             <span style={{ color: currentUser && viewMode !== 'home' ? activeColor : textLight }}>{currentUser ? "Profil" : "Giriş"}</span>
+         <div className={`bottom-bar-item ${activeBottomTab === 'profile' || viewMode !== 'home' ? 'active' : ''}`} onClick={() => { setActiveBottomTab("profile"); currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
+             <span className="bottom-icon">{currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" /></div> : "👤"}</span>
+             <span className="bottom-text">{currentUser ? "Profil" : "Giriş"}</span>
          </div>
       </div>
 
@@ -885,8 +930,9 @@ export default function Home() {
             </div>
           )}
 
+          {/* SADECE MOBİLDE FARKLI EKRAN HİSSİ İÇİN ANASAYFA HARİCİ SEKMELERDE CAROUSELLERİ GİZLİYORUZ (hide-carousels-mobile) */}
           {!searchQuery && recentlyViewed.length > 0 && showHistory && (
-            <div style={{ position: 'relative', marginTop: '10px', zIndex: 1 }}>
+            <div className={activeBottomTab !== 'home' ? 'hide-carousels-mobile' : ''} style={{ position: 'relative', marginTop: '10px', zIndex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '5%' }}>
                   <h3 className="section-title" style={{ margin: 0 }}>SON BAKTIKLARIM</h3>
                   <div style={{ display: 'flex', gap: '15px' }}>
@@ -914,7 +960,7 @@ export default function Home() {
           )}
 
           {!searchQuery && (
-            <div style={{ position: 'relative', marginTop: '30px', zIndex: 1 }} onMouseEnter={() => setIsHoveringCarousel(true)} onMouseLeave={() => setIsHoveringCarousel(false)}>
+            <div className={activeBottomTab !== 'home' ? 'hide-carousels-mobile' : ''} style={{ position: 'relative', marginTop: '30px', zIndex: 1 }} onMouseEnter={() => setIsHoveringCarousel(true)} onMouseLeave={() => setIsHoveringCarousel(false)}>
               <h3 className="section-title">ÖNE ÇIKANLAR</h3>
               <div style={{ position: 'relative', padding: '0 5%' }}>
                 <button className="side-nav-btn" style={{ left: '1%' }} onClick={() => handleScrollClick(mainNewScrollRef, 'left')}>❮</button>
@@ -1229,7 +1275,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🚀 FORM KULLANILMADAN MUTLAK "ENTER" YAKALAMASI EKLENEN AUTH MODAL */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
