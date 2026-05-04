@@ -9,7 +9,7 @@ const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // 🚀 İSKELET YÜKLEME İÇİN EKLENDİ
+  const [isLoading, setIsLoading] = useState(true); 
   const [isDarkMode, setIsDarkMode] = useState(true); 
 
   const [items, setItems] = useState<any[]>([]); 
@@ -478,7 +478,6 @@ export default function Home() {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
-      // Dışarı tıklanınca arama kutusu kapansın
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
           setIsSearchFocused(false);
           setIsSearchExpanded(false);
@@ -490,7 +489,7 @@ export default function Home() {
 
   const fetchData = async () => {
     if (!mounted || viewMode !== "home") return;
-    setIsLoading(true); // 🚀 Veri çekmeden önce iskeletleri göster
+    setIsLoading(true); 
     try {
       const getUrl = (page: number) => searchQuery 
         ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
@@ -517,7 +516,7 @@ export default function Home() {
         setNewReleases(resC.data.results);
       }
     } catch (err) { console.error(err); }
-    setIsLoading(false); // 🚀 Veri geldi, iskeletleri gizle
+    setIsLoading(false); 
   };
 
   const handleLoadMore = async () => {
@@ -572,7 +571,6 @@ export default function Home() {
     </div>
   );
 
-  // 🚀 İSKELET KART BİLEŞENİ (Yükleniyor Efekti)
   const SkeletonCard = () => (
     <div style={{ textAlign: 'center', minWidth: '150px' }}>
       <div className="skeleton-box" style={{ height: '250px', borderRadius: '15px' }}></div>
@@ -602,16 +600,13 @@ export default function Home() {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        /* 🚀 İSKELET YÜKLEME ANİMASYONU */
         @keyframes shimmer {
           0% { background-position: -200px 0; }
           100% { background-position: calc(200px + 100%) 0; }
         }
         .skeleton-box {
           background: linear-gradient(90deg, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 25%, ${isDarkMode ? '#2b3746' : '#f5f5f5'} 50%, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 75%);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-          width: 100%;
+          background-size: 200% 100%; animation: shimmer 1.5s infinite; width: 100%;
         }
 
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
@@ -638,42 +633,26 @@ export default function Home() {
 
         .search-item-hover:hover { background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; }
 
-        /* ESNEK KUTULAR İÇİN SINIFLAR (Masaüstü) */
         .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; }
         .ai-modal { max-width: 500px; height: 650px; }
         .auth-modal { max-width: 380px; padding: 40px; }
         .profile-modal { max-width: 450px; padding: 30px; }
         .theme-modal { max-width: 400px; padding: 40px; }
         
-        /* ARAMA ÇUBUĞU ANİMASYONLARI */
         .search-container { position: relative; display: flex; align-items: center; justify-content: flex-end; }
-        .search-input-box {
-            width: ${isSearchExpanded ? '250px' : '40px'}; height: 40px; border-radius: 20px;
-            background: ${isSearchExpanded ? bgCard : 'transparent'}; border: 1px solid ${isSearchExpanded ? borderColor : 'transparent'};
-            color: ${textMain}; padding: ${isSearchExpanded ? '0 40px 0 20px' : '0'}; outline: none;
-            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); opacity: ${isSearchExpanded ? 1 : 0}; cursor: ${isSearchExpanded ? 'text' : 'default'};
-        }
-        .search-icon-btn {
-            position: absolute; right: 0; width: 40px; height: 40px; border-radius: 50%;
-            background: ${isSearchExpanded ? 'transparent' : activeColor}; color: ${isSearchExpanded ? textLight : badgeText}; border: none;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px;
-            transition: 0.3s; z-index: 10; box-shadow: ${isSearchExpanded ? 'none' : `0 0 10px ${activeColor}80`};
-        }
+        .search-input-box { width: ${isSearchExpanded ? '250px' : '40px'}; height: 40px; border-radius: 20px; background: ${isSearchExpanded ? bgCard : 'transparent'}; border: 1px solid ${isSearchExpanded ? borderColor : 'transparent'}; color: ${textMain}; padding: ${isSearchExpanded ? '0 40px 0 20px' : '0'}; outline: none; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); opacity: ${isSearchExpanded ? 1 : 0}; cursor: ${isSearchExpanded ? 'text' : 'default'}; }
+        .search-icon-btn { position: absolute; right: 0; width: 40px; height: 40px; border-radius: 50%; background: ${isSearchExpanded ? 'transparent' : activeColor}; color: ${isSearchExpanded ? textLight : badgeText}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.3s; z-index: 10; box-shadow: ${isSearchExpanded ? 'none' : `0 0 10px ${activeColor}80`}; }
         
         .search-dropdown { width: 320px; max-width: 90vw; }
         .detail-poster-img { width: 280px; }
         .detail-title-text { font-size: 44px; }
         .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; }
         
-        /* MOBİL ALT MENÜ (Masaüstünde Gizli) */
         .bottom-bar { display: none; }
         .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
-
-        /* FİLM DETAY OVERLAY (Masaüstünde normal overlay, mobilde slide-up sayfa) */
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
-        /* 📱 MOBİL EKRANLAR İÇİN KUSURSUZ UYUM (@media queries) */
         @media (max-width: 768px) {
           .nav-wrapper { flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; padding: 15px 5% !important; }
           .nav-wrapper > div { width: auto !important; justify-content: flex-start !important; flex-wrap: nowrap !important; }
@@ -681,14 +660,12 @@ export default function Home() {
           .search-container { margin-top: 0 !important; width: auto !important; }
           .search-input-box { width: ${isSearchExpanded ? '200px' : '40px'} !important; min-width: ${isSearchExpanded ? '200px' : '40px'}; }
           
-          /* 🚀 MIKNATISLI KAYDIRMA (Scroll Snap) - Sadece mobilde */
           .horizontal-scroll { scroll-snap-type: x mandatory; padding-bottom: 15px; scroll-padding-left: 5%; }
           .horizontal-scroll > div { scroll-snap-align: start; scroll-snap-stop: always; }
           
           .side-nav-btn { display: none !important; } 
           .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; padding: 20px 2% !important; }
           
-          /* 🚀 MOBİL TAM EKRAN FİLM DETAYI */
           .movie-detail-overlay { animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding-bottom: 80px; }
           .detail-title-text { font-size: 28px !important; text-align: center; }
           .detail-poster-img { width: 200px !important; max-width: 80vw; margin: 0 auto; display: block; }
@@ -701,36 +678,21 @@ export default function Home() {
           .stats-container { padding: 30px 5% !important; }
           .comments-inputs { flex-direction: column; }
           
-          /* MOBİL ALT MENÜYÜ GÖSTER */
           body { padding-bottom: 70px; }
-          .bottom-bar { 
-             display: flex; position: fixed; bottom: 0; left: 0; width: 100%; 
-             background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; 
-             z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; 
-             justify-content: space-between; align-items: center; 
-          }
-          .bottom-bar-item {
-             display: flex; flex-direction: column; align-items: center; justify-content: center; 
-             flex: 1; color: ${textLight}; cursor: pointer; font-size: 11px; font-weight: bold; gap: 4px; transition: 0.3s;
-          }
+          .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; }
+          .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; font-size: 11px; font-weight: bold; gap: 4px; transition: 0.3s; }
           .bottom-bar-item.active { color: ${activeColor}; }
           .bottom-bar-item.active span:first-child { transform: scale(1.2); }
-          .ai-center-btn {
-             background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; 
-             display: flex; align-items: center; justify-content: center; font-size: 26px; 
-             transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; 
-          }
+          .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; }
           .donate-btn { bottom: 100px !important; }
         }
       ` }} />
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
-      {/* 🚀 NAVBAR */}
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div onClick={() => {setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput("");}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
-          {/* MASAÜSTÜ FİLM/DİZİ BUTONLARI (Mobilde Gizli) */}
           <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "movie" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: contentType === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
@@ -738,13 +700,11 @@ export default function Home() {
         </div>
         
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-          {/* MASAÜSTÜ SİNE Aİ BUTONU (Mobilde Gizli) */}
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
              <span style={{ color: activeColor, fontWeight: '900', fontSize: '18px' }}>SİNE</span>
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
 
-          {/* 🚀 AÇILIR KAPANIR ARAMA ÇUBUĞU */}
           <div className="search-container" ref={searchRef}>
             <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film veya Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
             <button className="search-icon-btn" onClick={() => { if (isSearchExpanded) { setIsSearchExpanded(false); setSearchInput(""); setIsSearchFocused(false); } else { setIsSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 100); } }}>
@@ -772,7 +732,6 @@ export default function Home() {
 
           <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
 
-          {/* MASAÜSTÜ KULLANICI PROFİLİ (Mobilde Gizli) */}
           <div className="hide-on-mobile">
             {currentUser ? (
               <div style={{ position: 'relative' }} ref={dropdownRef}>
@@ -797,7 +756,6 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* 📱 MOBİL ALT MENÜ ÇUBUĞU */}
       <div className="bottom-bar">
          <div className={`bottom-bar-item ${viewMode === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); }}>
              <span style={{ fontSize: '22px', transition: '0.3s' }}>🏠</span><span>Keşfet</span>
@@ -817,7 +775,6 @@ export default function Home() {
          </div>
       </div>
 
-      {/* 📱 MOBİL PROFİL MENÜSÜ */}
       {showMobileMenu && currentUser && (
         <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9950, display: 'flex', alignItems: 'flex-end' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', background: bgCard, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', padding: '25px', borderTop: `2px solid ${activeColor}`, boxShadow: `0 -10px 40px ${activeColor}40`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
@@ -839,10 +796,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🏡 ANA SAYFA İÇERİKLERİ */}
       {viewMode === "home" && (
         <>
-          {/* 1. KATEGORİ SEÇİMİ */}
           {!searchQuery && (
             <div style={{ padding: '15px 5%', display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none', position: 'relative', zIndex: 1 }}>
               <button onClick={() => setSelectedGenre(null)} className="category-btn" style={{ background: selectedGenre === null ? activeColor : 'transparent', color: selectedGenre === null ? badgeText : activeColor }}>TÜMÜ</button>
@@ -852,7 +807,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 2. SON BAKTIKLARIM */}
           {!searchQuery && recentlyViewed.length > 0 && showHistory && (
             <div style={{ position: 'relative', marginTop: '10px', zIndex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '5%' }}>
@@ -881,7 +835,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 3. ÖNE ÇIKANLAR (İskelet veya Gerçek Veri) */}
           {!searchQuery && (
             <div style={{ position: 'relative', marginTop: '30px', zIndex: 1 }} onMouseEnter={() => setIsHoveringCarousel(true)} onMouseLeave={() => setIsHoveringCarousel(false)}>
               <h3 className="section-title">ÖNE ÇIKANLAR</h3>
@@ -890,7 +843,6 @@ export default function Home() {
                 <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScrollClick(mainNewScrollRef, 'right')}>❯</button>
                 <div className="horizontal-scroll" ref={mainNewScrollRef}>
                   {isLoading ? (
-                    // 🚀 ÖNE ÇIKANLAR İSKELET YÜKLEME EKRANI
                     Array(10).fill(0).map((_, i) => (
                       <div key={i} style={{ minWidth: '200px' }}><SkeletonCard /></div>
                     ))
@@ -911,7 +863,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* 4. TÜMÜ / KEŞFET GRID (İskelet veya Gerçek Veri) */}
           {searchQuery ? (
             <div style={{ marginTop: '30px', padding: '15px 5%', background: `linear-gradient(to right, ${activeColor}20, transparent)`, borderLeft: `5px solid ${activeColor}` }}>
                <h2 style={{ margin: 0, color: textMain, fontSize: '24px' }}>
@@ -927,7 +878,6 @@ export default function Home() {
           
           <div className="movie-grid">
             {isLoading ? (
-               // 🚀 ANA GRID İSKELET YÜKLEME EKRANI
                Array(20).fill(0).map((_, i) => <SkeletonCard key={i} />)
             ) : (
               items.slice(0, visibleCount).map((item, idx) => (
@@ -943,7 +893,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* DAHA FAZLA YÜKLE BUTONU */}
           {!isLoading && items.length >= visibleCount && (
              <button onClick={handleLoadMore} className="load-more-btn">
                 Daha Fazla Göster ({visibleCount})
@@ -952,7 +901,6 @@ export default function Home() {
         </>
       )}
 
-      {/* 🎬 FİLM DETAY MODALİ (Mobilde Tam Ekran) */}
       {selectedItem && (
         <div className="movie-detail-overlay">
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: navBg, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}` }}>
@@ -1053,7 +1001,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* OYUNCU KADROSU */}
             {cast.length > 0 && (
               <div style={{ marginTop: '50px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>OYUNCU KADROSU</h3>
@@ -1070,7 +1017,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* BENZER FİLMLER */}
             {similar.length > 0 && (
               <div style={{ marginTop: '60px', position: 'relative' }}>
                 <h3 style={{ color: activeColor, marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>BUNLARI DA SEVEBİLİRSİNİZ</h3>
@@ -1091,7 +1037,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* YORUMLAR */}
             <div id="comments-section" style={{ marginTop: '80px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: bgCard, padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
@@ -1131,7 +1076,6 @@ export default function Home() {
                 </div>
              </div>
              
-             {/* FOOTER API BİLGİSİ */}
              <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}>
                  <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
                  <p>Bu ürün TMDB API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.</p>
@@ -1140,9 +1084,179 @@ export default function Home() {
         </div>
       )}
 
-      {/* GERİ KALAN MODALLAR BURADAN AŞAĞIYA AYNEN KALIYOR... */}
-      {/* 🤖 Aİ, 🔒 AUTH, 📸 PROFILE AYARLARI KODLARI BURADAYDI, EKRAN YER KAPLAMASIN DİYE KISALTIM, ONLAR SİSTEMDE ZATEN ÇALIŞIYOR */}
-      
+      {showSineAI && (
+        <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: aiModalContentBg, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
+            <div style={{ background: aiHeaderBg, padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${activeColor}40` }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '24px' }}>🤖</span>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ color: activeColor, fontSize: '18px', fontWeight: '900' }}>SİNE</span>
+                      <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}66` }}>Aİ</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '11px', color: textLight, marginTop: '2px' }}>Akıllı Asistan</p>
+                  </div>
+               </div>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <button onClick={() => setAiChatHistory([initialAIMessage])} style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }}>🗑️ Sil</button>
+                  <button onClick={() => setShowSineAI(false)} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer' }}>✕</button>
+               </div>
+            </div>
+            
+            <div ref={chatScrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+               {aiChatHistory.map((msg, idx) => (
+                 <div key={idx} style={{ alignSelf: msg.role === "user" ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+                    <div style={{ background: msg.role === "user" ? activeColor : inputBg, color: msg.role === "user" ? badgeText : textMain, padding: '12px 18px', borderRadius: msg.role === "user" ? '20px 20px 0 20px' : '20px 20px 20px 0', border: msg.role === "ai" ? `1px solid ${borderColor}` : 'none', fontSize: '14px', lineHeight: '1.5' }}>
+                       {msg.text}
+                    </div>
+                    {msg.results && msg.results.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                         {msg.results.map((r: any) => (
+                           <div key={r.id} onClick={() => { setSelectedItem(r); fetchExtraDetails(r.id); addToRecentlyViewed(r); setShowSineAI(false); }} style={{ background: inputBg, borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', border: `1px solid ${activeColor}40`, transition: '0.3s' }} className="hover-effect">
+                              <img src={getImgUrl(r.poster_path, 'w185')} style={{ width: '100%', height: '120px', objectFit: 'cover' }} alt="" />
+                              <div style={{ padding: '8px' }}>
+                                <p style={{ margin: 0, fontSize: '11px', fontWeight: 'bold', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title || r.name}</p>
+                                <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: activeColor }}>⭐ {r.vote_average?.toFixed(1)}</p>
+                              </div>
+                           </div>
+                         ))}
+                      </div>
+                    )}
+                 </div>
+               ))}
+               {isAITyping && (
+                 <div style={{ alignSelf: 'flex-start', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 18px', borderRadius: '20px 20px 20px 0', display: 'flex', gap: '5px' }}>
+                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite' }}></span>
+                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.2s' }}></span>
+                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.4s' }}></span>
+                 </div>
+               )}
+            </div>
+
+            <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px' }}>
+               <input type="text" placeholder="Örn: Komik bir uzay filmi bul..." value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleAISubmit(); }} disabled={isAITyping} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
+               <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>
+                  <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogin && (
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box auth-modal" style={{ background: bgCard }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo fontSize="30px" /></div>
+            
+            {authMode === "security_verify" ? (
+              <>
+                <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Güvenlik Doğrulaması</h4>
+                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                <button onClick={handleSecurityUpdate} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>ŞİFREYİ DEĞİŞTİR</button>
+              </>
+            ) : authMode === "verify" || authMode === "verify_forgot" ? (
+              <>
+                <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>E-posta Doğrulama</h4>
+                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                <button onClick={authMode === "verify" ? handleVerifyAndFinish : handleVerifyForgot} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>DOĞRULA</button>
+              </>
+            ) : authMode === "new_password" ? (
+              <>
+                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
+                 <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                 <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+              </>
+            ) : authMode === "forgot_password" ? (
+              <>
+                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Şifremi Unuttum</h4>
+                 <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                 <button onClick={handleForgotPasswordStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KOD GÖNDER</button>
+                 <p onClick={() => setAuthMode("login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: activeColor }}>Giriş Yap'a Dön</p>
+              </>
+            ) : (
+              <>
+                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
+                <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
+                <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
+                <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
+              </>
+            )}
+            <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
+          </div>
+        </div>
+      )}
+
+      {showProfileSettings && (
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard }}>
+            <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>Profil Ayarlarım</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" /></div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                {(() => {
+                    const baseAvatars = ["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"];
+                    const displayAvatars = [...baseAvatars];
+                    if (currentUser?.uploadedAvatar) {
+                        if (!displayAvatars.includes(currentUser.uploadedAvatar)) displayAvatars.splice(1, 0, currentUser.uploadedAvatar);
+                    } else if (currentUser?.avatar && !baseAvatars.includes(currentUser.avatar)) {
+                         displayAvatars.splice(1, 0, currentUser.avatar);
+                    }
+                    return displayAvatars.map((av, i) => (
+                        <div key={i} style={{ position: 'relative' }}>
+                            {av === "default" ? (
+                                <div onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ width: '40px', height: '40px', borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '18px', cursor: 'pointer', border: currentUser.avatar === av ? `2px solid ${activeColor}` : `1px solid ${borderColor}` }}>
+                                    {currentUser?.username?.charAt(0)?.toUpperCase() || "?"}
+                                </div>
+                            ) : (
+                                <img src={av} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', objectFit: 'cover', border: currentUser.avatar === av ? `2px solid ${activeColor}` : `1px solid ${borderColor}` }} alt="avatar" />
+                            )}
+                            {currentUser?.uploadedAvatar === av && av !== "default" && (
+                                <button onClick={(e) => { e.stopPropagation(); const isCurrent = currentUser.avatar === av; setCurrentUser({ ...currentUser, uploadedAvatar: null, avatar: isCurrent ? "default" : currentUser.avatar }); }} style={{ position: 'absolute', top: '-5px', right: '-5px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxShadow: `0 0 5px ${activeColor}80` }} title="Bu Fotoğrafı Kaldır">✕</button>
+                            )}
+                        </div>
+                    ));
+                })()}
+                <div onClick={() => fileInputRef.current?.click()} style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: `2px dashed ${textLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: textLight, transition: '0.3s' }} title="Kendi Fotoğrafını Yükle">+</div>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} />
+            </div>
+
+            <label style={{ fontSize: '12px', color: textMuted }}>Kullanıcı Adı</label>
+            <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', background: inputBg, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${borderColor}` }}>
+                <span style={{ fontSize: '13px', color: textMuted }}>Son Baktıklarımı Göster</span>
+                <button onClick={toggleHistoryPref} style={{ background: showHistory ? activeColor : borderColor, color: showHistory ? badgeText : textLight, border: 'none', padding: '5px 15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}>{showHistory ? "AÇIK" : "KAPALI"}</button>
+            </div>
+            <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '10px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '10px', cursor: 'pointer', border: 'none' }}>Vazgeç</button>
+          </div>
+        </div>
+      )}
+
+      {showSecuritySettings && (
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard }}>
+            <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
+            <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
+            <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
+            <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
+            <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Vazgeç</button>
+          </div>
+        </div>
+      )}
+
+      {zoomedAvatar && (
+        <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', cursor: 'zoom-out' }}>
+           <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="200px" fontSize="80px" />
+              <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80` }}>✕</button>
+           </div>
+           <h3 style={{ color: activeColor, marginTop: '25px', fontSize: '28px', textShadow: `0 0 10px ${activeColor}66` }}>@{zoomedAvatar.username}</h3>
+        </div>
+      )}
+
       {showThemeSettings && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box theme-modal" style={{ background: bgCard }}>
@@ -1161,6 +1275,22 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {activeTrailerKey && (
+        <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+           <div style={{ position: 'relative', width: '100%', maxWidth: '1000px', aspectRatio: '16/9' }} onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => setActiveTrailerKey(null)} style={{ position: 'absolute', top: '-15px', right: '-10px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '35px', height: '35px', fontSize: '18px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80`, zIndex: 10 }}>✕</button>
+              <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen style={{ borderRadius: '15px', border: `2px solid ${activeColor}`, background: 'black', boxShadow: `0 10px 40px ${activeColor}40` }}></iframe>
+           </div>
+        </div>
+      )}
+
+      {/* 💎 DESTEK OL BUTONU */}
+      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9900 }} className="donate-btn">
+        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px ${activeColor}40` }}>
+          <span>💎 DESTEK OL</span>
+        </a>
+      </div>
 
       <SpeedInsights />
     </main>
