@@ -59,6 +59,7 @@ export default function Home() {
   const [showSineAI, setShowSineAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
+  const [isListening, setIsListening] = useState(false); // 🎤 SİNE Aİ Sesli Komut Durumu
   
   const initialAIMessage = { role: "ai", text: "Merhaba! Ben SİNE Aİ Asistanın 🤖. Bugün ne tür bir şeyler izlemek istersin? Bana modunu veya sevdiğin konuları anlat, sana en uygun içerikleri anında bulayım!" };
   const [aiChatHistory, setAiChatHistory] = useState<any[]>([initialAIMessage]);
@@ -134,6 +135,26 @@ export default function Home() {
     return `https://image.tmdb.org/t/p/${size}${path}`;
   };
 
+  // 📳 TİTREŞİM MOTORU (HAPTIC FEEDBACK)
+  const triggerHaptic = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(50); // 50 milisaniye hafif dokunmatik hissi
+    }
+  };
+
+  // 📱 DİNAMİK DURUM ÇUBUĞU (STATUS BAR)
+  useEffect(() => {
+    if (!mounted) return;
+    let metaThemeColor = document.querySelector("meta[name=theme-color]");
+    if (!metaThemeColor) {
+      metaThemeColor = document.createElement("meta");
+      metaThemeColor.setAttribute("name", "theme-color");
+      document.head.appendChild(metaThemeColor);
+    }
+    // Seçilen temanın rengini telefonun durum çubuğuna aktar
+    metaThemeColor.setAttribute("content", activeColor);
+  }, [activeColor, mounted]);
+
   useEffect(() => {
     const makeScrollableWithWheel = (ref: React.RefObject<HTMLDivElement | null>) => {
       const el = ref.current;
@@ -206,6 +227,32 @@ export default function Home() {
     }
   }, [aiChatHistory, isAITyping]);
 
+  // 🎤 SİNE Aİ SESLİ KOMUT FONKSİYONU
+  const startListening = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert("Cihazınız veya tarayıcınız (örn: iOS Safari) sesli komutu doğrudan desteklemiyor. Lütfen klavye mikrofonunu kullanın.");
+      return;
+    }
+    triggerHaptic(); // Dinleme başlarken titreşim
+    const recognition = new SpeechRec();
+    recognition.lang = 'tr-TR'; // Türkçe algılama
+    recognition.interimResults = false;
+    
+    recognition.onstart = () => setIsListening(true);
+    
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setAiPrompt(prev => prev + (prev ? " " : "") + transcript);
+      setIsListening(false);
+      triggerHaptic(); // Algılama bitince titreşim
+    };
+    
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  };
+
   const handleAISubmit = async () => {
       if (!aiPrompt.trim()) return;
       const userText = aiPrompt;
@@ -244,6 +291,7 @@ export default function Home() {
               }
 
               setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
+              triggerHaptic(); // Aİ cevap verdiğinde titreşim
           } catch(e) {
               setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! API ile bağlantı kurarken ufak bir hata oluştu. Lütfen tekrar dene." }]);
           }
@@ -426,6 +474,22 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
+  // 📤 ORİJİNAL MOBİL PAYLAŞIM (NATIVE WEB SHARE)
+  const shareMovie = async (item: any) => {
+    triggerHaptic(); // Butona basıldığında titreşim
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `SİNEPRO | ${item.title || item.name}`,
+          text: `Bu harika yapımı SİNEPRO'da buldum: ${item.title || item.name}!\n\nTMDB Puanı: ${item.vote_average?.toFixed(1)}\n\n`,
+          url: window.location.href, 
+        });
+      } catch (err) { console.log("Paylaşım iptal edildi veya hata oluştu."); }
+    } else {
+      alert("Kullandığınız cihaz veya tarayıcı orijinal paylaşım menüsünü desteklemiyor.");
+    }
+  };
+
   const getMyComments = () => {
     let myComments: any[] = [];
     if (currentUser) {
@@ -452,6 +516,7 @@ export default function Home() {
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
     setNewComment("");
+    triggerHaptic(); // Yorum gönderildiğinde titreşim
   };
 
   const deleteComment = (itemID: number, commentID: number) => {
@@ -478,6 +543,7 @@ export default function Home() {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
+      // Dışarı tıklanınca arama kutusu kapansın
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
           setIsSearchFocused(false);
           setIsSearchExpanded(false);
@@ -539,6 +605,7 @@ export default function Home() {
 
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
+    triggerHaptic(); // Favoriye eklerken titreşim
     let updated = favorites.find(f => f.id === item.id) ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
     setFavorites(updated);
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
@@ -630,8 +697,6 @@ export default function Home() {
         
         .load-more-btn { background: transparent; border: 2px solid ${activeColor}; color: ${activeColor}; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; margin: 0 auto 50px auto; display: block; }
         .load-more-btn:hover { background: ${activeColor}; color: ${badgeText}; box-shadow: 0 0 20px ${activeColor}66; }
-
-        .search-item-hover:hover { background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; }
 
         .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; }
         .ai-modal { max-width: 500px; height: 650px; }
@@ -940,6 +1005,11 @@ export default function Home() {
                         <span style={{ color: activeColor, fontSize: '24px', fontWeight: 'bold' }}>{calculateProRating(selectedItem.id)}</span>
                     </div>
                    )}
+                   
+                   {/* 📤 YENİ MOBİL PAYLAŞIM BUTONU BURAYA GELDİ */}
+                   <button onClick={() => shareMovie(selectedItem)} style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '8px 15px', borderRadius: '8px', border: `1px solid ${borderColor}`, fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                       📤 Paylaş
+                   </button>
                 </div>
 
                 <p style={{ color: textMuted, lineHeight: '1.8', fontSize: '16px', marginBottom: '25px' }}>
@@ -1134,8 +1204,13 @@ export default function Home() {
                )}
             </div>
 
-            <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px' }}>
-               <input type="text" placeholder="Örn: Komik bir uzay filmi bul..." value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleAISubmit(); }} disabled={isAITyping} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
+            <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px', alignItems: 'center' }}>
+               {/* 🎤 YENİ EKLENEN MİKROFON BUTONU */}
+               <button onClick={startListening} title="Sesli Komut" style={{ background: isListening ? '#ff4d4d' : inputBg, color: isListening ? 'white' : activeColor, border: `1px solid ${borderColor}`, width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', fontSize: '18px', boxShadow: isListening ? '0 0 15px rgba(255,0,0,0.6)' : 'none' }}>
+                  🎤
+               </button>
+               
+               <input type="text" placeholder={isListening ? "Dinleniyor..." : "Örn: Komik uzay filmi..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleAISubmit(); }} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
                <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>
                   <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
                </button>
