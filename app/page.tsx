@@ -7,6 +7,27 @@ import emailjs from '@emailjs/browser';
 
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
+// --- YARDIMCI BİLEŞENLER (PERFORMANS İÇİN ANA DÖNGÜ DIŞINA ALINDI) ---
+const UserAvatar = ({ user, size = "35px", fontSize = "14px", activeColor, theme, badgeText }: any) => {
+  if (user?.avatar && user.avatar !== "default") return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${activeColor}` }} alt="" />;
+  return <div style={{ width: size, height: size, borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme?.secondary || activeColor})`, color: badgeText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize }}>{user?.username?.charAt(0)?.toUpperCase() || "?"}</div>;
+};
+
+const SineProLogo = ({ style, fontSize = '28px', proSize = '22px', activeColor, badgeText }: any) => (
+  <div style={{ display: 'flex', alignItems: 'center', animation: 'logoGlow 2.5s infinite', ...style }}>
+    <span style={{ color: activeColor, fontSize, fontWeight: '900' }}>SİNE</span>
+    <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: proSize, fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+  </div>
+);
+
+const SkeletonCard = ({ isDarkMode }: any) => (
+  <div style={{ textAlign: 'center', minWidth: '150px' }}>
+    <div className="skeleton-box" style={{ height: '250px', borderRadius: '15px' }}></div>
+    <div className="skeleton-box" style={{ height: '14px', width: '70%', borderRadius: '4px', margin: '15px auto 0' }}></div>
+  </div>
+);
+// --------------------------------------------------------------------
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true); 
@@ -29,7 +50,7 @@ export default function Home() {
   const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [favorites, setFavorites] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<"home" | "favorites" | "my_comments" | "stats">("home"); 
+  const [viewMode, setViewMode] = useState<"home" | "favorites" | "my_comments" | "stats" | "notifications" | "about" | "support">("home"); 
   const [similar, setSimilar] = useState<any[]>([]);
   const [theme, setTheme] = useState({ name: 'Turkuaz', color: '#66FCF1', secondary: '#45A29E' }); 
 
@@ -44,6 +65,9 @@ export default function Home() {
   const [commentRating, setCommentRating] = useState<number>(10);
   const [commentsSort, setCommentsSort] = useState("newest");
   const [autoScrollToComments, setAutoScrollToComments] = useState(false); 
+
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -60,8 +84,19 @@ export default function Home() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
   const [isListening, setIsListening] = useState(false); 
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showProfilePassword, setShowProfilePassword] = useState(false);
   
-  const initialAIMessage = { role: "ai", text: "Merhaba! Ben SİNE Aİ Asistanın 🤖. Bugün ne tür bir şeyler izlemek istersin? Bana modunu veya sevdiğin konuları anlat, sana en uygun içerikleri anında bulayım!" };
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [guestNotifSeen, setGuestNotifSeen] = useState(false);
+
+  // YENİ: DESTEK SAYFASI İÇİN STATE'LER
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
+  const [supportForm, setSupportForm] = useState({ category: "Hesap Problemi", message: "" });
+
+  const initialAIMessage = { role: "ai", text: "Merhaba! Ben SİNE Aİ Asistanın 🤖. Benimle sinema hakkında sohbet edebilir, ruh haline göre tavsiyeler isteyebilirsin." };
   const [aiChatHistory, setAiChatHistory] = useState<any[]>([initialAIMessage]);
   
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
@@ -77,12 +112,12 @@ export default function Home() {
   const castScrollRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLDivElement | null>(null); 
+  const bellRef = useRef<HTMLDivElement | null>(null); 
   const searchInputRef = useRef<HTMLInputElement | null>(null); 
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
   
-  // MOBİL İÇİN YENİ AKTİF SEKME YÖNETİCİSİ
   const [activeBottomTab, setActiveBottomTab] = useState("home"); 
 
   const genres = useMemo(() => {
@@ -105,6 +140,15 @@ export default function Home() {
     { name: 'Vampir', color: '#FF0000', secondary: '#8B0000' },
     { name: 'Altın', color: '#FFD700', secondary: '#B8860B' },
     { name: 'Okyanus', color: '#00BFFF', secondary: '#00008B' }
+  ];
+
+  const faqs = [
+    { q: "SİNEPRO'da filmleri baştan sona izleyebilir miyim?", a: "Hayır. SİNEPRO, sinema tutkunları için geliştirilmiş devasa bir keşif, bilgi ve sosyalleşme platformudur. Yapımların resmi fragmanlarını izleyebilir, puan verebilir ve toplulukla tartışabilirsiniz ancak telif hakları gereği içeriklerin tamamı yayınlanmaz." },
+    { q: "Şifremi unuttum, hesabımı nasıl kurtarabilirim?", a: "Giriş yapma ekranında sağ alt köşede bulunan 'Şifremi Unuttum' bağlantısına tıklayın. Kayıtlı e-posta adresinizi girdiğinizde size 6 haneli bir güvenlik kodu gönderilecektir. Bu kodla şifrenizi yenileyebilirsiniz." },
+    { q: "Yorumlarımı veya cevaplarımı nasıl silebilirim?", a: "Yaptığınız yorumların ve cevapların sağ üst köşesinde (sadece size görünen) bir ❌ butonu bulunur. Buna tıklayarak verilerinizi platformdan kalıcı olarak silebilirsiniz." },
+    { q: "SİNE Aİ tam olarak nedir ve nasıl çalışır?", a: "SİNE Aİ, platformumuzun yapay zeka destekli akıllı sinema asistanıdır. Ona ruh halinizi (örn: 'Çok canım sıkkın, beni güldür') anlatabilir veya sadece sohbet edebilirsiniz. Size en uygun yapımları saniyeler içinde bulup getirecektir." },
+    { q: "Profil fotoğrafımı nasıl değiştirebilirim?", a: "Sağ üst köşedeki profilinize (mobilde alt menüdeki Profil sekmesine) tıklayıp 'Profil Ayarlarım' menüsüne girin. Orada hazır avatarlarımızdan birini seçebilir veya '+' ikonuna tıklayarak kendi galerinizden bir fotoğraf yükleyebilirsiniz." },
+    { q: "Bildirimler neden ve ne zaman gelir?", a: "Birisi sizin yaptığınız bir yorumu beğendiğinde veya yorumunuza cevap yazdığında sistem size anlık olarak bildirim gönderir. Ayrıca önemli güncellemeler ve platform duyuruları da bildirim panelinize düşer." }
   ];
 
   const getAdjustedColor = (colorName: string, defaultColor: string) => {
@@ -139,9 +183,7 @@ export default function Home() {
   };
 
   const triggerHaptic = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(50); 
-    }
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); 
   };
 
   useEffect(() => {
@@ -181,11 +223,8 @@ export default function Home() {
       const intervalId = setInterval(() => {
         if (mainNewScrollRef.current) {
           const { scrollLeft, scrollWidth, clientWidth } = mainNewScrollRef.current;
-          if (scrollLeft + clientWidth >= scrollWidth - 10) {
-            mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-          } else {
-            mainNewScrollRef.current.scrollTo({ left: scrollLeft + 300, behavior: 'smooth' });
-          }
+          if (scrollLeft + clientWidth >= scrollWidth - 10) mainNewScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+          else mainNewScrollRef.current.scrollTo({ left: scrollLeft + 300, behavior: 'smooth' });
         }
       }, 3500); 
       return () => clearInterval(intervalId);
@@ -196,9 +235,7 @@ export default function Home() {
     if (selectedItem && autoScrollToComments) {
       const timer = setTimeout(() => {
         const commentsSection = document.getElementById("comments-section");
-        if (commentsSection) {
-          commentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        if (commentsSection) commentsSection.scrollIntoView({ behavior: "smooth", block: "start" });
         setAutoScrollToComments(false); 
       }, 200); 
       return () => clearTimeout(timer);
@@ -222,31 +259,49 @@ export default function Home() {
   }, [searchInput, contentType]);
 
   useEffect(() => {
-    if (chatScrollRef.current) {
-        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
+    if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [aiChatHistory, isAITyping]);
+
+  useEffect(() => {
+    setGuestNotifSeen(sessionStorage.getItem("sinepro_guest_notif") === "true");
+    
+    if(currentUser) {
+        const savedNotifs = JSON.parse(localStorage.getItem(`sinepro_notifications_${currentUser.username}`) || "[]");
+        if (savedNotifs.length === 0) {
+            const welcomeMsg = { id: Date.now(), text: "SİNEPRO dünyasına hoş geldin! 🎉 Harika içerikler ve sınırsız özellikler seni bekliyor.", isRead: false, date: new Date().toLocaleDateString('tr-TR') };
+            setNotifications([welcomeMsg]);
+            localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify([welcomeMsg]));
+        } else {
+            setNotifications(savedNotifs);
+        }
+    } else {
+        setNotifications([]);
+    }
+  }, [currentUser]);
+
+  const markNotifsAsRead = () => {
+      const updated = notifications.map(n => ({...n, isRead: true}));
+      setNotifications(updated);
+      localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
+  };
 
   const startListening = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
-      alert("Cihazınız veya tarayıcınız (örn: iOS Safari) sesli komutu doğrudan desteklemiyor. Lütfen klavye mikrofonunu kullanın.");
+      alert("Cihazınız veya tarayıcınız sesli komutu doğrudan desteklemiyor. Lütfen klavyeyi kullanın.");
       return;
     }
     triggerHaptic(); 
     const recognition = new SpeechRec();
     recognition.lang = 'tr-TR'; 
     recognition.interimResults = false;
-    
     recognition.onstart = () => setIsListening(true);
-    
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setAiPrompt(prev => prev + (prev ? " " : "") + transcript);
       setIsListening(false);
       triggerHaptic(); 
     };
-    
     recognition.onerror = () => setIsListening(false);
     recognition.onend = () => setIsListening(false);
     recognition.start();
@@ -254,48 +309,92 @@ export default function Home() {
 
   const handleAISubmit = async () => {
       if (!aiPrompt.trim()) return;
-      const userText = aiPrompt;
+      const userText = aiPrompt.trim();
       setAiPrompt("");
       setAiChatHistory(prev => [...prev, { role: "user", text: userText }]);
       setIsAITyping(true);
 
       setTimeout(async () => {
-          let genreIds: number[] = [];
           const lowerText = userText.toLowerCase();
+          let aiResponseText = "";
+          let results: any[] = [];
+          let shouldFetch = false;
+          let genreIds: number[] = [];
+          let searchQuery = "";
           
-          if (lowerText.includes("aksiyon") || lowerText.includes("heyecan") || lowerText.includes("silah")) genreIds.push(28);
-          if (lowerText.includes("komedi") || lowerText.includes("komik") || lowerText.includes("gülmek")) genreIds.push(35);
-          if (lowerText.includes("korku") || lowerText.includes("gerilim") || lowerText.includes("korkunç")) genreIds.push(27);
-          if (lowerText.includes("bilim kurgu") || lowerText.includes("uzay") || lowerText.includes("gelecek") || lowerText.includes("robot")) genreIds.push(878);
-          if (lowerText.includes("aşk") || lowerText.includes("romantik") || lowerText.includes("duygusal")) genreIds.push(10749);
-          if (lowerText.includes("dram") || lowerText.includes("ağlamak") || lowerText.includes("hüzün")) genreIds.push(18);
-          if (lowerText.includes("animasyon") || lowerText.includes("çizgi")) genreIds.push(16);
-
-          try {
-              let url = "";
-              if (genreIds.length > 0) {
-                  url = `https://api.themoviedb.org/3/discover/${contentType}?with_genres=${genreIds.join(",")}&sort_by=popularity.desc&language=tr-TR&page=1`;
-              } else {
-                  url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(userText)}&language=tr-TR&page=1`;
-              }
-
-              const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
-              let results = res.data.results?.slice(0, 4) || []; 
-
-              let aiResponseText = "";
-              if (results.length > 0) {
-                  aiResponseText = `Cümleni analiz ettim ve moduna tam uyacak bu harika yapımları buldum! 🍿✨ İstediğinin üzerine tıklayıp izlemeye başlayabilirsin:`;
-              } else {
-                  aiResponseText = `Hmm, maalesef buna uygun bir içerik bulamadım. Belki farklı kelimelerle tarif etmeyi denersin? 🤔`;
-              }
-
-              setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
-              triggerHaptic(); 
-          } catch(e) {
-              setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! API ile bağlantı kurarken ufak bir hata oluştu. Lütfen tekrar dene." }]);
+          if (/^(merhaba|selam|sa|sea|hey|günaydın|iyi akşamlar)/.test(lowerText) && lowerText.split(" ").length < 4) {
+              aiResponseText = "Selam! 👋 SİNEPRO dünyasına hoş geldin. Ben SİNE Aİ, senin kişisel sinema asistanınım. Bugün ne tür bir yapım arıyorsun?";
           }
+          else if (/(kimsin|nesin|sen kimsin|adın ne|görevin ne)/.test(lowerText)) {
+              aiResponseText = "Ben SİNE Aİ! 🤖 SİNEPRO için özel olarak geliştirilmiş yapay zeka asistanıyım. Milyonlarca film ve dizi arasından senin zevkine en uygun olanları bulmak veya seninle sinema hakkında sohbet etmek için buradayım.";
+          }
+          else if (/(nasılsın|naber|ne haber|nasıl gidiyor)/.test(lowerText)) {
+              aiResponseText = "Harikayım, çok teşekkür ederim! 🤩 Veritabanındaki yeni filmleri düzenliyordum. Sen nasılsın, bugün modun nasıl?";
+          }
+          else if (/(iyiyim|teşekkürler|sağol|eyvallah|süper|harika)/.test(lowerText) && lowerText.split(" ").length < 5) {
+              aiResponseText = "Bunu duyduğuma sevindim! 😊 O zaman bu güzel enerjine yakışacak bir film veya dizi bulmaya ne dersin? Bana sevdiğin bir tür söylemen yeterli.";
+          }
+          else if (/(sıkıldım|canım sıkkın|üzgünüm|kötüyüm|bunalım)/.test(lowerText)) {
+              aiResponseText = "Bazen hepimiz böyle hissederiz... Seni biraz neşelendirecek harika bir komedi filmine ne dersin? Ya da başka bir dünyada kaybolmak istersen fantastik bir şeyler önerebilirim. Hangisi iyi gelir?";
+          }
+          else if (/(şaka yap|espiri|komik bir şey söyle)/.test(lowerText)) {
+              aiResponseText = "Peki, geliyor... Neden bilgisayarlar sinemaya gitmez? Çünkü evde 'Ekran'ları var! 🥁 Hahaha, tamam kabul ediyorum çok kötüydü. Biz iyisi mi film önerilerine dönelim. 😂";
+          }
+          else if (/(seni kim yaptı|yaratıcın kim|kim kodladı)/.test(lowerText)) {
+              aiResponseText = "Beni harika bir yazılımcı ve vizyoner bir ürün yöneticisi geliştirdi! Sürekli olarak öğrenmeye ve SİNEPRO kullanıcılarına daha iyi hizmet vermeye devam ediyorum. 🚀";
+          }
+          else {
+              if (lowerText.includes("aksiyon") || lowerText.includes("heyecan") || lowerText.includes("silah") || lowerText.includes("dövüş") || lowerText.includes("patlama")) genreIds.push(28);
+              if (lowerText.includes("komedi") || lowerText.includes("komik") || lowerText.includes("gülmek") || lowerText.includes("eğlence")) genreIds.push(35);
+              if (lowerText.includes("korku") || lowerText.includes("gerilim") || lowerText.includes("korkunç") || lowerText.includes("kan") || lowerText.includes("vahşet")) genreIds.push(27);
+              if (lowerText.includes("bilim kurgu") || lowerText.includes("uzay") || lowerText.includes("gelecek") || lowerText.includes("robot") || lowerText.includes("zaman")) genreIds.push(878);
+              if (lowerText.includes("aşk") || lowerText.includes("romantik") || lowerText.includes("duygusal") || lowerText.includes("sevgili")) genreIds.push(10749);
+              if (lowerText.includes("dram") || lowerText.includes("ağlamak") || lowerText.includes("hüzün") || lowerText.includes("üzücü") || lowerText.includes("gerçek hayat")) genreIds.push(18);
+              if (lowerText.includes("animasyon") || lowerText.includes("çizgi") || lowerText.includes("anime")) genreIds.push(16);
+              if (lowerText.includes("gizem") || lowerText.includes("dedektif") || lowerText.includes("katil") || lowerText.includes("sır")) genreIds.push(9648);
+              if (lowerText.includes("suç") || lowerText.includes("soygun") || lowerText.includes("hırsız") || lowerText.includes("mafya")) genreIds.push(80);
+              if (lowerText.includes("fantastik") || lowerText.includes("büyü") || lowerText.includes("ejderha") || lowerText.includes("canavar")) genreIds.push(14);
+              if (lowerText.includes("tarih") || lowerText.includes("savaş") || lowerText.includes("eski zaman")) genreIds.push(36);
+
+              if (genreIds.length > 0) {
+                  shouldFetch = true;
+                  aiResponseText = `Söylediklerini analiz ettim ve tam bu moda uyacak ${contentType === 'tv' ? 'dizileri' : 'filmleri'} buldum. 🍿✨ İstediğinin üzerine tıklayıp detaylarına bakabilirsin:`;
+              } else {
+                  const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|film|dizi|bana|bir)/gi, "").trim();
+                  if (cleanSearch.length > 2) {
+                      shouldFetch = true;
+                      searchQuery = cleanSearch;
+                      aiResponseText = `Hmm, "${cleanSearch}" ile ilgili veritabanında şunları buldum. Umarım aradığın şey bunlardan biridir! 👇`;
+                  } else {
+                      aiResponseText = "Hmm, sanırım ne demek istediğini tam anlayamadım. 🤔 Bana bir film ismi verebilir, sevdiğin bir türü (örneğin 'bilim kurgu') söyleyebilir veya sadece sohbet edebilirsin!";
+                  }
+              }
+          }
+
+          if (shouldFetch) {
+              try {
+                  let url = "";
+                  if (genreIds.length > 0) {
+                      url = `https://api.themoviedb.org/3/discover/${contentType}?with_genres=${genreIds.join(",")}&sort_by=popularity.desc&language=tr-TR&page=1`;
+                  } else if (searchQuery) {
+                      url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=1`;
+                  }
+
+                  const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
+                  results = res.data.results?.slice(0, 4) || []; 
+                  
+                  if (results.length === 0) {
+                      aiResponseText = `Derinlere daldım ama maalesef "${userText}" için bir şey bulamadım. Başka bir tarz denemeye ne dersin?`;
+                  }
+              } catch(e) {
+                  aiResponseText = "Kablolarım karıştı! API ile bağlantı kurarken ufak bir hata oluştu. Lütfen tekrar dene.";
+              }
+          }
+
+          setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
+          triggerHaptic(); 
           setIsAITyping(false);
-      }, 1500); 
+      }, 1200 + Math.random() * 800); 
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -368,7 +467,6 @@ export default function Home() {
 
   const handleVerifyAndFinish = () => {
     if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
-    
     if (verificationCode.trim() === generatedCode.trim()) {
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
       const newUser = { 
@@ -414,8 +512,7 @@ export default function Home() {
   };
 
   const handleSaveNewPassword = () => {
-    if (!formData.password.trim()) return alert("Lütfen yeni bir şifre belirleyin! Bu alan boş bırakılamaz.");
-    
+    if (!formData.password.trim()) return alert("Lütfen yeni bir şifre belirleyin!");
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
     const updatedUsers = users.map((u: any) => u.email === formData.email.trim() ? { ...u, password: formData.password.trim() } : u);
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
@@ -425,14 +522,12 @@ export default function Home() {
 
   const saveProfileSettings = () => {
     if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
-    
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
     const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.trim().toLowerCase() && u.email !== currentUser.email);
     if (isUsernameTaken) return alert("Bu kullanıcı adı başka birisi tarafından kullanılıyor!");
     
     const updatedUser = { ...currentUser, username: currentUser.username.trim() };
     const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
-    
     localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
     localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
     setCurrentUser(updatedUser);
@@ -440,9 +535,7 @@ export default function Home() {
   };
 
   const handleLogin = () => {
-    if (!formData.email.trim() || !formData.password.trim()) {
-        return alert("Lütfen e-posta ve şifrenizi eksiksiz girin!");
-    }
+    if (!formData.email.trim() || !formData.password.trim()) return alert("Lütfen e-posta ve şifrenizi eksiksiz girin!");
     const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
     const match = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase() && u.password === formData.password.trim());
     if (match) { 
@@ -463,7 +556,6 @@ export default function Home() {
 
   const startSecurityVerify = () => {
     if (!profilePassword.trim()) return alert("Lütfen belirlemek istediğiniz yeni şifreyi girin!");
-    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedCode(code);
     sendEmail(currentUser.email, code, currentUser.username).then((success) => {
@@ -478,7 +570,6 @@ export default function Home() {
 
   const handleSecurityUpdate = () => {
     if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
-    
     if (verificationCode.trim() === generatedCode.trim()) {
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
       const updatedUser = { ...currentUser, password: profilePassword.trim() };
@@ -493,38 +584,37 @@ export default function Home() {
     } else { alert("Kod yanlış! Kopyala-yapıştır yaparken fazladan boşluk bırakmadığınıza emin olun."); }
   };
 
-  const fetchExtraDetails = async (id: number) => {
+  const fetchExtraDetails = async (id: number, cType: "movie" | "tv" = contentType) => {
     try {
       const [detailsRes, similarRes, castRes, videosRes] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/similar?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${contentType}/${id}/videos`, { headers: { Authorization: API_TOKEN } })
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/similar?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/videos`, { headers: { Authorization: API_TOKEN } })
       ]);
-      
-      setSelectedItem((prev: any) => ({ ...prev, ...detailsRes.data }));
+      setSelectedItem((prev: any) => ({ ...(prev || {}), ...detailsRes.data }));
       setSimilar(similarRes.data.results?.slice(0, 15) || []);
       setCast(castRes.data.cast?.slice(0, 15) || []);
-
       const ytVideos = videosRes.data.results.filter((v: any) => v.site === "YouTube");
       const officialTrailer = ytVideos.find((v: any) => v.type === "Trailer");
       setTrailerKey(officialTrailer ? officialTrailer.key : (ytVideos.length > 0 ? ytVideos[0].key : null));
-
     } catch (err) { console.error(err); }
   };
 
   const shareMovie = async (item: any) => {
     triggerHaptic(); 
+    const shareUrl = `${window.location.origin}/?id=${item.id}&type=${contentType}`;
     if (navigator.share) {
       try {
         await navigator.share({
           title: `SİNEPRO | ${item.title || item.name}`,
           text: `Bu harika yapımı SİNEPRO'da buldum: ${item.title || item.name}!\n\nTMDB Puanı: ${item.vote_average?.toFixed(1)}\n\n`,
-          url: window.location.href, 
+          url: shareUrl, 
         });
       } catch (err) { console.log("Paylaşım iptal edildi veya hata oluştu."); }
     } else {
-      alert("Kullandığınız cihaz veya tarayıcı orijinal paylaşım menüsünü desteklemiyor.");
+      navigator.clipboard.writeText(shareUrl);
+      alert("Bağlantı başarıyla kopyalandı! İstediğiniz yere yapıştırabilirsiniz.");
     }
   };
 
@@ -548,13 +638,110 @@ export default function Home() {
       rating: commentRating, date: new Date().toLocaleDateString('tr-TR'),
       itemTitle: selectedItem.title || selectedItem.name, itemID: selectedItem.id,
       itemData: selectedItem, 
-      contentType: contentType
+      contentType: contentType,
+      likes: 0,
+      likedBy: [],
+      replies: []
     };
     const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
     setComments(updatedComments);
     localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
     setNewComment("");
     triggerHaptic(); 
+  };
+
+  const handleReplySubmit = (itemID: number, commentID: number, originalUser: string, itemTitle: string) => {
+    if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
+    if (!replyText.trim()) return;
+
+    const newReply = {
+      id: Date.now(),
+      user: currentUser.username,
+      avatar: currentUser.avatar,
+      text: replyText.trim(),
+      date: new Date().toLocaleDateString('tr-TR')
+    };
+
+    const updatedComments = { ...comments };
+    const targetComments = updatedComments[itemID] || [];
+    const cIndex = targetComments.findIndex((c: any) => c.id === commentID);
+
+    if (cIndex > -1) {
+      const c = targetComments[cIndex];
+      c.replies = [...(c.replies || []), newReply];
+
+      if (originalUser !== currentUser.username) {
+         const authorNotifKey = `sinepro_notifications_${originalUser}`;
+         const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+         const newNotif = {
+             id: Date.now(),
+             text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
+             isRead: false,
+             date: new Date().toLocaleDateString('tr-TR')
+         };
+         authorNotifs.unshift(newNotif);
+         localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+      }
+    }
+
+    setComments(updatedComments);
+    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
+    setReplyText("");
+    setReplyingToId(null);
+    triggerHaptic();
+  };
+
+  const deleteReply = (itemID: number, commentID: number, replyID: number) => {
+    const updatedComments = { ...comments };
+    const targetComments = updatedComments[itemID] || [];
+    const cIndex = targetComments.findIndex((c: any) => c.id === commentID);
+
+    if (cIndex > -1) {
+        targetComments[cIndex].replies = targetComments[cIndex].replies.filter((r: any) => r.id !== replyID);
+    }
+
+    setComments(updatedComments);
+    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
+  };
+
+  const toggleLikeComment = (e: any, itemID: number, commentID: number) => {
+    e.stopPropagation();
+    if (!currentUser) {
+        setAuthMode("login");
+        setShowLogin(true);
+        return;
+    }
+    triggerHaptic();
+
+    const itemComments = comments[itemID] || [];
+    const updatedComments = itemComments.map((c: any) => {
+        if (c.id === commentID) {
+            const hasLiked = c.likedBy?.includes(currentUser.username);
+            const newLikedBy = hasLiked
+                ? c.likedBy.filter((u: string) => u !== currentUser.username)
+                : [...(c.likedBy || []), currentUser.username];
+
+            if (!hasLiked && c.user !== currentUser.username) {
+                const authorNotifKey = `sinepro_notifications_${c.user}`;
+                const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+                const newNotif = {
+                    id: Date.now(),
+                    text: `@${currentUser.username}, "${c.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
+                    isRead: false,
+                    date: new Date().toLocaleDateString('tr-TR')
+                };
+                authorNotifs.unshift(newNotif);
+                localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+            }
+
+            return { ...c, likedBy: newLikedBy, likes: newLikedBy.length };
+        }
+        return c;
+    });
+
+    const newAllComments = { ...comments, [itemID]: updatedComments };
+    setComments(newAllComments);
+    localStorage.setItem("sinepro_comments", JSON.stringify(newAllComments));
   };
 
   const deleteComment = (itemID: number, commentID: number) => {
@@ -581,12 +768,26 @@ export default function Home() {
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) setShowNotifications(false);
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
           setIsSearchFocused(false);
           setIsSearchExpanded(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
+    
+    const params = new URLSearchParams(window.location.search);
+    const sharedId = params.get('id');
+    const sharedType = params.get('type') as "movie" | "tv";
+    if (sharedId && sharedType) {
+       setTimeout(() => {
+           setContentType(sharedType);
+           if (sharedType === "movie") setActiveBottomTab("movies");
+           if (sharedType === "tv") setActiveBottomTab("tv");
+           fetchExtraDetails(Number(sharedId), sharedType);
+       }, 500); 
+       window.history.replaceState({}, document.title, window.location.pathname);
+    }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
@@ -643,6 +844,12 @@ export default function Home() {
   const toggleFavorite = (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
     triggerHaptic(); 
+    if (!currentUser) {
+       alert("Özellik Kilitli: Favorilere eklemek veya favori listenizi görmek için önce giriş yapmalısın!");
+       setAuthMode("login");
+       setShowLogin(true);
+       return;
+    }
     let updated = favorites.find(f => f.id === item.id) ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
     setFavorites(updated);
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
@@ -663,31 +870,20 @@ export default function Home() {
     return (totalScore / ratedComments.length).toFixed(1);
   };
 
-  const UserAvatar = ({ user, size = "35px", fontSize = "14px" }: any) => {
-    if (user?.avatar && user.avatar !== "default") return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${activeColor}` }} alt="" />;
-    return <div style={{ width: size, height: size, borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize }}>{user?.username?.charAt(0)?.toUpperCase() || "?"}</div>;
-  };
-
-  const SineProLogo = ({ style, fontSize = '28px', proSize = '22px' }: any) => (
-    <div style={{ display: 'flex', alignItems: 'center', animation: 'logoGlow 2.5s infinite', ...style }}>
-      <span style={{ color: activeColor, fontSize, fontWeight: '900' }}>SİNE</span>
-      <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: proSize, fontWeight: '900', marginLeft: '4px' }}>PRO</span>
-    </div>
-  );
-
-  const SkeletonCard = () => (
-    <div style={{ textAlign: 'center', minWidth: '150px' }}>
-      <div className="skeleton-box" style={{ height: '250px', borderRadius: '15px' }}></div>
-      <div className="skeleton-box" style={{ height: '14px', width: '70%', borderRadius: '4px', margin: '15px auto 0' }}></div>
-    </div>
-  );
-
   const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, action: () => void) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      action();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); action(); }
   };
+
+  // YENİ EKLENEN: DESTEK TALEBİ GÖNDERME
+  const handleSupportSubmit = () => {
+    if(!supportForm.message.trim()) return alert("Lütfen bir mesaj yazın!");
+    alert("Destek talebiniz başarıyla alındı! Ekibimiz e-posta üzerinden en kısa sürede dönüş yapacaktır.");
+    setSupportForm({...supportForm, message: ""});
+  };
+
+  const displayNotifs = currentUser 
+      ? notifications 
+      : [{ id: 'guest', text: 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın. Favori listesi oluşturmak, yorum yapmak, SİNE Aİ ile sohbet etmek ve içeriklere puan vermek için giriş yapabilirsin. Gelecek güncellemeleri de buradan duyuracağız.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
 
   if (!mounted) return null;
 
@@ -734,16 +930,13 @@ export default function Home() {
 
         .rating-badge-pro { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.85); color: ${theme.color}; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 900; z-index: 5; border: 1px solid ${theme.color}40; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
-        .comment-card { background: ${bgCard}; border-radius: 15px; padding: 20px; cursor: pointer; transition: 0.3s; border-left: 4px solid ${activeColor}; }
-        .comment-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); filter: brightness(1.05); }
-
         .history-btn { background: ${isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}; border: 1px solid ${borderColor}; color: ${textMuted}; font-size: 13px; cursor: pointer; transition: 0.3s; padding: 6px 14px; border-radius: 8px; font-weight: bold; }
         .history-btn:hover { background: ${activeColor}; color: ${badgeText}; border-color: ${activeColor}; transform: translateY(-2px); box-shadow: 0 5px 15px ${activeColor}40; }
         
         .load-more-btn { background: transparent; border: 2px solid ${activeColor}; color: ${activeColor}; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; margin: 0 auto 50px auto; display: block; }
         .load-more-btn:hover { background: ${activeColor}; color: ${badgeText}; box-shadow: 0 0 20px ${activeColor}66; }
 
-        .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; }
+        .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; max-height: 90vh; overflow-y: auto; }
         .ai-modal { max-width: 500px; height: 650px; }
         .auth-modal { max-width: 380px; padding: 40px; }
         .profile-modal { max-width: 450px; padding: 30px; }
@@ -758,13 +951,15 @@ export default function Home() {
         .detail-title-text { font-size: 44px; }
         .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 15px; }
         
+        .share-btn { background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; color: ${activeColor}; padding: 8px 15px; border-radius: 8px; border: 1px solid ${borderColor}; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-left: auto; transition: 0.3s; }
+        .share-btn:hover { background: ${activeColor}; color: ${badgeText}; }
+
         .bottom-bar { display: none; }
         .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
         @media (max-width: 768px) {
-          /* MOBİL ÜST MENÜ (NAVBAR) DÜZENLEMESİ - AMBLEM SOLA, BUTONLAR SAĞA */
           .nav-wrapper { padding: 12px 20px !important; }
           .nav-wrapper > div:first-child { flex: 1; justify-content: flex-start !important; }
           .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 15px !important; }
@@ -772,7 +967,6 @@ export default function Home() {
           .search-container { margin-top: 0 !important; width: auto !important; }
           .search-input-box { width: ${isSearchExpanded ? '200px' : '40px'} !important; min-width: ${isSearchExpanded ? '200px' : '40px'}; }
           
-          /* MOBİLDE FİLMLER VE DİZİLER EKRANINDA CAROUSEL GİZLEME (FARKLI EKRAN HİSSİ) */
           .hide-carousels-mobile { display: none !important; }
 
           .horizontal-scroll { scroll-snap-type: x mandatory; padding-bottom: 15px; scroll-padding-left: 5%; }
@@ -786,17 +980,17 @@ export default function Home() {
           .detail-poster-img { width: 200px !important; max-width: 80vw; margin: 0 auto; display: block; }
           .detail-top-flex { flex-direction: column; align-items: center; gap: 20px !important; }
           
+          .share-btn { margin-left: 0 !important; width: 100%; justify-content: center; padding: 12px; margin-top: 10px; }
+
           .ai-modal { height: 85vh !important; }
           .category-btn { font-size: 13px; padding: 6px 14px; }
           .section-title { font-size: 16px !important; margin-left: 2% !important; }
           .auth-modal, .theme-modal, .profile-modal { padding: 25px !important; }
-          .stats-container { padding: 30px 5% !important; }
           .comments-inputs { flex-direction: column; }
           
           body { padding-bottom: 70px; }
           .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; }
           
-          /* YENİ ALT MENÜ (BOTTOM BAR) AKTİF TASARIMI */
           .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; gap: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; }
           .bottom-icon { font-size: 22px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
           .bottom-text { font-size: 11px; font-weight: bold; transition: 0.3s; opacity: 0.7; }
@@ -813,19 +1007,56 @@ export default function Home() {
 
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}><SineProLogo /></div>
+          <div onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
+              <SineProLogo activeColor={activeColor} badgeText={badgeText} />
+          </div>
           <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => { setActiveBottomTab("movies"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "movies" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyItems: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
              <span style={{ color: activeColor, fontWeight: '900', fontSize: '18px' }}>SİNE</span>
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
+
+          <div style={{ position: 'relative' }} ref={bellRef}>
+             <button onClick={() => {
+                 setShowNotifications(!showNotifications);
+                 if (!currentUser) { setGuestNotifSeen(true); sessionStorage.setItem("sinepro_guest_notif", "true"); }
+                 else if (!showNotifications) markNotifsAsRead();
+             }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title="Bildirimler">
+                🔔
+                {((!currentUser && !guestNotifSeen) || (currentUser && displayNotifs.filter(n => !n.isRead).length > 0)) && (
+                    <span style={{ position: 'absolute', top: '0px', right: '0px', background: '#ff4d4d', border: `2px solid ${navBg}`, width: '12px', height: '12px', borderRadius: '50%', animation: 'heartbeat 1.5s infinite' }}></span>
+                )}
+             </button>
+             {showNotifications && (
+                 <div style={{ position: 'absolute', top: '45px', right: '-60px', width: '320px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
+                    <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+                       <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? "Bildirimleriniz" : "Sistem Panosu"}</span>
+                    </div>
+                    <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                       {displayNotifs.length > 0 ? displayNotifs.map(n => (
+                          <div key={n.id} onClick={() => { if(!currentUser) { setShowNotifications(false); setAuthMode("login"); setShowLogin(true); } }} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: !currentUser ? 'pointer' : 'default' }}>
+                             <span style={{ fontSize: '22px' }}>{n.text.includes('Hoş Geldin') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') ? '💬' : '❤️'}</span>
+                             <div>
+                                <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
+                                <span style={{ fontSize: '11px', color: textLight, marginTop: '5px', display: 'block' }}>{n.date}</span>
+                             </div>
+                          </div>
+                       )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>Henüz bildiriminiz yok.</div>}
+                    </div>
+                    
+                    {currentUser && (
+                        <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderTop: `1px solid ${borderColor}` }}>Tüm Bildirimleri Gör</div>
+                    )}
+                 </div>
+             )}
+          </div>
 
           <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
 
@@ -859,16 +1090,20 @@ export default function Home() {
               <div style={{ position: 'relative' }} ref={dropdownRef}>
                 <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: bgCard, padding: '5px 12px', borderRadius: '25px', border: `1px solid ${borderColor}` }}>
                   <span style={{ color: activeColor, fontWeight: 'bold' }}>{currentUser.username}</span>
-                  <UserAvatar user={currentUser} size="30px" />
+                  <UserAvatar user={currentUser} size="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                 </div>
                 {showUserDropdown && (
                   <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
                     <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
                     <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
-                    <div onClick={() => { setViewMode("stats"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
+                    <div onClick={() => { setViewMode("stats"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
                     <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
-                    <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
-                    <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
+                    <div onClick={() => { setViewMode("favorites"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
+                    <div onClick={() => { setViewMode("my_comments"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
+                    
+                    <div onClick={() => { setViewMode("about"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>ℹ️ Hakkımızda</div>
+                    <div onClick={() => { setViewMode("support"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❓ Yardım ve Destek</div>
+                    
                     <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
                   </div>
                 )}
@@ -892,8 +1127,8 @@ export default function Home() {
          <div className={`bottom-bar-item ${activeBottomTab === 'tv' && !searchQuery ? 'active' : ''}`} onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
              <span className="bottom-icon">📺</span><span className="bottom-text">Diziler</span>
          </div>
-         <div className={`bottom-bar-item ${activeBottomTab === 'profile' || viewMode !== 'home' ? 'active' : ''}`} onClick={() => { setActiveBottomTab("profile"); currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
-             <span className="bottom-icon">{currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" /></div> : "👤"}</span>
+         <div className={`bottom-bar-item ${activeBottomTab === 'profile' || (viewMode !== 'home' && viewMode !== 'about' && viewMode !== 'support') ? 'active' : ''}`} onClick={() => { setActiveBottomTab("profile"); currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
+             <span className="bottom-icon">{currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div> : "👤"}</span>
              <span className="bottom-text">{currentUser ? "Profil" : "Giriş"}</span>
          </div>
       </div>
@@ -903,7 +1138,7 @@ export default function Home() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', background: bgCard, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', padding: '25px', borderTop: `2px solid ${activeColor}`, boxShadow: `0 -10px 40px ${activeColor}40`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><div style={{ width: '40px', height: '5px', background: borderColor, borderRadius: '10px' }}></div></div>
              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '20px' }}>
-                <UserAvatar user={currentUser} size="60px" fontSize="24px" />
+                <UserAvatar user={currentUser} size="60px" fontSize="24px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                 <div><h3 style={{ margin: 0, color: activeColor, fontSize: '20px' }}>@{currentUser.username}</h3><p style={{ margin: 0, fontSize: '13px', color: textLight }}>{currentUser.email}</p></div>
              </div>
              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -913,12 +1148,16 @@ export default function Home() {
                 <button onClick={() => { setShowThemeSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🎨 Tema Seç</button>
                 <button onClick={() => { setViewMode("favorites"); setShowMobileMenu(false); }} className="mobile-menu-btn">❤️ Favorilerim</button>
                 <button onClick={() => { setViewMode("my_comments"); setShowMobileMenu(false); }} className="mobile-menu-btn">💬 Yorumlarım</button>
+                
+                <button onClick={() => { setViewMode("about"); setShowMobileMenu(false); }} className="mobile-menu-btn">ℹ️ Hakkımızda</button>
+                <button onClick={() => { setViewMode("support"); setShowMobileMenu(false); }} className="mobile-menu-btn">❓ Yardım & Destek</button>
              </div>
              <button onClick={() => { handleLogout(); setShowMobileMenu(false); }} style={{ width: '100%', padding: '15px', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,0,0,0.3)', borderRadius: '15px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', fontSize: '16px' }}>🚪 Çıkış Yap</button>
           </div>
         </div>
       )}
 
+      {/* --- ANA SAYFA --- */}
       {viewMode === "home" && (
         <>
           {!searchQuery && (
@@ -930,7 +1169,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* SADECE MOBİLDE FARKLI EKRAN HİSSİ İÇİN ANASAYFA HARİCİ SEKMELERDE CAROUSELLERİ GİZLİYORUZ (hide-carousels-mobile) */}
           {!searchQuery && recentlyViewed.length > 0 && showHistory && (
             <div className={activeBottomTab !== 'home' ? 'hide-carousels-mobile' : ''} style={{ position: 'relative', marginTop: '10px', zIndex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '5%' }}>
@@ -968,7 +1206,7 @@ export default function Home() {
                 <div className="horizontal-scroll" ref={mainNewScrollRef}>
                   {isLoading ? (
                     Array(10).fill(0).map((_, i) => (
-                      <div key={i} style={{ minWidth: '200px' }}><SkeletonCard /></div>
+                      <div key={i} style={{ minWidth: '200px' }}><SkeletonCard isDarkMode={isDarkMode} /></div>
                     ))
                   ) : (
                     newReleases.map((item) => (
@@ -1002,7 +1240,7 @@ export default function Home() {
           
           <div className="movie-grid">
             {isLoading ? (
-               Array(20).fill(0).map((_, i) => <SkeletonCard key={i} />)
+               Array(20).fill(0).map((_, i) => <SkeletonCard key={i} isDarkMode={isDarkMode} />)
             ) : (
               items.slice(0, visibleCount).map((item, idx) => (
                 <div key={`${item.id}-${idx}`} style={{ textAlign: 'center', cursor: 'pointer' }}>
@@ -1025,6 +1263,185 @@ export default function Home() {
         </>
       )}
 
+      {/* --- FAVORİLERİM EKRANI --- */}
+      {viewMode === "favorites" && (
+        <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
+            <h2 className="section-title" style={{ marginBottom: '30px' }}>❤️ BEĞENDİKLERİM</h2>
+            {favorites.length > 0 ? (
+                <div className="movie-grid" style={{ padding: 0 }}>
+                    {favorites.map((item, idx) => (
+                        <div key={`${item.id}-${idx}`} style={{ textAlign: 'center', cursor: 'pointer' }}>
+                            <div onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); addToRecentlyViewed(item); }} className="hover-effect" style={{ height: '270px', overflow: 'hidden', borderRadius: '15px', position: 'relative' }}>
+                                <img src={getImgUrl(item.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                <div onClick={(e) => toggleFavorite(e, item)} className="fav-heart-btn">❤️</div>
+                                <div className="rating-badge-pro">★ {item.vote_average?.toFixed(1)}</div>
+                            </div>
+                            <p style={{ marginTop: '15px', fontWeight: 'bold', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title || item.name}</p>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Favori listen şu an boş. Hoşuna giden yapımları kalple! 🤍</div>
+            )}
+        </div>
+      )}
+
+      {/* --- SON YORUMLARIM EKRANI --- */}
+      {viewMode === "my_comments" && (
+        <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
+            <h2 className="section-title" style={{ marginBottom: '30px' }}>💬 SON YORUMLARIM</h2>
+            {getMyComments().length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {getMyComments().map(c => (
+                        <div key={c.id} onClick={() => { setContentType(c.contentType); setSelectedItem(c.itemData); fetchExtraDetails(c.itemID, c.contentType); }} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, cursor: 'pointer', transition: '0.3s' }} className="hover-effect">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <h4 style={{ color: activeColor, margin: 0, fontSize: '16px' }}>{c.itemTitle}</h4>
+                                <span style={{ color: textLight, fontSize: '12px' }}>{c.date}</span>
+                            </div>
+                            <p style={{ margin: '10px 0', color: textMain, lineHeight: '1.6' }}>{c.text}</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px' }}>
+                                <span style={{ fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>⭐ Verdiğin Puan: {c.rating}</span>
+                                <span style={{ fontSize: '13px', color: '#ff4d4d', fontWeight: 'bold' }}>❤️ Beğeni: {c.likes || 0}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Henüz hiçbir içeriğe yorum yapmadın. Hadi bir film izle ve fikrini toplulukla paylaş! 🍿</div>
+            )}
+        </div>
+      )}
+
+      {/* --- İSTATİSTİKLERİM EKRANI --- */}
+      {viewMode === "stats" && (
+        <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
+            <h2 className="section-title" style={{ marginBottom: '30px' }}>📊 SİNEPRO İSTATİSTİKLERİN</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
+                      <div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div>
+                      <h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{favorites.length}</h3>
+                      <p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Favori İçerik</p>
+                 </div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
+                      <div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div>
+                      <h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{getMyComments().length}</h3>
+                      <p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Yaptığın Yorum</p>
+                 </div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
+                      <div style={{ fontSize: '50px', marginBottom: '10px' }}>👀</div>
+                      <h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{recentlyViewed.length}</h3>
+                      <p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Son İncelenen</p>
+                 </div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
+                      <div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div>
+                      <h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3>
+                      <p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Aldığın Beğeni</p>
+                 </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- TÜM BİLDİRİMLER EKRANI --- */}
+      {viewMode === "notifications" && (
+         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
+            <h2 className="section-title" style={{ marginBottom: '30px' }}>🔔 TÜM BİLDİRİMLER</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+               {currentUser && notifications.length > 0 ? (
+                  notifications.map(n => (
+                     <div key={n.id} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, display: 'flex', gap: '20px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '30px' }}>{n.text.includes('hoş geldin') ? '🎉' : n.text.includes('cevap') ? '💬' : '❤️'}</span>
+                        <div>
+                           <p style={{ margin: 0, color: textMain, fontSize: '15px', lineHeight: '1.5' }}>{n.text}</p>
+                           <span style={{ color: textLight, fontSize: '12px', marginTop: '8px', display: 'block' }}>{n.date}</span>
+                        </div>
+                     </div>
+                  ))
+               ) : !currentUser ? (
+                  <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Bildirimleri görmek için giriş yapmalısın.</div>
+               ) : (
+                  <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Hiç bildiriminiz yok.</div>
+               )}
+            </div>
+         </div>
+      )}
+
+      {/* --- HAKKIMIZDA EKRANI --- */}
+      {viewMode === "about" && (
+          <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto' }}>
+              <h2 className="section-title" style={{ marginBottom: '30px' }}>ℹ️ HAKKIMIZDA</h2>
+              <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderLeft: `5px solid ${activeColor}`, lineHeight: '1.8', color: textMain, fontSize: '15px', boxShadow: `0 10px 30px rgba(0,0,0,0.1)` }}>
+                  <p><strong>SİNEPRO</strong>, bir film izleme sitesinden çok daha fazlası; sinema tutkunları için ilmek ilmek işlenmiş, vizyoner ve yepyeni bir sosyal deneyim platformudur.</p>
+                  <p>Aylarca süren titiz bir geliştirme süreci, binlerce satır kod ve kullanıcı deneyimini (UX) kusursuzlaştırmak için harcanan uykusuz geceler sonucunda ortaya çıkan bu proje, klasik platformların eksiklerini kapatmak için tasarlandı. SİNE Aİ akıllı asistanımız, gerçek zamanlı bildirim sistemimiz ve gelişmiş topluluk özelliklerimizle sinema dünyasını tek bir merkeze topluyoruz.</p>
+                  <p>Amacımız sadece ne izleyeceğini bulman değil, izlediğin yapımları seninle aynı zevkleri paylaşan insanlarla tartışabilmen ve SİNEPRO evreninin bir parçası olmandır. Bizi tercih ettiğiniz ve bu emeğe ortak olduğunuz için teşekkür ederiz!</p>
+                  
+                  <div style={{ marginTop: '30px', padding: '15px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: '10px', fontSize: '13px', color: textMuted }}>
+                      <p style={{ margin: 0, color: activeColor }}><strong>Yasal Uyarı & Veri Sağlayıcı:</strong></p>
+                      <p style={{ margin: '5px 0 0 0' }}>Bu ürün TMDB (The Movie Database) API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır. Tüm film ve dizi verileri, afişler ve fragmanlar TMDB servislerinden anlık olarak çekilmektedir.</p>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* --- YENİ EFSANE VİZYON: YARDIM VE DESTEK EKRANI --- */}
+      {viewMode === "support" && (
+          <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto' }}>
+              <h2 className="section-title" style={{ marginBottom: '30px' }}>❓ YARDIM VE DESTEK</h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+                  
+                  {/* AKORDİYON SSS KISMI */}
+                  <div>
+                      <h3 style={{ color: activeColor, marginTop: 0, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>Sıkça Sorulan Sorular</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {faqs.map((faq, index) => (
+                              <div key={index} style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${expandedFaq === index ? activeColor : borderColor}`, overflow: 'hidden', transition: '0.3s' }}>
+                                  <div onClick={() => setExpandedFaq(expandedFaq === index ? null : index)} style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedFaq === index ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)') : 'transparent' }}>
+                                      <span style={{ fontWeight: 'bold', fontSize: '14px', color: textMain }}>{faq.q}</span>
+                                      <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '18px', transition: 'transform 0.3s', transform: expandedFaq === index ? 'rotate(45deg)' : 'rotate(0deg)' }}>+</span>
+                                  </div>
+                                  {expandedFaq === index && (
+                                      <div style={{ padding: '0 15px 15px 15px', color: textLight, fontSize: '13px', lineHeight: '1.6' }}>
+                                          <div style={{ paddingTop: '10px', borderTop: `1px solid ${borderColor}` }}>{faq.a}</div>
+                                      </div>
+                                  )}
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+
+                  {/* DESTEK TALEBİ GÖNDERME FORMU */}
+                  <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderTop: `5px solid ${activeColor}`, boxShadow: `0 10px 30px rgba(0,0,0,0.1)`, height: 'fit-content' }}>
+                      <h3 style={{ color: activeColor, marginTop: 0 }}>Hala yardıma mı ihtiyacın var?</h3>
+                      <p style={{ fontSize: '13px', color: textLight, marginBottom: '25px', lineHeight: '1.5' }}>Sorunun cevabını yukarıda bulamadıysan veya bize bir hata bildirmek istiyorsan, hemen bir destek talebi (Ticket) oluştur. Ekibimiz en kısa sürede dönüş yapacaktır.</p>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          <div>
+                              <label style={{ fontSize: '12px', color: textMuted, marginBottom: '5px', display: 'block' }}>Kategori Seçin</label>
+                              <select value={supportForm.category} onChange={(e) => setSupportForm({...supportForm, category: e.target.value})} style={{ width: '100%', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
+                                  <option value="Hesap Problemi">Hesap & Giriş Problemi</option>
+                                  <option value="Hata Bildirimi">Hata Bildirimi (Bug)</option>
+                                  <option value="Telif Hakkı">Telif Hakkı İhlali</option>
+                                  <option value="Öneri & İstek">Öneri & Geliştirme İsteği</option>
+                                  <option value="Diğer">Diğer</option>
+                              </select>
+                          </div>
+                          
+                          <div>
+                              <label style={{ fontSize: '12px', color: textMuted, marginBottom: '5px', display: 'block' }}>Mesajınız</label>
+                              <textarea rows={5} placeholder="Yaşadığınız sorunu detaylıca anlatın..." value={supportForm.message} onChange={(e) => setSupportForm({...supportForm, message: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '10px', color: textMain, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+                          </div>
+                          
+                          <button onClick={handleSupportSubmit} style={{ width: '100%', background: activeColor, color: badgeText, border: 'none', padding: '15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px', transition: '0.3s', boxShadow: `0 5px 15px ${activeColor}40` }}>
+                              TALEBİ GÖNDER
+                          </button>
+                      </div>
+                  </div>
+
+              </div>
+          </div>
+      )}
+
+      {/* --- FİLM & DİZİ DETAY PENCERESİ --- */}
       {selectedItem && (
         <div className="movie-detail-overlay">
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: navBg, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}` }}>
@@ -1053,7 +1470,7 @@ export default function Home() {
                   <p style={{ fontStyle: 'italic', color: activeColor, fontSize: '16px', marginTop: '0', marginBottom: '20px', opacity: 0.8 }}>"{selectedItem.tagline}"</p>
                 )}
                 
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', margin: '20px 0' }}>
+                <div className="detail-ratings-flex" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '20px', margin: '20px 0' }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                      <span style={{ fontSize: '20px' }}>⭐ TMDB:</span>
                      <span style={{ color: activeColor, fontSize: '24px', fontWeight: 'bold' }}>{selectedItem.vote_average?.toFixed(1)}</span>
@@ -1065,7 +1482,7 @@ export default function Home() {
                     </div>
                    )}
                    
-                   <button onClick={() => shareMovie(selectedItem)} style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '8px 15px', borderRadius: '8px', border: `1px solid ${borderColor}`, fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                   <button onClick={() => shareMovie(selectedItem)} className="share-btn">
                        📤 Paylaş
                    </button>
                 </div>
@@ -1170,8 +1587,8 @@ export default function Home() {
                 <div style={{ margin: '30px 0', background: bgCard, padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
                    <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
-                        <UserAvatar user={currentUser} size="45px" />
-                        <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} onKeyDown={(e) => handleEnterKey(e, addComment)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
+                        <UserAvatar user={currentUser} size="45px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                        <input type="text" placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} onKeyDown={(e) => handleEnterKey(e, addComment)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
                      </div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
@@ -1187,26 +1604,70 @@ export default function Home() {
                           {currentUser && currentUser.username === c.user && (
                               <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px' }}>❌</button>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div onClick={(e) => { e.stopPropagation(); setZoomedAvatar({ username: c.user, avatar: c.avatar }); }} style={{ cursor: 'pointer' }} title="Profili Büyüt">
-                                   <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" />
+                                   <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                                 </div>
                                 <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
                                 <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
                              </div>
                              <span style={{ color: textLight, fontSize: '11px' }}>{c.date}</span>
                           </div>
-                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px' }}>{c.text}</p>
+                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px', marginBottom: '10px' }}>{c.text}</p>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
+                              <button onClick={(e) => toggleLikeComment(e, selectedItem.id, c.id)} style={{ background: c.likedBy?.includes(currentUser?.username) ? 'rgba(255,0,0,0.1)' : 'transparent', border: `1px solid ${c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : borderColor}`, borderRadius: '20px', padding: '4px 10px', color: c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : textLight, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: '0.3s', fontWeight: 'bold' }}>
+                                  {c.likedBy?.includes(currentUser?.username) ? '❤️' : '🤍'} {c.likes || 0}
+                              </button>
+                              
+                              <button onClick={() => {
+                                  if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
+                                  if (replyingToId === c.id) { setReplyingToId(null); }
+                                  else { setReplyingToId(c.id); setReplyText(""); }
+                              }} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
+                                  💬 Cevapla
+                              </button>
+                          </div>
+
+                          {/* İÇ İÇE YORUMLAR (CEVAPLAR) LİSTESİ */}
+                          {c.replies && c.replies.length > 0 && (
+                             <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {c.replies.map((r: any) => (
+                                   <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
+                                      {currentUser && currentUser.username === r.user && (
+                                          <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '5px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px' }}>❌</button>
+                                      )}
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', paddingRight: '20px' }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <UserAvatar user={{ username: r.user, avatar: r.avatar }} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                                            <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '12px' }}>@{r.user}</span>
+                                         </div>
+                                         <span style={{ color: textLight, fontSize: '10px' }}>{r.date}</span>
+                                      </div>
+                                      <p style={{ margin: 0, color: textMuted, fontSize: '13px', lineHeight: '1.4' }}>{r.text}</p>
+                                   </div>
+                                ))}
+                             </div>
+                          )}
+
+                          {/* CEVAP YAZMA KUTUSU */}
+                          {replyingToId === c.id && (
+                             <div style={{ marginLeft: '40px', marginTop: '10px', display: 'flex', gap: '10px' }}>
+                                 <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '8px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
+                                 <button onClick={() => handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name)} style={{ background: activeColor, color: badgeText, border: 'none', padding: '0 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Gönder</button>
+                             </div>
+                          )}
+
                        </div>
                      ))
                    ) : <p style={{ color: textLight, textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
                 </div>
              </div>
              
+             {/* TEMİZLENEN ALT KISIM */}
              <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}>
                  <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
-                 <p>Bu ürün TMDB API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır.</p>
              </div>
           </div>
         </div>
@@ -1266,7 +1727,7 @@ export default function Home() {
                <button onClick={startListening} title="Sesli Komut" style={{ background: isListening ? '#ff4d4d' : inputBg, color: isListening ? 'white' : activeColor, border: `1px solid ${borderColor}`, width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', fontSize: '18px', boxShadow: isListening ? '0 0 15px rgba(255,0,0,0.6)' : 'none' }}>
                   🎤
                </button>
-               <input type="text" placeholder={isListening ? "Dinleniyor..." : "Örn: Komik uzay filmi..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
+               <input type="text" placeholder={isListening ? "Dinleniyor..." : "Sohbet et veya film iste..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
                <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>
                   <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
                </button>
@@ -1278,7 +1739,7 @@ export default function Home() {
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo fontSize="30px" /></div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="30px" /></div>
             
             <div>
               {authMode === "security_verify" ? (
@@ -1296,8 +1757,11 @@ export default function Home() {
               ) : authMode === "new_password" ? (
                 <>
                    <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
-                   <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleSaveNewPassword)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
-                   <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+                   <div style={{ position: 'relative', marginBottom: '15px' }}>
+                      <input type={showPassword ? "text" : "password"} placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleSaveNewPassword)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, paddingRight: '45px' }} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showPassword ? 1 : 0.6 }}>{showPassword ? "👁️" : "🙈"}</button>
+                   </div>
+                   <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '5px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
                 </>
               ) : authMode === "forgot_password" ? (
                 <>
@@ -1310,7 +1774,11 @@ export default function Home() {
                 <>
                   {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
                   <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => handleEnterKey(e, authMode === "login" ? handleLogin : handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
-                  <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, authMode === "login" ? handleLogin : handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                  
+                  <div style={{ position: 'relative', marginBottom: '15px' }}>
+                     <input type={showPassword ? "text" : "password"} placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, authMode === "login" ? handleLogin : handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, paddingRight: '45px' }} />
+                     <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showPassword ? 1 : 0.6 }}>{showPassword ? "👁️" : "🙈"}</button>
+                  </div>
                   
                   {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
                   
@@ -1319,6 +1787,12 @@ export default function Home() {
                 </>
               )}
             </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '25px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px' }}>
+                 <span onClick={() => { setShowLogin(false); setViewMode("about"); }} style={{ cursor: 'pointer', fontSize: '12px', color: textLight, fontWeight: 'bold' }}>ℹ️ Hakkımızda</span>
+                 <span onClick={() => { setShowLogin(false); setViewMode("support"); }} style={{ cursor: 'pointer', fontSize: '12px', color: textLight, fontWeight: 'bold' }}>❓ Yardım & Destek</span>
+            </div>
+
             <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
           </div>
         </div>
@@ -1328,7 +1802,7 @@ export default function Home() {
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box profile-modal" style={{ background: bgCard }}>
             <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>Profil Ayarlarım</h3>
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" /></div>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
             
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
                 {(() => {
@@ -1378,7 +1852,10 @@ export default function Home() {
             <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
             <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
             <div>
-               <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} onKeyDown={(e) => handleEnterKey(e, startSecurityVerify)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
+               <div style={{ position: 'relative', marginBottom: '20px' }}>
+                 <input type={showProfilePassword ? "text" : "password"} placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} onKeyDown={(e) => handleEnterKey(e, startSecurityVerify)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, paddingRight: '45px' }} />
+                 <button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showProfilePassword ? 1 : 0.6 }}>{showProfilePassword ? "👁️" : "🙈"}</button>
+               </div>
                <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
             </div>
             <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Vazgeç</button>
@@ -1389,7 +1866,7 @@ export default function Home() {
       {zoomedAvatar && (
         <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', cursor: 'zoom-out' }}>
            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-              <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="200px" fontSize="80px" />
+              <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="200px" fontSize="80px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
               <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80` }}>✕</button>
            </div>
            <h3 style={{ color: activeColor, marginTop: '25px', fontSize: '28px', textShadow: `0 0 10px ${activeColor}66` }}>@{zoomedAvatar.username}</h3>
