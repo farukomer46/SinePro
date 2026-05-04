@@ -645,6 +645,9 @@ export default function Home() {
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
       <style dangerouslySetInnerHTML={{ __html: `
+        /* 🚀 BEYAZ ÇERÇEVE SORUNUNU ÇÖZEN SIFIRLAMA KODU */
+        html, body { margin: 0; padding: 0; overflow-x: hidden; width: 100%; }
+
         @keyframes heartbeat {
           0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
           50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.3; }
@@ -739,10 +742,7 @@ export default function Home() {
           
           body { padding-bottom: 70px; }
           .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; }
-          
-          /* 🚀 MOBİL MENÜ BUTONLARI ÇİFT TIKLAMAYA VE YAKINLAŞTIRMAYA KAPATILDI */
           .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; font-size: 11px; font-weight: bold; gap: 4px; transition: 0.3s; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-          
           .bottom-bar-item.active { color: ${activeColor}; }
           .bottom-bar-item.active span:first-child { transform: scale(1.2); }
           .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; }
@@ -821,18 +821,15 @@ export default function Home() {
       </nav>
 
       <div className="bottom-bar">
-         {/* 🚀 KEŞFET (En Tepeye Kaydırma Eklendi) */}
          <div className={`bottom-bar-item ${viewMode === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
              <span style={{ fontSize: '22px', transition: '0.3s' }}>🏠</span><span>Keşfet</span>
          </div>
-         {/* 🚀 FİLMLER (En Tepeye Kaydırma Eklendi) */}
          <div className={`bottom-bar-item ${contentType === 'movie' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
              <span style={{ fontSize: '22px', transition: '0.3s' }}>🎬</span><span>Filmler</span>
          </div>
          <div className="bottom-bar-item" onClick={() => setShowSineAI(true)}>
              <div className="ai-center-btn">🤖</div><span style={{ color: activeColor, marginTop: '-15px', textShadow: `0 0 5px ${activeColor}80` }}>SİNE Aİ</span>
          </div>
-         {/* 🚀 DİZİLER (En Tepeye Kaydırma Eklendi) */}
          <div className={`bottom-bar-item ${contentType === 'tv' && viewMode === 'home' ? 'active' : ''}`} onClick={() => { setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
              <span style={{ fontSize: '22px', transition: '0.3s' }}>📺</span><span>Diziler</span>
          </div>
@@ -1218,7 +1215,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🚀 FORM YAPISI EKLENDİ - ENTER KUSURSUZ ÇALIŞIR */}
+      {/* 🚀 FORM YAPISIYLA ENTER TUŞU KUSURSUZ ÇALIŞAN AUTH MODAL */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
@@ -1275,7 +1272,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🚀 FORM YAPISI EKLENDİ - ENTER KUSURSUZ ÇALIŞIR */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box profile-modal" style={{ background: bgCard }}>
