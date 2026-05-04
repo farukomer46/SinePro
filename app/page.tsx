@@ -705,7 +705,7 @@ export default function Home() {
         .search-dropdown { width: 320px; max-width: 90vw; }
         .detail-poster-img { width: 280px; }
         .detail-title-text { font-size: 44px; }
-        .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; }
+        .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 15px; }
         
         .bottom-bar { display: none; }
         .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
@@ -713,7 +713,7 @@ export default function Home() {
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
         @media (max-width: 768px) {
-          .nav-wrapper { flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; padding: 15px 5% !important; }
+          .nav-wrapper { flex-direction: row !important; flex-wrap: nowrap !important; justify-content: space-between !important; padding: 15px 10px !important; }
           .nav-wrapper > div { width: auto !important; justify-content: flex-start !important; flex-wrap: nowrap !important; }
           .hide-on-mobile { display: none !important; }
           .search-container { margin-top: 0 !important; width: auto !important; }
@@ -758,8 +758,7 @@ export default function Home() {
           </div>
         </div>
         
-        {/* 🚀 ÜST MENÜ SAĞ TARAF SIRALAMASI DEĞİŞTİ: 1. AI 2. TEMA 3. ARAMA 4. PROFİL */}
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyContent: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
              <span style={{ color: activeColor, fontWeight: '900', fontSize: '18px' }}>SİNE</span>
@@ -767,6 +766,28 @@ export default function Home() {
           </button>
 
           <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
+
+          <div className="hide-on-mobile">
+            {currentUser ? (
+              <div style={{ position: 'relative' }} ref={dropdownRef}>
+                <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: bgCard, padding: '5px 12px', borderRadius: '25px', border: `1px solid ${borderColor}` }}>
+                  <span style={{ color: activeColor, fontWeight: 'bold' }}>{currentUser.username}</span>
+                  <UserAvatar user={currentUser} size="30px" />
+                </div>
+                {showUserDropdown && (
+                  <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+                    <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
+                    <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
+                    <div onClick={() => { setViewMode("stats"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
+                    <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
+                    <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
+                    <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
+                    <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
+                  </div>
+                )}
+              </div>
+            ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>GİRİŞ YAP</button>}
+          </div>
 
           <div className="search-container" ref={searchRef}>
             <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film veya Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
@@ -793,27 +814,6 @@ export default function Home() {
             )}
           </div>
 
-          <div className="hide-on-mobile">
-            {currentUser ? (
-              <div style={{ position: 'relative' }} ref={dropdownRef}>
-                <div onClick={() => setShowUserDropdown(!showUserDropdown)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: bgCard, padding: '5px 12px', borderRadius: '25px', border: `1px solid ${borderColor}` }}>
-                  <span style={{ color: activeColor, fontWeight: 'bold' }}>{currentUser.username}</span>
-                  <UserAvatar user={currentUser} size="30px" />
-                </div>
-                {showUserDropdown && (
-                  <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                    <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
-                    <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
-                    <div onClick={() => { setViewMode("stats"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
-                    <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
-                    <div onClick={() => { setViewMode("favorites"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
-                    <div onClick={() => { setViewMode("my_comments"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
-                    <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
-                  </div>
-                )}
-              </div>
-            ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>GİRİŞ YAP</button>}
-          </div>
         </div>
       </nav>
 
@@ -1108,7 +1108,7 @@ export default function Home() {
                    <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
                         <UserAvatar user={currentUser} size="45px" />
-                        <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
+                        <input type="text" placeholder={currentUser ? "Bu film hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} onKeyDown={(e) => { if(e.key === 'Enter') addComment(); }} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
                      </div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
@@ -1212,47 +1212,58 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODALLAR */}
+      {/* 🚀 FORM YAPISIYLA ENTER TUŞU KUSURSUZ ÇALIŞAN AUTH MODAL */}
       {showLogin && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo fontSize="30px" /></div>
             
-            {authMode === "security_verify" ? (
-              <>
-                <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Güvenlik Doğrulaması</h4>
-                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSecurityUpdate(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
-                <button onClick={handleSecurityUpdate} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>ŞİFREYİ DEĞİŞTİR</button>
-              </>
-            ) : authMode === "verify" || authMode === "verify_forgot" ? (
-              <>
-                <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>E-posta Doğrulama</h4>
-                <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "verify" ? handleVerifyAndFinish() : handleVerifyForgot(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
-                <button onClick={authMode === "verify" ? handleVerifyAndFinish : handleVerifyForgot} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>DOĞRULA</button>
-              </>
-            ) : authMode === "new_password" ? (
-              <>
-                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
-                 <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleSaveNewPassword(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
-                 <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
-              </>
-            ) : authMode === "forgot_password" ? (
-              <>
-                 <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Şifremi Unuttum</h4>
-                 <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleForgotPasswordStart(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
-                 <button onClick={handleForgotPasswordStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KOD GÖNDER</button>
-                 <p onClick={() => setAuthMode("login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: activeColor }}>Giriş Yap'a Dön</p>
-              </>
-            ) : (
-              <>
-                {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') handleRegisterStart(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
-                <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "login" ? handleLogin() : handleRegisterStart(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
-                <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if(e.key === 'Enter') { authMode === "login" ? handleLogin() : handleRegisterStart(); } }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
-                {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
-                <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
-                <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
-              </>
-            )}
+            <form onSubmit={(e) => {
+               e.preventDefault();
+               if (authMode === "security_verify") handleSecurityUpdate();
+               else if (authMode === "verify") handleVerifyAndFinish();
+               else if (authMode === "verify_forgot") handleVerifyForgot();
+               else if (authMode === "new_password") handleSaveNewPassword();
+               else if (authMode === "forgot_password") handleForgotPasswordStart();
+               else if (authMode === "login") handleLogin();
+               else if (authMode === "register") handleRegisterStart();
+            }}>
+              {authMode === "security_verify" ? (
+                <>
+                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Güvenlik Doğrulaması</h4>
+                  <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                  <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>ŞİFREYİ DEĞİŞTİR</button>
+                </>
+              ) : authMode === "verify" || authMode === "verify_forgot" ? (
+                <>
+                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>E-posta Doğrulama</h4>
+                  <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
+                  <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>DOĞRULA</button>
+                </>
+              ) : authMode === "new_password" ? (
+                <>
+                   <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
+                   <input type="password" placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                   <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+                </>
+              ) : authMode === "forgot_password" ? (
+                <>
+                   <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Şifremi Unuttum</h4>
+                   <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
+                   <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KOD GÖNDER</button>
+                   <p onClick={() => setAuthMode("login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: activeColor }}>Giriş Yap'a Dön</p>
+                </>
+              ) : (
+                <>
+                  {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
+                  <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                  <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
+                  {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
+                  <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
+                  <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
+                </>
+              )}
+            </form>
             <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
           </div>
         </div>
@@ -1292,13 +1303,15 @@ export default function Home() {
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} />
             </div>
 
-            <label style={{ fontSize: '12px', color: textMuted }}>Kullanıcı Adı</label>
-            <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') saveProfileSettings(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', background: inputBg, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${borderColor}` }}>
-                <span style={{ fontSize: '13px', color: textMuted }}>Son Baktıklarımı Göster</span>
-                <button onClick={toggleHistoryPref} style={{ background: showHistory ? activeColor : borderColor, color: showHistory ? badgeText : textLight, border: 'none', padding: '5px 15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}>{showHistory ? "AÇIK" : "KAPALI"}</button>
-            </div>
-            <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '10px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+            <form onSubmit={(e) => { e.preventDefault(); saveProfileSettings(); }}>
+              <label style={{ fontSize: '12px', color: textMuted }}>Kullanıcı Adı</label>
+              <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', background: inputBg, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${borderColor}` }}>
+                  <span style={{ fontSize: '13px', color: textMuted }}>Son Baktıklarımı Göster</span>
+                  <button type="button" onClick={toggleHistoryPref} style={{ background: showHistory ? activeColor : borderColor, color: showHistory ? badgeText : textLight, border: 'none', padding: '5px 15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}>{showHistory ? "AÇIK" : "KAPALI"}</button>
+              </div>
+              <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '10px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
+            </form>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '10px', cursor: 'pointer', border: 'none' }}>Vazgeç</button>
           </div>
         </div>
@@ -1309,8 +1322,10 @@ export default function Home() {
           <div className="modal-box profile-modal" style={{ background: bgCard }}>
             <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
             <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
-            <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') startSecurityVerify(); }} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
-            <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
+            <form onSubmit={(e) => { e.preventDefault(); startSecurityVerify(); }}>
+               <input type="password" placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '20px' }} />
+               <button type="submit" style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
+            </form>
             <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Vazgeç</button>
           </div>
         </div>
