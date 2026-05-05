@@ -986,15 +986,27 @@ export default function Home() {
         .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
-        @media (max-width: 768px) {
-          .mobile-logo-adjust { transform: translate(-8px, 6px); transition: 0.4s ease; }
-          .nav-wrapper { padding: 12px 20px !important; }
+       @media (max-width: 768px) {
+          .nav-wrapper { 
+             padding: 12px 10px !important; 
+             flex-direction: row !important; 
+             flex-wrap: nowrap !important; 
+          }
+          .mobile-logo-adjust { 
+             transform: translate(-5px, 2px); 
+             transition: 0.4s ease; 
+          }
           .nav-wrapper > div:first-child { flex: 1; justify-content: flex-start !important; }
-          .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 15px !important; }
+          .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 10px !important; }
           .hide-on-mobile { display: none !important; }
           .search-container { margin-top: 0 !important; width: auto !important; }
-          .search-input-box { width: ${isSearchExpanded ? '200px' : '40px'} !important; min-width: ${isSearchExpanded ? '200px' : '40px'}; }
           
+          /* Arama çubuğu boyutunu 150px'e sabitledik ki logoyu ekrandan itmesin */
+          .search-input-box { 
+             width: ${isSearchExpanded ? '150px' : '40px'} !important; 
+             min-width: ${isSearchExpanded ? '150px' : '40px'} !important;
+             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          }
           .hide-carousels-mobile { display: none !important; }
 
           .horizontal-scroll { scroll-snap-type: x mandatory; padding-bottom: 15px; scroll-padding-left: 5%; }
@@ -1033,25 +1045,26 @@ export default function Home() {
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
-      <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {/* İŞTE DEĞİŞEN KISIM BURASI 👇 */}
+      <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+        
+        {/* LOGO VE SOL MENÜ KISMI (KÜÇÜLMESİNİ ENGELLEDİK) */}
+        <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
               <SineProLogo activeColor={activeColor} badgeText={badgeText} hidePro={isSearchExpanded} />
           </div>
-          {/* YUKARISI DEĞİŞTİ 👆 */}
-          <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
+          <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
             <button onClick={() => { setActiveBottomTab("movies"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "movies" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyItems: 'flex-end' }}>
+
+        {/* SAĞ TARAF: ARAMA, BİLDİRİM VE İKONLAR (ESNEME ALANI VERDİK) */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, justifyItems: 'flex-end', justifyContent: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
              <span style={{ color: activeColor, fontWeight: '900', fontSize: '18px' }}>SİNE</span>
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
-
           <div style={{ position: 'relative' }} ref={bellRef}>
              <button onClick={() => {
                  setShowNotifications(!showNotifications);
