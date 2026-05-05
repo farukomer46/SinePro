@@ -932,8 +932,14 @@ export default function Home() {
           50% { transform: translateY(-3px); }
         }
         @keyframes slideUp {
+        
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
+        }
+          @keyframes notifPulse {
+          0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.8); transform: scale(1); }
+          70% { box-shadow: 0 0 0 8px rgba(255, 0, 0, 0); transform: scale(1.1); }
+          100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); transform: scale(1); }
         }
         @keyframes shimmer {
           0% { background-position: -200px 0; }
@@ -1073,7 +1079,7 @@ export default function Home() {
              }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title="Bildirimler">
                 🔔
                 {((!currentUser && !guestNotifSeen) || (currentUser && displayNotifs.filter(n => !n.isRead).length > 0)) && (
-                    <span style={{ position: 'absolute', top: '0px', right: '0px', background: '#ff4d4d', border: `2px solid ${navBg}`, width: '12px', height: '12px', borderRadius: '50%', animation: 'heartbeat 1.5s infinite' }}></span>
+                    <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '14px', height: '14px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
                 )}
              </button>
              {showNotifications && (
