@@ -1482,7 +1482,9 @@ export default function Home() {
                           <button onClick={handleSupportSubmit} style={{ width: '100%', background: activeColor, color: badgeText, border: 'none', padding: '15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px', transition: '0.3s', boxShadow: `0 5px 15px ${activeColor}40` }}>
                               TALEBİ GÖNDER
                           </button>
+                          
                       </div>
+                      
                   </div>
 
               </div>
@@ -1949,11 +1951,29 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9900 }} className="donate-btn">
-        <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 24px', borderRadius: '30px', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 4px 15px ${activeColor}40` }}>
-          <span>💎 DESTEK OL</span>
-        </a>
-      </div>
+      {/* SADECE YARDIM VEYA HAKKIMIZDA MODUNDAYSA EKRANIN ALTINDA SABİT GÖZÜKÜR */}
+      {(viewMode === "support" || viewMode === "about") && (
+          <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '12px',
+              padding: '40px 0', // Sayfa içeriğiyle arasına güzel bir boşluk koyduk
+              marginTop: 'auto'
+          }}>
+              {/* INSTAGRAM LOGOSU */}
+              <a href="https://instagram.com/farukomer.46" target="_blank" rel="noreferrer" className="hover-effect" style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', textDecoration: 'none', boxShadow: '0 4px 15px rgba(220, 39, 67, 0.3)', flexShrink: 0 }} title="Instagram">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+              </a>
+
+              {/* DESTEK OL BUTONU */}
+              <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+                  <div className="hover-effect" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', boxShadow: `0 4px 15px ${activeColor}40`, cursor: 'pointer' }}>
+                      <span>💎</span> DESTEK OL
+                  </div>
+              </a>
+          </div>
+      )}
 
       <SpeedInsights />
     </main>
