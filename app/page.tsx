@@ -13,10 +13,18 @@ const UserAvatar = ({ user, size = "35px", fontSize = "14px", activeColor, theme
   return <div style={{ width: size, height: size, borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme?.secondary || activeColor})`, color: badgeText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize }}>{user?.username?.charAt(0)?.toUpperCase() || "?"}</div>;
 };
 
-const SineProLogo = ({ style, fontSize = '28px', proSize = '22px', activeColor, badgeText }: any) => (
+const SineProLogo = ({ style, fontSize = '28px', proSize = '22px', activeColor, badgeText, hidePro = false }: any) => (
   <div style={{ display: 'flex', alignItems: 'center', animation: 'logoGlow 2.5s infinite', ...style }}>
-    <span style={{ color: activeColor, fontSize, fontWeight: '900' }}>SİNE</span>
-    <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: proSize, fontWeight: '900', marginLeft: '4px' }}>PRO</span>
+    <span style={{ color: activeColor, fontSize, fontWeight: '900', zIndex: 2, position: 'relative' }}>SİNE</span>
+    <div style={{
+       overflow: 'hidden',
+       maxWidth: hidePro ? '0px' : '100px',
+       opacity: hidePro ? 0 : 1,
+       transform: hidePro ? 'translateX(-20px) scale(0.8)' : 'translateX(0) scale(1)',
+       transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+    }}>
+      <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: proSize, fontWeight: '900', marginLeft: '4px', display: 'block' }}>PRO</span>
+    </div>
   </div>
 );
 
@@ -875,10 +883,29 @@ export default function Home() {
   };
 
   // YENİ EKLENEN: DESTEK TALEBİ GÖNDERME
-  const handleSupportSubmit = () => {
+  // DESTEK TALEBİ GÖNDERME (EMAILJS ENTEGRASYONU)
+  const handleSupportSubmit = async () => {
     if(!supportForm.message.trim()) return alert("Lütfen bir mesaj yazın!");
-    alert("Destek talebiniz başarıyla alındı! Ekibimiz e-posta üzerinden en kısa sürede dönüş yapacaktır.");
-    setSupportForm({...supportForm, message: ""});
+
+    try {
+        await emailjs.send(
+            "service_9d5qlk9", 
+            "template_x6iu07i", // Senin şablon ID'n
+            {
+               user_name: currentUser?.username || "Ziyaretçi",
+               user_email: currentUser?.email || "Belirtilmedi",
+               support_category: supportForm.category,
+               support_message: supportForm.message
+            },
+            "OGQEmxiu2oahk21gg"
+        );
+
+        alert("Destek talebiniz başarıyla alındı! Ekibimiz e-posta üzerinden en kısa sürede dönüş yapacaktır.");
+        setSupportForm({ category: "Hesap & Giriş Problemi", message: "" });
+    } catch (err) {
+        console.error(err);
+        alert("Gönderilirken bir hata oluştu. Lütfen tekrar deneyin.");
+    }
   };
 
   const displayNotifs = currentUser 
@@ -960,6 +987,7 @@ export default function Home() {
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
 
         @media (max-width: 768px) {
+          .mobile-logo-adjust { transform: translate(-8px, 6px); transition: 0.4s ease; }
           .nav-wrapper { padding: 12px 20px !important; }
           .nav-wrapper > div:first-child { flex: 1; justify-content: flex-start !important; }
           .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 15px !important; }
@@ -1007,15 +1035,16 @@ export default function Home() {
 
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
-              <SineProLogo activeColor={activeColor} badgeText={badgeText} />
+          {/* İŞTE DEĞİŞEN KISIM BURASI 👇 */}
+          <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
+              <SineProLogo activeColor={activeColor} badgeText={badgeText} hidePro={isSearchExpanded} />
           </div>
+          {/* YUKARISI DEĞİŞTİ 👆 */}
           <div className="hide-on-mobile" style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => { setActiveBottomTab("movies"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "movies" ? activeColor : theme.secondary }}>FİLMLER</button>
             <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>DİZİLER</button>
           </div>
         </div>
-        
         <div style={{ display: 'flex', gap: '15px', alignItems: 'center', justifyItems: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
