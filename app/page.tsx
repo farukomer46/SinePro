@@ -76,6 +76,7 @@ export default function Home() {
 
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({}); // INSTAGRAM TARZI YANIT GİZLEME STATE'İ
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -100,7 +101,6 @@ export default function Home() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [guestNotifSeen, setGuestNotifSeen] = useState(false);
 
-  // YENİ: DESTEK SAYFASI İÇİN STATE'LER
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [supportForm, setSupportForm] = useState({ category: "Hesap Problemi", message: "" });
 
@@ -315,96 +315,71 @@ export default function Home() {
     recognition.start();
   };
 
+// GERÇEK YAPAY ZEKA (GEMINI) BAĞLANTILI SİNE Aİ MOTORU 🧠
   const handleAISubmit = async () => {
       if (!aiPrompt.trim()) return;
       const userText = aiPrompt.trim();
       setAiPrompt("");
-      setAiChatHistory(prev => [...prev, { role: "user", text: userText }]);
-      setIsAITyping(true);
+      
+      // Kullanıcının mesajını ekrana anında basıyoruz
+      const newHistory = [...aiChatHistory, { role: "user", text: userText }];
+      setAiChatHistory(newHistory);
+      setIsAITyping(true); // Yazıyor animasyonunu başlat
 
-      setTimeout(async () => {
-          const lowerText = userText.toLowerCase();
+      try {
+          // 1. Kendi Güvenli Backend'imize (api/chat) mesajı gönderiyoruz
+          const response = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  prompt: userText,
+                  history: aiChatHistory
+              }),
+          });
+
           let aiResponseText = "";
           let results: any[] = [];
-          let shouldFetch = false;
-          let genreIds: number[] = [];
-          let searchQuery = "";
+
+          if (!response.ok) {
+              // Eğer 500 hatası alırsak gizlemiyoruz, sebebini yakalıyoruz
+              const errorText = await response.text();
+              console.log("Sunucudan Gelen Hata:", errorText);
+              
+              // Hatayı direkt SİNE Aİ baloncuğuna yazdıracağız
+              aiResponseText = `SİSTEM HATASI: ${errorText}`; 
+          } else {
+              const data = await response.json();
+              aiResponseText = data.text;
+          }
+
+          // 2. GÖRSELLİK (OPSİYONEL): Eğer kullanıcı film istediyse, Gemini'nin cevabının 
+          // altına tıklanabilir TMDB kartlarını da ekleyelim (Eski görsel şölen bozulmasın)
+          const lowerText = userText.toLowerCase();
+          const isSearchIntent = /(öner|bul|getir|izle|film|dizi|tavsiye|aksiyon|komedi|korku|bilim kurgu|animasyon|dram|gerilim|suç|gizem|fantastik|tarih|savaş|aşk|romantik)/i.test(lowerText);
           
-          if (/^(merhaba|selam|sa|sea|hey|günaydın|iyi akşamlar)/.test(lowerText) && lowerText.split(" ").length < 4) {
-              aiResponseText = "Selam! 👋 SİNEPRO dünyasına hoş geldin. Ben SİNE Aİ, senin kişisel sinema asistanınım. Bugün ne tür bir yapım arıyorsun?";
-          }
-          else if (/(kimsin|nesin|sen kimsin|adın ne|görevin ne)/.test(lowerText)) {
-              aiResponseText = "Ben SİNE Aİ! 🤖 SİNEPRO için özel olarak geliştirilmiş yapay zeka asistanıyım. Milyonlarca film ve dizi arasından senin zevkine en uygun olanları bulmak veya seninle sinema hakkında sohbet etmek için buradayım.";
-          }
-          else if (/(nasılsın|naber|ne haber|nasıl gidiyor)/.test(lowerText)) {
-              aiResponseText = "Harikayım, çok teşekkür ederim! 🤩 Veritabanındaki yeni filmleri düzenliyordum. Sen nasılsın, bugün modun nasıl?";
-          }
-          else if (/(iyiyim|teşekkürler|sağol|eyvallah|süper|harika)/.test(lowerText) && lowerText.split(" ").length < 5) {
-              aiResponseText = "Bunu duyduğuma sevindim! 😊 O zaman bu güzel enerjine yakışacak bir film veya dizi bulmaya ne dersin? Bana sevdiğin bir tür söylemen yeterli.";
-          }
-          else if (/(sıkıldım|canım sıkkın|üzgünüm|kötüyüm|bunalım)/.test(lowerText)) {
-              aiResponseText = "Bazen hepimiz böyle hissederiz... Seni biraz neşelendirecek harika bir komedi filmine ne dersin? Ya da başka bir dünyada kaybolmak istersen fantastik bir şeyler önerebilirim. Hangisi iyi gelir?";
-          }
-          else if (/(şaka yap|espiri|komik bir şey söyle)/.test(lowerText)) {
-              aiResponseText = "Peki, geliyor... Neden bilgisayarlar sinemaya gitmez? Çünkü evde 'Ekran'ları var! 🥁 Hahaha, tamam kabul ediyorum çok kötüydü. Biz iyisi mi film önerilerine dönelim. 😂";
-          }
-          else if (/(seni kim yaptı|yaratıcın kim|kim kodladı)/.test(lowerText)) {
-              aiResponseText = "Beni harika bir yazılımcı ve vizyoner bir ürün yöneticisi geliştirdi! Sürekli olarak öğrenmeye ve SİNEPRO kullanıcılarına daha iyi hizmet vermeye devam ediyorum. 🚀";
-          }
-          else {
-              if (lowerText.includes("aksiyon") || lowerText.includes("heyecan") || lowerText.includes("silah") || lowerText.includes("dövüş") || lowerText.includes("patlama")) genreIds.push(28);
-              if (lowerText.includes("komedi") || lowerText.includes("komik") || lowerText.includes("gülmek") || lowerText.includes("eğlence")) genreIds.push(35);
-              if (lowerText.includes("korku") || lowerText.includes("gerilim") || lowerText.includes("korkunç") || lowerText.includes("kan") || lowerText.includes("vahşet")) genreIds.push(27);
-              if (lowerText.includes("bilim kurgu") || lowerText.includes("uzay") || lowerText.includes("gelecek") || lowerText.includes("robot") || lowerText.includes("zaman")) genreIds.push(878);
-              if (lowerText.includes("aşk") || lowerText.includes("romantik") || lowerText.includes("duygusal") || lowerText.includes("sevgili")) genreIds.push(10749);
-              if (lowerText.includes("dram") || lowerText.includes("ağlamak") || lowerText.includes("hüzün") || lowerText.includes("üzücü") || lowerText.includes("gerçek hayat")) genreIds.push(18);
-              if (lowerText.includes("animasyon") || lowerText.includes("çizgi") || lowerText.includes("anime")) genreIds.push(16);
-              if (lowerText.includes("gizem") || lowerText.includes("dedektif") || lowerText.includes("katil") || lowerText.includes("sır")) genreIds.push(9648);
-              if (lowerText.includes("suç") || lowerText.includes("soygun") || lowerText.includes("hırsız") || lowerText.includes("mafya")) genreIds.push(80);
-              if (lowerText.includes("fantastik") || lowerText.includes("büyü") || lowerText.includes("ejderha") || lowerText.includes("canavar")) genreIds.push(14);
-              if (lowerText.includes("tarih") || lowerText.includes("savaş") || lowerText.includes("eski zaman")) genreIds.push(36);
-
-              if (genreIds.length > 0) {
-                  shouldFetch = true;
-                  aiResponseText = `Söylediklerini analiz ettim ve tam bu moda uyacak ${contentType === 'tv' ? 'dizileri' : 'filmleri'} buldum. 🍿✨ İstediğinin üzerine tıklayıp detaylarına bakabilirsin:`;
-              } else {
-                  const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|film|dizi|bana|bir)/gi, "").trim();
-                  if (cleanSearch.length > 2) {
-                      shouldFetch = true;
-                      searchQuery = cleanSearch;
-                      aiResponseText = `Hmm, "${cleanSearch}" ile ilgili veritabanında şunları buldum. Umarım aradığın şey bunlardan biridir! 👇`;
-                  } else {
-                      aiResponseText = "Hmm, sanırım ne demek istediğini tam anlayamadım. 🤔 Bana bir film ismi verebilir, sevdiğin bir türü (örneğin 'bilim kurgu') söyleyebilir veya sadece sohbet edebilirsin!";
-                  }
-              }
+          if (isSearchIntent) {
+             try {
+                 const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|bana|bir|film|dizi)/gi, "").trim();
+                 if (cleanSearch.length > 2) {
+                     // Sadece görsel kartları çekmek için TMDB'ye ufak bir istek
+                     const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&language=tr-TR&page=1`;
+                     const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
+                     results = res.data.results?.slice(0, 4) || []; 
+                 }
+             } catch(e) { console.log("TMDB arama hatası, sadece metin gösterilecek."); }
           }
 
-          if (shouldFetch) {
-              try {
-                  let url = "";
-                  if (genreIds.length > 0) {
-                      url = `https://api.themoviedb.org/3/discover/${contentType}?with_genres=${genreIds.join(",")}&sort_by=popularity.desc&language=tr-TR&page=1`;
-                  } else if (searchQuery) {
-                      url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=1`;
-                  }
-
-                  const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
-                  results = res.data.results?.slice(0, 4) || []; 
-                  
-                  if (results.length === 0) {
-                      aiResponseText = `Derinlere daldım ama maalesef "${userText}" için bir şey bulamadım. Başka bir tarz denemeye ne dersin?`;
-                  }
-              } catch(e) {
-                  aiResponseText = "Kablolarım karıştı! API ile bağlantı kurarken ufak bir hata oluştu. Lütfen tekrar dene.";
-              }
-          }
-
+          // 3. Gemini'den gelen cevabı ve varsa film kartlarını ekrana bas!
           setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
+
+      } catch (error) {
+          console.error(error);
+          setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! Beynimle (API) bağlantı kurarken bir hata oluştu. Anahtarı doğru girdiğinden emin ol. 🤖" }]);
+      } finally {
           triggerHaptic(); 
           setIsAITyping(false);
-      }, 1200 + Math.random() * 800); 
+      }
   };
-
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -638,7 +613,7 @@ export default function Home() {
   };
 
   const addComment = () => {
-    if (!currentUser) return setShowLogin(true);
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!newComment.trim()) return;
     const itemID = selectedItem.id;
     const commentObj = {
@@ -882,15 +857,13 @@ export default function Home() {
     if (e.key === 'Enter') { e.preventDefault(); action(); }
   };
 
-  // YENİ EKLENEN: DESTEK TALEBİ GÖNDERME
-  // DESTEK TALEBİ GÖNDERME (EMAILJS ENTEGRASYONU)
   const handleSupportSubmit = async () => {
     if(!supportForm.message.trim()) return alert("Lütfen bir mesaj yazın!");
 
     try {
         await emailjs.send(
             "service_9d5qlk9", 
-            "template_x6iu07i", // Senin şablon ID'n
+            "template_x6iu07i",
             {
                user_name: currentUser?.username || "Ziyaretçi",
                user_email: currentUser?.email || "Belirtilmedi",
@@ -932,11 +905,10 @@ export default function Home() {
           50% { transform: translateY(-3px); }
         }
         @keyframes slideUp {
-        
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-          @keyframes notifPulse {
+        @keyframes notifPulse {
           0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.8); transform: scale(1); }
           70% { box-shadow: 0 0 0 8px rgba(255, 0, 0, 0); transform: scale(1.1); }
           100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); transform: scale(1); }
@@ -1007,7 +979,6 @@ export default function Home() {
           .hide-on-mobile { display: none !important; }
           .search-container { margin-top: 0 !important; width: auto !important; }
           
-          /* Arama çubuğu boyutunu 150px'e sabitledik ki logoyu ekrandan itmesin */
           .search-input-box { 
              width: ${isSearchExpanded ? '150px' : '40px'} !important; 
              min-width: ${isSearchExpanded ? '150px' : '40px'} !important;
@@ -1045,7 +1016,6 @@ export default function Home() {
           .bottom-bar-item.active .bottom-text { opacity: 1; color: ${activeColor}; }
 
           .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; }
-          .donate-btn { bottom: 100px !important; }
         }
       ` }} />
 
@@ -1053,7 +1023,6 @@ export default function Home() {
 
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         
-        {/* LOGO VE SOL MENÜ KISMI (KÜÇÜLMESİNİ ENGELLEDİK) */}
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
               <SineProLogo activeColor={activeColor} badgeText={badgeText} hidePro={isSearchExpanded} />
@@ -1064,7 +1033,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* SAĞ TARAF: ARAMA, BİLDİRİM VE İKONLAR (ESNEME ALANI VERDİK) */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, justifyItems: 'flex-end', justifyContent: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => setShowSineAI(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
@@ -1430,7 +1398,7 @@ export default function Home() {
           </div>
       )}
 
-      {/* --- YENİ EFSANE VİZYON: YARDIM VE DESTEK EKRANI --- */}
+      {/* --- YARDIM VE DESTEK EKRANI --- */}
       {viewMode === "support" && (
           <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto' }}>
               <h2 className="section-title" style={{ marginBottom: '30px' }}>❓ YARDIM VE DESTEK</h2>
@@ -1638,7 +1606,19 @@ export default function Home() {
                    <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
                         <UserAvatar user={currentUser} size="45px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
-                        <input type="text" placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapmalısınız."} value={newComment} onChange={(e) => setNewComment(e.target.value)} disabled={!currentUser} onKeyDown={(e) => handleEnterKey(e, addComment)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
+                        
+                        {/* GİRİŞ YAPMA YÖNLENDİRMESİ BURADA EKLENDİ */}
+                        <input 
+                          type="text" 
+                          placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için dokunun veya tıklayın..."} 
+                          value={newComment} 
+                          onChange={(e) => setNewComment(e.target.value)} 
+                          onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); } }}
+                          readOnly={!currentUser} 
+                          onKeyDown={(e) => handleEnterKey(e, addComment)} 
+                          style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none', cursor: !currentUser ? 'pointer' : 'text' }} 
+                        />
+
                      </div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
@@ -1650,20 +1630,28 @@ export default function Home() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                    {(comments[selectedItem.id] || []).length > 0 ? (
                      comments[selectedItem.id].map((c: any) => (
+                       
                        <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', borderLeft: `3px solid ${activeColor}`, position: 'relative' }}>
+                          
+                          {/* SİLME BUTONU POZİSYONU GÜVENLİ BÖLGEYE ALINDI */}
                           {currentUser && currentUser.username === c.user && (
-                              <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px' }}>❌</button>
+                              <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px', zIndex: 5 }}>❌</button>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '25px' }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div onClick={(e) => { e.stopPropagation(); setZoomedAvatar({ username: c.user, avatar: c.avatar }); }} style={{ cursor: 'pointer' }} title="Profili Büyüt">
                                    <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                                 </div>
-                                <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                    {/* TARİH KAYMASI DÜZELTİLDİ: Artık kullanıcı adının altında */}
+                                    <span style={{ color: textLight, fontSize: '10px' }}>{c.date}</span>
+                                </div>
                                 <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
                              </div>
-                             <span style={{ color: textLight, fontSize: '11px' }}>{c.date}</span>
                           </div>
+                          
                           <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px', marginBottom: '10px' }}>{c.text}</p>
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
@@ -1680,31 +1668,53 @@ export default function Home() {
                               </button>
                           </div>
 
-                          {/* İÇ İÇE YORUMLAR (CEVAPLAR) LİSTESİ */}
+                          {/* INSTAGRAM TARZI İÇ İÇE YANITLAR (ZİNCİRLEME) */}
                           {c.replies && c.replies.length > 0 && (
                              <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {c.replies.map((r: any) => (
-                                   <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
-                                      {currentUser && currentUser.username === r.user && (
-                                          <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '5px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px' }}>❌</button>
-                                      )}
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', paddingRight: '20px' }}>
-                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <UserAvatar user={{ username: r.user, avatar: r.avatar }} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
-                                            <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '12px' }}>@{r.user}</span>
-                                         </div>
-                                         <span style={{ color: textLight, fontSize: '10px' }}>{r.date}</span>
-                                      </div>
-                                      <p style={{ margin: 0, color: textMuted, fontSize: '13px', lineHeight: '1.4' }}>{r.text}</p>
-                                   </div>
-                                ))}
+                                {!expandedReplies[c.id] ? (
+                                    <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: true })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {c.replies.length} yanıtı gör
+                                    </button>
+                                ) : (
+                                    <>
+                                        {c.replies.map((r: any) => (
+                                           <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
+                                              {currentUser && currentUser.username === r.user && (
+                                                  <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px', zIndex: 5 }}>❌</button>
+                                              )}
+                                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', paddingRight: '20px' }}>
+                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <UserAvatar user={{ username: r.user, avatar: r.avatar }} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '12px' }}>@{r.user}</span>
+                                                        <span style={{ color: textLight, fontSize: '9px' }}>{r.date}</span>
+                                                    </div>
+                                                 </div>
+                                              </div>
+                                              <p style={{ margin: '5px 0', color: textMuted, fontSize: '13px', lineHeight: '1.4' }}>{r.text}</p>
+                                              
+                                              {/* CEVABA CEVAP VERME (MENTION SİSTEMİ) */}
+                                              <button onClick={() => {
+                                                  if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
+                                                  setReplyingToId(c.id);
+                                                  setReplyText(`@${r.user} `);
+                                              }} style={{ background: 'transparent', border: 'none', color: activeColor, fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 'bold', opacity: 0.8 }}>
+                                                  ↩ Yanıtla
+                                              </button>
+                                           </div>
+                                        ))}
+                                        <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: false })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}>
+                                            <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> Yanıtları gizle
+                                        </button>
+                                    </>
+                                )}
                              </div>
                           )}
 
                           {/* CEVAP YAZMA KUTUSU */}
                           {replyingToId === c.id && (
-                             <div style={{ marginLeft: '40px', marginTop: '10px', display: 'flex', gap: '10px' }}>
-                                 <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '8px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
+                             <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px' }}>
+                                 <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '10px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
                                  <button onClick={() => handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name)} style={{ background: activeColor, color: badgeText, border: 'none', padding: '0 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Gönder</button>
                              </div>
                           )}
@@ -1787,7 +1797,7 @@ export default function Home() {
       )}
 
       {showLogin && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 15000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box auth-modal" style={{ background: bgCard }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="30px" /></div>
             
@@ -1958,7 +1968,7 @@ export default function Home() {
               alignItems: 'center', 
               justifyContent: 'center', 
               gap: '12px',
-              padding: '40px 0', // Sayfa içeriğiyle arasına güzel bir boşluk koyduk
+              padding: '40px 0', 
               marginTop: 'auto'
           }}>
               {/* INSTAGRAM LOGOSU */}
