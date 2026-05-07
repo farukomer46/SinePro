@@ -11,13 +11,14 @@ export const metadata: Metadata = {
     icon: '/icon.png', // PWA ikonun için
     apple: '/icon.png',
   },
-  themeColor: '#66FCF1', // Mobil durum çubuğu rengi için
   manifest: '/manifest.json', // PWA manifest dosyan için
   verification: {
     google: 'lmDwjSLizRKR5WITo7zpUv0pwyVdP57ntVRqlDOFbqo', 
   },
 }
-
+export const viewport = {
+  themeColor: '#66FCF1',
+};
 export default function RootLayout({
   children,
 }: {
