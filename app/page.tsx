@@ -130,6 +130,7 @@ export default function Home() {
   const bellRef = useRef<HTMLDivElement | null>(null); 
   const searchInputRef = useRef<HTMLInputElement | null>(null); 
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
+  const isPoppingRef = useRef(false);
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
   
@@ -1018,6 +1019,46 @@ export default function Home() {
       : [{ id: 'guest', text: 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın. Favori listesi oluşturmak, yorum yapmak, SİNE Aİ ile sohbet etmek ve içeriklere puan vermek için giriş yapabilirsin. Gelecek güncellemeleri de buradan duyuracağız.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
 
   if (!mounted) return null;
+ // --- YENİ EKLENEN: MOBİL GERİ KAYDIRMA (SWIPE BACK) YÖNETİCİSİ ---
+  
+  // 1. Motor: Geri tuşuna basıldığında ekranları sırayla kapatır
+  useEffect(() => {
+    const handlePopState = () => {
+      isPoppingRef.current = true; 
+      
+      if (activeTrailerKey) setActiveTrailerKey(null);
+      else if (zoomedAvatar) setZoomedAvatar(null);
+      else if (showThemeSettings) setShowThemeSettings(false);
+      else if (showSecuritySettings) setShowSecuritySettings(false);
+      else if (showProfileSettings) setShowProfileSettings(false);
+      else if (showLogin) setShowLogin(false);
+      else if (showSineAI) setShowSineAI(false);
+      else if (showMobileMenu) setShowMobileMenu(false);
+      else if (selectedItem) setSelectedItem(null);
+      else if (viewMode !== "home") {
+         setViewMode("home");
+         setActiveBottomTab("home");
+      }
+      
+      setTimeout(() => { isPoppingRef.current = false; }, 100);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode]);
+
+  // 2. Motor: Yeni bir pencere açıldığında, tarayıcının geçmişine görünmez bir kayıt atar
+  useEffect(() => {
+    if (!isPoppingRef.current) {
+      const isOverlayOpen = activeTrailerKey || zoomedAvatar || showThemeSettings || showSecuritySettings || showProfileSettings || showLogin || showSineAI || showMobileMenu || selectedItem || (viewMode !== "home");
+      
+      if (isOverlayOpen) {
+        window.history.pushState({ modalOpen: true }, "");
+      }
+    }
+  }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode]);
+  // ------------------------------------------------------------------
+  
 
   return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
@@ -1530,7 +1571,13 @@ export default function Home() {
                   
                   <div style={{ marginTop: '30px', padding: '15px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: '10px', fontSize: '13px', color: textMuted }}>
                       <p style={{ margin: 0, color: activeColor }}><strong>Yasal Uyarı & Veri Sağlayıcı:</strong></p>
+                      
                       <p style={{ margin: '5px 0 0 0' }}>Bu ürün TMDB (The Movie Database) API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır. Tüm film ve dizi verileri, afişler ve fragmanlar TMDB servislerinden anlık olarak çekilmektedir.</p>
+                      
+                      {/* --- YENİ EKLENEN GOOGLE GEMINI UYARISI --- */}
+                      <p style={{ margin: '15px 0 0 0', paddingTop: '15px', borderTop: `1px solid ${borderColor}` }}>
+                          SİNE Aİ akıllı asistanımız, <strong>Google Gemini</strong> yapay zeka altyapısı ile çalışmaktadır. Yapay zeka sistemleri zaman zaman hatalı veya eksik bilgiler üretebilir. Lütfen hassas veya kesinlik gerektiren bilgileri teyit ediniz.
+                      </p>
                   </div>
               </div>
           </div>
