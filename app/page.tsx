@@ -764,36 +764,42 @@ export default function Home() {
     const savedTheme = localStorage.getItem("sinepro_theme");
     if (savedTheme) setTheme(JSON.parse(savedTheme));
 
-    // ☁️ FIREBASE GİRİŞ DENETLEYİCİSİ (Favoriler ve Avatarı buluttan çeker)
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeSnapshot: any = null; // 📡 Canlı takip durdurucu
+
+    // ☁️ FIREBASE GİRİŞ DENETLEYİCİSİ (Artık CANLI DİNLİYOR!)
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         const userDocRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userDocRef);
+        
+        // getDoc yerine onSnapshot (Canlı Dinleme) kullanıyoruz!
+        unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          let cloudAvatar = "default";
+          let cloudUsername = user.displayName || user.email?.split('@')[0];
+          let cloudFavs: any[] = [];
 
-        let cloudAvatar = "default";
-        let cloudUsername = user.displayName || user.email?.split('@')[0];
-        let cloudFavs: any[] = [];
+          if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.avatar) cloudAvatar = data.avatar;
+              if (data.username) cloudUsername = data.username;
+              if (data.favorites) cloudFavs = data.favorites;
+          }
 
-        if (userSnap.exists()) {
-            const data = userSnap.data();
-            if (data.avatar) cloudAvatar = data.avatar;
-            if (data.username) cloudUsername = data.username;
-            if (data.favorites) cloudFavs = data.favorites;
-        }
+          if (cloudFavs.length > 0) {
+            setFavorites(cloudFavs);
+            localStorage.setItem("sinepro_favs", JSON.stringify(cloudFavs));
+          }
 
-        if (cloudFavs.length > 0) {
-          setFavorites(cloudFavs);
-          localStorage.setItem("sinepro_favs", JSON.stringify(cloudFavs));
-        }
-
-        setCurrentUser({
-          uid: user.uid,
-          email: user.email,
-          username: cloudUsername,
-          avatar: cloudAvatar,
-          uploadedAvatar: cloudAvatar !== "default" ? cloudAvatar : null
+          // Cihaz anında yeni bilgileri alıp ekranı günceller
+          setCurrentUser({
+            uid: user.uid,
+            email: user.email,
+            username: cloudUsername,
+            avatar: cloudAvatar,
+            uploadedAvatar: cloudAvatar !== "default" ? cloudAvatar : null
+          });
         });
       } else {
+        if (unsubscribeSnapshot) unsubscribeSnapshot(); // Çıkış yapınca dinlemeyi kes
         setCurrentUser(null);
         setFavorites([]); 
       }
@@ -819,7 +825,8 @@ export default function Home() {
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      unsubscribe(); 
+      if (unsubscribeSnapshot) unsubscribeSnapshot(); // Sayfa kapanırsa dinlemeyi kes
+      unsubscribeAuth(); 
     };
   }, []);
 
