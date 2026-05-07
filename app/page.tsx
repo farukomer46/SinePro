@@ -14,7 +14,7 @@ import {
 
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
-// --- YARDIMCI BİLEŞENLER (PERFORMANS İÇİN ANA DÖNGÜ DIŞINA ALINDI) ---
+// --- YARDIMCI BİLEŞENLER ---
 const UserAvatar = ({ user, size = "35px", fontSize = "14px", activeColor, theme, badgeText }: any) => {
   if (user?.avatar && user.avatar !== "default") return <img src={user.avatar} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${activeColor}` }} alt="" />;
   return <div style={{ width: size, height: size, borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme?.secondary || activeColor})`, color: badgeText, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: fontSize }}>{user?.username?.charAt(0)?.toUpperCase() || "?"}</div>;
@@ -80,6 +80,7 @@ export default function Home() {
   const [commentRating, setCommentRating] = useState<number>(10);
   const [commentsSort, setCommentsSort] = useState("newest");
   const [autoScrollToComments, setAutoScrollToComments] = useState(false); 
+  const [isSpoiler, setIsSpoiler] = useState(false); // YENİ: Spoiler kontrol state'i
 
   const [replyingToId, setReplyingToId] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
@@ -135,6 +136,14 @@ export default function Home() {
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
   
   const [activeBottomTab, setActiveBottomTab] = useState("home"); 
+
+  // --- YENİ EKLENEN: RÜTBE SİSTEMİ MOTORU ---
+  const getUserRank = (likesCount: number) => {
+    if (likesCount >= 50) return { name: "Efsane Sinefil", color: "#FFD700", icon: "👑" };
+    if (likesCount >= 20) return { name: "Usta Eleştirmen", color: "#66FCF1", icon: "📝" };
+    if (likesCount >= 5) return { name: "Sinefil", color: "#45A29E", icon: "🎬" };
+    return { name: "Çaylak", color: "#888", icon: "🍿" };
+  };
 
   const genres = useMemo(() => {
     if (contentType === "tv") {
@@ -301,7 +310,6 @@ export default function Home() {
       localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
   };
 
-  // --- YENİ EKLENEN: BİLDİRİME TIKLAYINCA FİLME GİTME FONKSİYONU ---
   const handleNotificationClick = (notif: any) => {
     if (!currentUser) {
         setShowNotifications(false);
@@ -309,14 +317,11 @@ export default function Home() {
         setShowLogin(true);
         return;
     }
-    // Eğer bildirimin içinde bir ID varsa o filmin detaylarını çek ve popup aç
     if (notif.itemID) {
         setContentType(notif.contentType || "movie");
-        // Anında açılış efekti yaratmak için geçici olarak başlığı veriyoruz
         setSelectedItem({ id: notif.itemID, title: notif.itemTitle, name: notif.itemTitle });
         fetchExtraDetails(notif.itemID, notif.contentType || "movie");
         setShowNotifications(false);
-        // Otomatik olarak yorumlara kaydırması için state'i aktifleştiriyoruz
         setAutoScrollToComments(true); 
     }
   };
@@ -447,13 +452,11 @@ export default function Home() {
     } catch { return false; }
   };
 
-  // --- YENİ EKLENEN: 3 PARAMETRELİ VE BENZERSİZ KULLANICI ADI KAYIT KONTROLÜ ---
   const handleRegisterStart = async () => {
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
         return alert("Lütfen tüm alanları doldurun!");
     }
     try {
-        // Artık kullanıcı adı da gönderiliyor
         const user = await registerUser(formData.email.trim(), formData.password.trim(), formData.username.trim());
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
@@ -464,7 +467,6 @@ export default function Home() {
             setAuthMode("verify");
         }
     } catch (error: any) {
-        // Alınmış isim hatasını burada yakalıyoruz
         if (error.message === "USERNAME_TAKEN") {
             alert("Bu kullanıcı adı zaten alınmış! Lütfen başka bir tane seçin.");
         } else if (error.code === 'auth/email-already-in-use') {
@@ -532,18 +534,17 @@ export default function Home() {
     setAuthMode("login");
   };
 
-  // --- YENİ EKLENEN: PATRON SELAMLAMASI ---
   const handleLogin = async () => {
     if (!formData.email.trim() || !formData.password.trim()) return alert("Eksiksiz girin!");
     try {
       const user = await loginUser(formData.email.trim(), formData.password.trim());
       setShowLogin(false); 
       
-   if (user.email === "yukselomerfaruk292@gmail.com") {
-   alert("Hoş geldin patron! 😎");
-} else {
-   alert("SİNEPRO'ya hoş geldiniz!");
-}
+      if (user.email === "yukselomerfaruk292@gmail.com") {
+        alert("Hoş geldin patron! 😎");
+      } else {
+        alert("SİNEPRO'ya hoş geldiniz!");
+      }
     } catch (error: any) {
       alert("Giriş başarısız: E-posta veya şifre hatalı.");
     }
@@ -643,6 +644,7 @@ export default function Home() {
       avatar: currentUser.avatar || "default",
       text: newComment.trim(),
       rating: commentRating,
+      isSpoiler: isSpoiler, // YENİ: Spoiler verisi
       date: new Date().toLocaleDateString('tr-TR'),
       createdAt: serverTimestamp(),
       itemTitle: selectedItem.title || selectedItem.name,
@@ -657,6 +659,7 @@ export default function Home() {
       await addDoc(collection(db, "comments"), commentData);
       setNewComment("");
       setCommentRating(10);
+      setIsSpoiler(false); // YENİ: Gönderdikten sonra tiki kaldır
       triggerHaptic(); 
     } catch (error) {
       console.error("Buluta yorum yazılamadı:", error);
@@ -664,23 +667,18 @@ export default function Home() {
     }
   };
 
-  // ==============================================================
-  // ☁️ SİNEPRO BULUT BAĞLANTILI FONKSİYONLAR PAKETİ (Avatar + Yorum)
-  // ==============================================================
-
   const saveProfileSettings = async () => {
     if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
 
     const updatedUser = { ...currentUser, username: currentUser.username.trim() };
 
-    // BULUTA KAYDET (Avatar ve Kullanıcı adı Firestore'a gidiyor)
     if (updatedUser.uid) {
         try {
             await setDoc(doc(db, "users", updatedUser.uid), {
                 username: updatedUser.username,
                 avatar: updatedUser.avatar || "default",
                 email: updatedUser.email
-            }, { merge: true }); // Diğer verileri ezmemesi için
+            }, { merge: true });
         } catch (error) { console.error("Profil buluta kaydedilemedi:", error); }
     }
 
@@ -722,7 +720,6 @@ export default function Home() {
                 const authorNotifKey = `sinepro_notifications_${targetComment.user}`;
                 const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
                 
-                // --- YENİ EKLENEN: Yönlendirme Linki İçin ID'leri Bildirime Ekledik ---
                 authorNotifs.unshift({
                     id: Date.now(),
                     text: `@${currentUser.username}, "${targetComment.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
@@ -766,7 +763,6 @@ export default function Home() {
             const authorNotifKey = `sinepro_notifications_${originalUser}`;
             const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
             
-            // --- YENİ EKLENEN: Yönlendirme Linki İçin ID'leri Bildirime Ekledik ---
             authorNotifs.unshift({
                 id: Date.now(),
                 text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
@@ -800,8 +796,6 @@ export default function Home() {
       } catch (error) { console.error("Yanıt silinemedi:", error); }
   };
 
-  // ==============================================================
-
   useEffect(() => {
     setMounted(true);
 
@@ -810,14 +804,12 @@ export default function Home() {
     const savedTheme = localStorage.getItem("sinepro_theme");
     if (savedTheme) setTheme(JSON.parse(savedTheme));
 
-    let unsubscribeSnapshot: any = null; // 📡 Canlı takip durdurucu
+    let unsubscribeSnapshot: any = null; 
 
-    // ☁️ FIREBASE GİRİŞ DENETLEYİCİSİ (Artık CANLI DİNLİYOR!)
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         const userDocRef = doc(db, "users", user.uid);
         
-        // getDoc yerine onSnapshot (Canlı Dinleme) kullanıyoruz!
         unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
           let cloudAvatar = "default";
           let cloudUsername = user.displayName || user.email?.split('@')[0];
@@ -835,7 +827,6 @@ export default function Home() {
             localStorage.setItem("sinepro_favs", JSON.stringify(cloudFavs));
           }
 
-          // Cihaz anında yeni bilgileri alıp ekranı günceller
           setCurrentUser({
             uid: user.uid,
             email: user.email,
@@ -845,7 +836,7 @@ export default function Home() {
           });
         });
       } else {
-        if (unsubscribeSnapshot) unsubscribeSnapshot(); // Çıkış yapınca dinlemeyi kes
+        if (unsubscribeSnapshot) unsubscribeSnapshot(); 
         setCurrentUser(null);
         setFavorites([]); 
       }
@@ -871,12 +862,11 @@ export default function Home() {
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      if (unsubscribeSnapshot) unsubscribeSnapshot(); // Sayfa kapanırsa dinlemeyi kes
+      if (unsubscribeSnapshot) unsubscribeSnapshot(); 
       unsubscribeAuth(); 
     };
   }, []);
 
-  // --- CANLI YORUM TAKİP SİSTEMİ ---
   useEffect(() => {
     if (!selectedItem?.id) return;
 
@@ -1019,9 +1009,7 @@ export default function Home() {
       : [{ id: 'guest', text: 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın. Favori listesi oluşturmak, yorum yapmak, SİNE Aİ ile sohbet etmek ve içeriklere puan vermek için giriş yapabilirsin. Gelecek güncellemeleri de buradan duyuracağız.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
 
   if (!mounted) return null;
- // --- YENİ EKLENEN: MOBİL GERİ KAYDIRMA (SWIPE BACK) YÖNETİCİSİ ---
   
-  // 1. Motor: Geri tuşuna basıldığında ekranları sırayla kapatır
   useEffect(() => {
     const handlePopState = () => {
       isPoppingRef.current = true; 
@@ -1047,7 +1035,6 @@ export default function Home() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode]);
 
-  // 2. Motor: Yeni bir pencere açıldığında, tarayıcının geçmişine görünmez bir kayıt atar
   useEffect(() => {
     if (!isPoppingRef.current) {
       const isOverlayOpen = activeTrailerKey || zoomedAvatar || showThemeSettings || showSecuritySettings || showProfileSettings || showLogin || showSineAI || showMobileMenu || selectedItem || (viewMode !== "home");
@@ -1057,9 +1044,7 @@ export default function Home() {
       }
     }
   }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode]);
-  // ------------------------------------------------------------------
   
-
   return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       
@@ -1504,7 +1489,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- İSTATİSTİKLERİM EKRANI --- */}
+      {/* --- İSTATİKLERİM EKRANI --- */}
       {viewMode === "stats" && (
         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
             <h2 className="section-title" style={{ marginBottom: '30px' }}>📊 SİNEPRO İSTATİSTİKLERİN</h2>
@@ -1574,7 +1559,6 @@ export default function Home() {
                       
                       <p style={{ margin: '5px 0 0 0' }}>Bu ürün TMDB (The Movie Database) API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır. Tüm film ve dizi verileri, afişler ve fragmanlar TMDB servislerinden anlık olarak çekilmektedir.</p>
                       
-                      {/* --- YENİ EKLENEN GOOGLE GEMINI UYARISI --- */}
                       <p style={{ margin: '15px 0 0 0', paddingTop: '15px', borderTop: `1px solid ${borderColor}` }}>
                           SİNE Aİ akıllı asistanımız, <strong>Google Gemini</strong> yapay zeka altyapısı ile çalışmaktadır. Yapay zeka sistemleri zaman zaman hatalı veya eksik bilgiler üretebilir. Lütfen hassas veya kesinlik gerektiren bilgileri teyit ediniz.
                       </p>
@@ -1785,6 +1769,7 @@ export default function Home() {
               </div>
             )}
 
+            {/* --- YORUMLAR BÖLÜMÜ --- */}
             <div id="comments-section" style={{ marginTop: '80px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: bgCard, padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
@@ -1802,12 +1787,20 @@ export default function Home() {
                           onKeyDown={(e) => handleEnterKey(e, addComment)} 
                           style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none', cursor: !currentUser ? 'pointer' : 'text' }} 
                         />
-
                      </div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
                      </select>
                    </div>
+                   
+                   {/* YENİ: SPOİLER KUTUCUĞU */}
+                   <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '15px', marginLeft: '55px' }}>
+                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ff4d4d', fontWeight: 'bold' }}>
+                         <input type="checkbox" checked={isSpoiler} onChange={(e) => setIsSpoiler(e.target.checked)} disabled={!currentUser} />
+                         🛑 Bu yorum spoiler (sürprizbozan) içeriyor!
+                       </label>
+                   </div>
+
                    <button onClick={addComment} style={{ background: activeColor, color: badgeText, border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}>GÖNDER</button>
                 </div>
                 
@@ -1827,14 +1820,23 @@ export default function Home() {
                                    <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
-                                    <span style={{ color: textLight, fontSize: '10px' }}>{c.date}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                        <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                        {/* YENİ: RÜTBE EKLENTİSİ */}
+                                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: getUserRank(c.likes || 0).color + '20', color: getUserRank(c.likes || 0).color, border: `1px solid ${getUserRank(c.likes || 0).color}40`, marginLeft: '8px' }}>
+                                            {getUserRank(c.likes || 0).icon} {getUserRank(c.likes || 0).name}
+                                        </span>
+                                    </div>
+                                    <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                 </div>
                                 <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
                              </div>
                           </div>
                           
-                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px', marginBottom: '10px' }}>{c.text}</p>
+                          {/* YENİ: SPOİLER BULANIKLAŞTIRMA */}
+                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px', marginBottom: '10px', filter: c.isSpoiler ? 'blur(5px)' : 'none', transition: '0.3s', cursor: c.isSpoiler ? 'pointer' : 'text' }} onClick={(e) => { if(c.isSpoiler) e.currentTarget.style.filter = 'none'; }}>
+                              {c.isSpoiler ? "⚠️ Bu yorum spoiler içeriyor. Görmek için tıkla: " + c.text : c.text}
+                          </p>
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
                               <button onClick={(e) => toggleLikeComment(e, selectedItem.id, c.id)} style={{ background: c.likedBy?.includes(currentUser?.username) ? 'rgba(255,0,0,0.1)' : 'transparent', border: `1px solid ${c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : borderColor}`, borderRadius: '20px', padding: '4px 10px', color: c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : textLight, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: '0.3s', fontWeight: 'bold' }}>
@@ -1905,7 +1907,6 @@ export default function Home() {
                 </div>
              </div>
              
-             {/* TEMİZLENEN ALT KISIM */}
              <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}>
                  <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
              </div>
@@ -1927,7 +1928,16 @@ export default function Home() {
                     <p style={{ margin: 0, fontSize: '11px', color: textLight, marginTop: '2px' }}>Akıllı Asistan</p>
                   </div>
                </div>
+               
                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  {/* YENİ: Aİ BİLGİ YARIŞMASI BUTONU */}
+                  <button onClick={() => {
+                      const msg = "Bana sinema hakkında eğlenceli bir soru sor, emojilerle ipucu ver!";
+                      setAiPrompt(msg);
+                  }} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, border: 'none', color: badgeText, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 10px ${activeColor}80` }}>
+                      🎮 Bilgi Yarışması
+                  </button>
+                  
                   <button onClick={() => setAiChatHistory([initialAIMessage])} style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }}>🗑️ Sil</button>
                   <button onClick={() => setShowSineAI(false)} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer' }}>✕</button>
                </div>
