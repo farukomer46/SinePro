@@ -1,54 +1,45 @@
+import { auth, db } from './firebase';
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  signOut, 
-  User
-} from "firebase/auth";
-import { auth } from "./firebase";
+  signOut 
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-// YENİ KAYIT OLMA FONKSİYONU
-// email: string ve password: string diyerek TypeScript'i sakinleştiriyoruz
-export const registerUser = async (email: string, password: string): Promise<User> => {
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error: any) {
-    throw error;
-  }
+// 1. GERÇEK FİREBASE KAYIT
+export const registerUser = async (email: string, password: string) => {
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  return userCredential.user;
 };
 
-// GİRİŞ YAPMA FONKSİYONU
-export const loginUser = async (email: string, password: string): Promise<User> => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error: any) {
-    throw error;
-  }
+// 2. GERÇEK FİREBASE GİRİŞ
+export const loginUser = async (email: string, password: string) => {
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  return userCredential.user;
 };
 
-// ÇIKIŞ YAPMA FONKSİYONU
-export const logoutUser = () => signOut(auth);
-import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
-import { db } from "./firebase";
+// 3. FİREBASE ÇIKIŞ
+export const logoutUser = async () => {
+  await signOut(auth);
+};
 
-// Kullanıcının favorilerini Firestore'a kaydetme/güncelleme
-export const syncFavoritesToFirebase = async (userId: string, favorites: any[]) => {
+// 4. FAVORİLERİ BULUTA YEDEKLE
+export const syncFavoritesToFirebase = async (uid: string, favorites: any[]) => {
   try {
-    const userDocRef = doc(db, "users", userId);
-    await setDoc(userDocRef, { favorites }, { merge: true });
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, { favorites: favorites }, { merge: true });
   } catch (error) {
-    console.error("Favoriler senkronize edilemedi:", error);
+    console.error("Favoriler eşitlenemedi:", error);
   }
 };
 
-// Kullanıcının favorilerini Firestore'dan çekme
-export const getFavoritesFromFirebase = async (userId: string) => {
+// 5. FAVORİLERİ BULUTTAN ÇEK
+export const getFavoritesFromFirebase = async (uid: string) => {
   try {
-    const userDocRef = doc(db, "users", userId);
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      return docSnap.data().favorites || [];
+    const userRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists() && docSnap.data().favorites) {
+      return docSnap.data().favorites;
     }
     return [];
   } catch (error) {
