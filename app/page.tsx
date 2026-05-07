@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import emailjs from '@emailjs/browser';
-import { registerUser, loginUser, logoutUser, syncFavoritesToFirebase, getFavoritesFromFirebase } from '@/lib/auth-functions';
+import { registerUser, loginUser, syncFavoritesToFirebase, getFavoritesFromFirebase } from '@/lib/auth-functions';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from "firebase/auth";
 import { 
@@ -300,6 +300,26 @@ export default function Home() {
       localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
   };
 
+  // --- YENİ EKLENEN: BİLDİRİME TIKLAYINCA FİLME GİTME FONKSİYONU ---
+  const handleNotificationClick = (notif: any) => {
+    if (!currentUser) {
+        setShowNotifications(false);
+        setAuthMode("login");
+        setShowLogin(true);
+        return;
+    }
+    // Eğer bildirimin içinde bir ID varsa o filmin detaylarını çek ve popup aç
+    if (notif.itemID) {
+        setContentType(notif.contentType || "movie");
+        // Anında açılış efekti yaratmak için geçici olarak başlığı veriyoruz
+        setSelectedItem({ id: notif.itemID, title: notif.itemTitle, name: notif.itemTitle });
+        fetchExtraDetails(notif.itemID, notif.contentType || "movie");
+        setShowNotifications(false);
+        // Otomatik olarak yorumlara kaydırması için state'i aktifleştiriyoruz
+        setAutoScrollToComments(true); 
+    }
+  };
+
   const startListening = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
@@ -426,12 +446,14 @@ export default function Home() {
     } catch { return false; }
   };
 
+  // --- YENİ EKLENEN: 3 PARAMETRELİ VE BENZERSİZ KULLANICI ADI KAYIT KONTROLÜ ---
   const handleRegisterStart = async () => {
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
         return alert("Lütfen tüm alanları doldurun!");
     }
     try {
-        const user = await registerUser(formData.email.trim(), formData.password.trim());
+        // Artık kullanıcı adı da gönderiliyor
+        const user = await registerUser(formData.email.trim(), formData.password.trim(), formData.username.trim());
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
         
@@ -441,9 +463,16 @@ export default function Home() {
             setAuthMode("verify");
         }
     } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') alert("Bu e-posta zaten kullanımda!");
-        else if (error.code === 'auth/weak-password') alert("Şifre en az 6 karakter olmalı!");
-        else alert("Hata: " + error.message);
+        // Alınmış isim hatasını burada yakalıyoruz
+        if (error.message === "USERNAME_TAKEN") {
+            alert("Bu kullanıcı adı zaten alınmış! Lütfen başka bir tane seçin.");
+        } else if (error.code === 'auth/email-already-in-use') {
+            alert("Bu e-posta zaten kullanımda!");
+        } else if (error.code === 'auth/weak-password') {
+            alert("Şifre en az 6 karakter olmalı!");
+        } else {
+            alert("Hata: " + error.message);
+        }
     }
   };
 
@@ -502,12 +531,18 @@ export default function Home() {
     setAuthMode("login");
   };
 
+  // --- YENİ EKLENEN: PATRON SELAMLAMASI ---
   const handleLogin = async () => {
     if (!formData.email.trim() || !formData.password.trim()) return alert("Eksiksiz girin!");
     try {
-      await loginUser(formData.email.trim(), formData.password.trim());
+      const user = await loginUser(formData.email.trim(), formData.password.trim());
       setShowLogin(false); 
-      alert("Hoş geldin patron!");
+      
+   if (user.email === "yukselomerfaruk292@gmail.com") {
+   alert("Hoş geldin patron! 😎");
+} else {
+   alert("SİNEPRO'ya hoş geldiniz!");
+}
     } catch (error: any) {
       alert("Giriş başarısız: E-posta veya şifre hatalı.");
     }
@@ -685,11 +720,16 @@ export default function Home() {
             if (targetComment.user !== currentUser.username) {
                 const authorNotifKey = `sinepro_notifications_${targetComment.user}`;
                 const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+                
+                // --- YENİ EKLENEN: Yönlendirme Linki İçin ID'leri Bildirime Ekledik ---
                 authorNotifs.unshift({
                     id: Date.now(),
                     text: `@${currentUser.username}, "${targetComment.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
                     isRead: false,
-                    date: new Date().toLocaleDateString('tr-TR')
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    itemID: targetComment.itemID || itemID,
+                    contentType: targetComment.contentType || contentType,
+                    itemTitle: targetComment.itemTitle
                 });
                 localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
             }
@@ -724,11 +764,16 @@ export default function Home() {
         if (originalUser !== currentUser.username) {
             const authorNotifKey = `sinepro_notifications_${originalUser}`;
             const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+            
+            // --- YENİ EKLENEN: Yönlendirme Linki İçin ID'leri Bildirime Ekledik ---
             authorNotifs.unshift({
                 id: Date.now(),
                 text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
                 isRead: false,
-                date: new Date().toLocaleDateString('tr-TR')
+                date: new Date().toLocaleDateString('tr-TR'),
+                itemID: itemID,
+                contentType: contentType,
+                itemTitle: itemTitle
             });
             localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
         }
@@ -1144,11 +1189,14 @@ export default function Home() {
                     </div>
                     <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                        {displayNotifs.length > 0 ? displayNotifs.map(n => (
-                          <div key={n.id} onClick={() => { if(!currentUser) { setShowNotifications(false); setAuthMode("login"); setShowLogin(true); } }} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: !currentUser ? 'pointer' : 'default' }}>
+                          <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
                              <span style={{ fontSize: '22px' }}>{n.text.includes('Hoş Geldin') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') ? '💬' : '❤️'}</span>
-                             <div>
+                             <div style={{ flex: 1 }}>
                                 <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
-                                <span style={{ fontSize: '11px', color: textLight, marginTop: '5px', display: 'block' }}>{n.date}</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+                                    <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
+                                    {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>Tıkla ve yoruma git</span>}
+                                </div>
                              </div>
                           </div>
                        )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>Henüz bildiriminiz yok.</div>}
@@ -1451,11 +1499,14 @@ export default function Home() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                {currentUser && notifications.length > 0 ? (
                   notifications.map(n => (
-                     <div key={n.id} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, display: 'flex', gap: '20px', alignItems: 'center' }}>
+                     <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, display: 'flex', gap: '20px', alignItems: 'center', cursor: 'pointer' }} className="hover-effect">
                         <span style={{ fontSize: '30px' }}>{n.text.includes('hoş geldin') ? '🎉' : n.text.includes('cevap') ? '💬' : '❤️'}</span>
                         <div>
                            <p style={{ margin: 0, color: textMain, fontSize: '15px', lineHeight: '1.5' }}>{n.text}</p>
-                           <span style={{ color: textLight, fontSize: '12px', marginTop: '8px', display: 'block' }}>{n.date}</span>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '8px' }}>
+                               <span style={{ color: textLight, fontSize: '12px', display: 'block' }}>{n.date}</span>
+                               {n.itemID && <span style={{ color: activeColor, fontSize: '12px', fontWeight: 'bold' }}>Tıkla ve filme git</span>}
+                           </div>
                         </div>
                      </div>
                   ))
@@ -1867,7 +1918,7 @@ export default function Home() {
 
             <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px', alignItems: 'center' }}>
                <button onClick={startListening} title="Sesli Komut" style={{ background: isListening ? '#ff4d4d' : inputBg, color: isListening ? 'white' : activeColor, border: `1px solid ${borderColor}`, width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', fontSize: '18px', boxShadow: isListening ? '0 0 15px rgba(255,0,0,0.6)' : 'none' }}>
-                  🎤
+                 🎤
                </button>
                <input type="text" placeholder={isListening ? "Dinleniyor..." : "Sohbet et veya film iste..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
                <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>

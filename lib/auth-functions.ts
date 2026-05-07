@@ -1,15 +1,44 @@
-import { auth, db } from './firebase';
+import { auth, db } from './firebase'; 
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
-  signOut 
+  signOut,
+  updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
-// 1. GERÇEK FİREBASE KAYIT
-export const registerUser = async (email: string, password: string) => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  return userCredential.user;
+// 1. GERÇEK FİREBASE KAYIT (Kullanıcı Adı Benzersizlik Kontrollü)
+export const registerUser = async (email: string, password: string, username: string) => {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("username", "==", username));
+    const querySnapshot = await getDocs(q);
+
+    if (!querySnapshot.empty) {
+      throw new Error("USERNAME_TAKEN");
+    }
+
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    await updateProfile(user, {
+      displayName: username
+    });
+
+    await setDoc(doc(db, "users", user.uid), {
+      uid: user.uid,
+      email: user.email,
+      username: username,
+      avatar: "default",
+      favorites: [],
+      createdAt: new Date().toISOString()
+    });
+
+    return user;
+  } catch (error: any) {
+    console.error("Kayıt Hatası Detayı:", error); 
+    throw error; 
+  }
 };
 
 // 2. GERÇEK FİREBASE GİRİŞ
