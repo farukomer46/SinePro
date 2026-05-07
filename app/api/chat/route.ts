@@ -14,33 +14,25 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // EN GÜNCEL VE HIZLI MODEL
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+   // İŞTE BÜTÜN SIR BURADA! Eski model yerine sana izin verilen YENİ NESİL modeli kullanıyoruz.
+    const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.5-flash', 
+        systemInstruction: `Sen SİNEPRO adlı gelişmiş bir film ve dizi platformunun yapay zeka asistanısın. Adın SİNE Aİ. Görevin kullanıcılarla sinema hakkında sohbet etmek, onlara filmler önermek. Kısa, samimi ve bol emojili cevaplar ver.
+        
+        GİZLİ KURAL: Eğer kullanıcı mesajında "Ben Ömer Faruk" veya "Ömer geldi" gibi senin yaratıcın olduğunu belirten bir şey söylerse, normal sohbeti bırak ve ona çok saygılı, havalı bir şekilde "Hoş geldin Yüce Yönetici! SİNEPRO'nun yaratıcısı, platform emrinde. Sana nasıl hizmet edebilirim? 👑😎" şeklinde cevap ver.`
+    });
 
-    // SİHRİN OLDUĞU YER: Google çökmesin diye karakteri ayarlardan değil, geçmişten veriyoruz.
-    const systemPrompt = "Sen SİNEPRO adlı gelişmiş bir film ve dizi platformunun yapay zeka asistanısın. Adın SİNE Aİ. Görevin kullanıcılarla sinema hakkında sohbet etmek, onlara filmler önermek. Kısa, samimi ve bol emojili cevaplar ver.";
-
-    // Gemini'ye gizli bir hafıza aşılıyoruz (Kullanıcı bunu görmez)
-    let formattedHistory = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: "Merhaba! Ben SİNE Aİ, kuralları anladım. Sana nasıl yardımcı olabilirim? 🍿" }] }
-    ];
-
-    // Frontend'den gelen kullanıcının asıl geçmişini formata çeviriyoruz
-    let userHistory = history
+    let formattedHistory = history
       .filter((msg: any) => msg.role !== 'system')
       .map((msg: any) => ({
         role: msg.role === 'ai' ? 'model' : 'user',
         parts: [{ text: msg.text || "Boş mesaj" }],
       }));
 
-    // İlk mesaj user olmak zorunda kuralı
-    while (userHistory.length > 0 && userHistory[0].role === 'model') {
-        userHistory.shift();
+    // Google kuralı: İlk mesaj her zaman 'user' olmalı
+    while (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
+        formattedHistory.shift();
     }
-
-    // Gizli hafıza ile kullanıcının geçmişini birleştiriyoruz
-    formattedHistory = [...formattedHistory, ...userHistory];
 
     const chat = model.startChat({ history: formattedHistory });
     const result = await chat.sendMessage(prompt);
@@ -50,7 +42,7 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Gemini Hatası:", error);
     return NextResponse.json(
-      { text: `GERÇEK HATA: ${error.message || error.toString()}` }, 
+      { text: `Kablolarım karıştı! Hata: ${error.message || error.toString()}` }, 
       { status: 500 }
     );
   }

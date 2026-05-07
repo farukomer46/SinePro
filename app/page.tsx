@@ -4,6 +4,13 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import emailjs from '@emailjs/browser';
+import { registerUser, loginUser, logoutUser, syncFavoritesToFirebase, getFavoritesFromFirebase } from '@/lib/auth-functions';
+import { auth, db } from '@/lib/firebase';
+import { onAuthStateChanged } from "firebase/auth";
+import { 
+  addDoc, collection, onSnapshot, orderBy, query, serverTimestamp, where, 
+  arrayUnion, doc, updateDoc, arrayRemove, deleteDoc, getDoc, setDoc 
+} from 'firebase/firestore';
 
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
@@ -74,9 +81,9 @@ export default function Home() {
   const [commentsSort, setCommentsSort] = useState("newest");
   const [autoScrollToComments, setAutoScrollToComments] = useState(false); 
 
-  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyingToId, setReplyingToId] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
-  const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({}); // INSTAGRAM TARZI YANIT GİZLEME STATE'İ
+  const [expandedReplies, setExpandedReplies] = useState<Record<number, boolean>>({});
 
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -315,19 +322,16 @@ export default function Home() {
     recognition.start();
   };
 
-// GERÇEK YAPAY ZEKA (GEMINI) BAĞLANTILI SİNE Aİ MOTORU 🧠
   const handleAISubmit = async () => {
       if (!aiPrompt.trim()) return;
       const userText = aiPrompt.trim();
       setAiPrompt("");
       
-      // Kullanıcının mesajını ekrana anında basıyoruz
       const newHistory = [...aiChatHistory, { role: "user", text: userText }];
       setAiChatHistory(newHistory);
-      setIsAITyping(true); // Yazıyor animasyonunu başlat
+      setIsAITyping(true);
 
       try {
-          // 1. Kendi Güvenli Backend'imize (api/chat) mesajı gönderiyoruz
           const response = await fetch('/api/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -341,19 +345,14 @@ export default function Home() {
           let results: any[] = [];
 
           if (!response.ok) {
-              // Eğer 500 hatası alırsak gizlemiyoruz, sebebini yakalıyoruz
               const errorText = await response.text();
               console.log("Sunucudan Gelen Hata:", errorText);
-              
-              // Hatayı direkt SİNE Aİ baloncuğuna yazdıracağız
               aiResponseText = `SİSTEM HATASI: ${errorText}`; 
           } else {
               const data = await response.json();
               aiResponseText = data.text;
           }
 
-          // 2. GÖRSELLİK (OPSİYONEL): Eğer kullanıcı film istediyse, Gemini'nin cevabının 
-          // altına tıklanabilir TMDB kartlarını da ekleyelim (Eski görsel şölen bozulmasın)
           const lowerText = userText.toLowerCase();
           const isSearchIntent = /(öner|bul|getir|izle|film|dizi|tavsiye|aksiyon|komedi|korku|bilim kurgu|animasyon|dram|gerilim|suç|gizem|fantastik|tarih|savaş|aşk|romantik)/i.test(lowerText);
           
@@ -361,7 +360,6 @@ export default function Home() {
              try {
                  const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|bana|bir|film|dizi)/gi, "").trim();
                  if (cleanSearch.length > 2) {
-                     // Sadece görsel kartları çekmek için TMDB'ye ufak bir istek
                      const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&language=tr-TR&page=1`;
                      const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
                      results = res.data.results?.slice(0, 4) || []; 
@@ -369,7 +367,6 @@ export default function Home() {
              } catch(e) { console.log("TMDB arama hatası, sadece metin gösterilecek."); }
           }
 
-          // 3. Gemini'den gelen cevabı ve varsa film kartlarını ekrana bas!
           setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
 
       } catch (error) {
@@ -380,6 +377,7 @@ export default function Home() {
           setIsAITyping(false);
       }
   };
+
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -428,24 +426,25 @@ export default function Home() {
     } catch { return false; }
   };
 
-  const handleRegisterStart = () => {
+  const handleRegisterStart = async () => {
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
-        return alert("Lütfen Kullanıcı Adı, E-posta ve Şifre alanlarının tamamını eksiksiz doldurun!");
+        return alert("Lütfen tüm alanları doldurun!");
     }
-    if (!formData.email.includes("@")) return alert("Geçerli bir e-posta girin!");
-    
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    if (users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase())) return alert("Bu e-posta zaten kayıtlı!");
-    if (users.find((u: any) => u.username.toLowerCase() === formData.username.trim().toLowerCase())) return alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
-    
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(code);
-    sendEmail(formData.email.trim(), code, formData.username.trim()).then((success) => {
+    try {
+        const user = await registerUser(formData.email.trim(), formData.password.trim());
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setGeneratedCode(code);
+        
+        const success = await sendEmail(formData.email.trim(), code, formData.username.trim());
         if (success) {
-            alert("Doğrulama kodu mailinize gönderildi!");
+            alert("Doğrulama kodu mailinize gönderildi! Lütfen kodu kontrol edin ve doğrulayın.");
             setAuthMode("verify");
-        } else { alert("Mail gönderilirken hata oluştu!"); }
-    });
+        }
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') alert("Bu e-posta zaten kullanımda!");
+        else if (error.code === 'auth/weak-password') alert("Şifre en az 6 karakter olmalı!");
+        else alert("Hata: " + error.message);
+    }
   };
 
   const handleVerifyAndFinish = () => {
@@ -503,30 +502,15 @@ export default function Home() {
     setAuthMode("login");
   };
 
-  const saveProfileSettings = () => {
-    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const isUsernameTaken = users.find((u: any) => u.username.toLowerCase() === currentUser.username.trim().toLowerCase() && u.email !== currentUser.email);
-    if (isUsernameTaken) return alert("Bu kullanıcı adı başka birisi tarafından kullanılıyor!");
-    
-    const updatedUser = { ...currentUser, username: currentUser.username.trim() };
-    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
-    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
-    setCurrentUser(updatedUser);
-    setShowProfileSettings(false);
-  };
-
-  const handleLogin = () => {
-    if (!formData.email.trim() || !formData.password.trim()) return alert("Lütfen e-posta ve şifrenizi eksiksiz girin!");
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const match = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase() && u.password === formData.password.trim());
-    if (match) { 
-      setCurrentUser(match); 
-      localStorage.setItem("sinepro_active_session", JSON.stringify(match)); 
+  const handleLogin = async () => {
+    if (!formData.email.trim() || !formData.password.trim()) return alert("Eksiksiz girin!");
+    try {
+      await loginUser(formData.email.trim(), formData.password.trim());
       setShowLogin(false); 
+      alert("Hoş geldin patron!");
+    } catch (error: any) {
+      alert("Giriş başarısız: E-posta veya şifre hatalı.");
     }
-    else alert("E-posta veya şifre hatalı!");
   };
 
   const handleLogout = () => {
@@ -612,142 +596,216 @@ export default function Home() {
     return myComments;
   };
 
-  const addComment = () => {
+  const addComment = async () => {
     if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!newComment.trim()) return;
+
     const itemID = selectedItem.id;
-    const commentObj = {
-      id: Date.now(), user: currentUser.username, avatar: currentUser.avatar, text: newComment.trim(),
-      rating: commentRating, date: new Date().toLocaleDateString('tr-TR'),
-      itemTitle: selectedItem.title || selectedItem.name, itemID: selectedItem.id,
-      itemData: selectedItem, 
+    
+    const commentData = {
+      user: currentUser.username,
+      avatar: currentUser.avatar || "default",
+      text: newComment.trim(),
+      rating: commentRating,
+      date: new Date().toLocaleDateString('tr-TR'),
+      createdAt: serverTimestamp(),
+      itemTitle: selectedItem.title || selectedItem.name,
+      itemID: itemID,
       contentType: contentType,
       likes: 0,
       likedBy: [],
       replies: []
     };
-    const updatedComments = { ...comments, [itemID]: [commentObj, ...(comments[itemID] || [])] };
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
-    setNewComment("");
-    triggerHaptic(); 
+
+    try {
+      await addDoc(collection(db, "comments"), commentData);
+      setNewComment("");
+      setCommentRating(10);
+      triggerHaptic(); 
+    } catch (error) {
+      console.error("Buluta yorum yazılamadı:", error);
+      alert("Yorum gönderilirken bir hata oluştu!");
+    }
   };
 
-  const handleReplySubmit = (itemID: number, commentID: number, originalUser: string, itemTitle: string) => {
-    if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
+  // ==============================================================
+  // ☁️ SİNEPRO BULUT BAĞLANTILI FONKSİYONLAR PAKETİ (Avatar + Yorum)
+  // ==============================================================
+
+  const saveProfileSettings = async () => {
+    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
+
+    const updatedUser = { ...currentUser, username: currentUser.username.trim() };
+
+    // BULUTA KAYDET (Avatar ve Kullanıcı adı Firestore'a gidiyor)
+    if (updatedUser.uid) {
+        try {
+            await setDoc(doc(db, "users", updatedUser.uid), {
+                username: updatedUser.username,
+                avatar: updatedUser.avatar || "default",
+                email: updatedUser.email
+            }, { merge: true }); // Diğer verileri ezmemesi için
+        } catch (error) { console.error("Profil buluta kaydedilemedi:", error); }
+    }
+
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
+    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+    localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
+
+    setCurrentUser(updatedUser);
+    setShowProfileSettings(false);
+    alert("Profil başarıyla güncellendi!");
+  };
+
+  const toggleLikeComment = async (e: any, itemID: number, commentID: any) => {
+    e.stopPropagation();
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
+    triggerHaptic();
+
+    const itemComments = comments[itemID] || [];
+    const targetComment = itemComments.find((c: any) => c.id == commentID);
+    if (!targetComment) return;
+
+    const hasLiked = targetComment.likedBy?.includes(currentUser.username);
+    const commentRef = doc(db, "comments", String(commentID));
+
+    try {
+        if (hasLiked) {
+            await updateDoc(commentRef, {
+                likes: (targetComment.likes || 1) - 1,
+                likedBy: arrayRemove(currentUser.username)
+            });
+        } else {
+            await updateDoc(commentRef, {
+                likes: (targetComment.likes || 0) + 1,
+                likedBy: arrayUnion(currentUser.username)
+            });
+
+            if (targetComment.user !== currentUser.username) {
+                const authorNotifKey = `sinepro_notifications_${targetComment.user}`;
+                const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+                authorNotifs.unshift({
+                    id: Date.now(),
+                    text: `@${currentUser.username}, "${targetComment.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
+                    isRead: false,
+                    date: new Date().toLocaleDateString('tr-TR')
+                });
+                localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+            }
+        }
+    } catch (error) { console.error("Beğeni güncellenemedi:", error); }
+  };
+
+  const deleteComment = async (itemID: number, commentID: any) => {
+    try {
+        await deleteDoc(doc(db, "comments", String(commentID)));
+        triggerHaptic();
+    } catch (error) { console.error("Silme hatası:", error); }
+  };
+
+  const handleReplySubmit = async (itemID: number, commentID: any, originalUser: string, itemTitle: string) => {
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!replyText.trim()) return;
 
     const newReply = {
-      id: Date.now(),
+      id: Date.now().toString(),
       user: currentUser.username,
-      avatar: currentUser.avatar,
+      avatar: currentUser.avatar || "default",
       text: replyText.trim(),
       date: new Date().toLocaleDateString('tr-TR')
     };
 
-    const updatedComments = { ...comments };
-    const targetComments = updatedComments[itemID] || [];
-    const cIndex = targetComments.findIndex((c: any) => c.id === commentID);
+    try {
+        await updateDoc(doc(db, "comments", String(commentID)), {
+            replies: arrayUnion(newReply)
+        });
 
-    if (cIndex > -1) {
-      const c = targetComments[cIndex];
-      c.replies = [...(c.replies || []), newReply];
-
-      if (originalUser !== currentUser.username) {
-         const authorNotifKey = `sinepro_notifications_${originalUser}`;
-         const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
-         const newNotif = {
-             id: Date.now(),
-             text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
-             isRead: false,
-             date: new Date().toLocaleDateString('tr-TR')
-         };
-         authorNotifs.unshift(newNotif);
-         localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
-      }
-    }
-
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
-    setReplyText("");
-    setReplyingToId(null);
-    triggerHaptic();
-  };
-
-  const deleteReply = (itemID: number, commentID: number, replyID: number) => {
-    const updatedComments = { ...comments };
-    const targetComments = updatedComments[itemID] || [];
-    const cIndex = targetComments.findIndex((c: any) => c.id === commentID);
-
-    if (cIndex > -1) {
-        targetComments[cIndex].replies = targetComments[cIndex].replies.filter((r: any) => r.id !== replyID);
-    }
-
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
-  };
-
-  const toggleLikeComment = (e: any, itemID: number, commentID: number) => {
-    e.stopPropagation();
-    if (!currentUser) {
-        setAuthMode("login");
-        setShowLogin(true);
-        return;
-    }
-    triggerHaptic();
-
-    const itemComments = comments[itemID] || [];
-    const updatedComments = itemComments.map((c: any) => {
-        if (c.id === commentID) {
-            const hasLiked = c.likedBy?.includes(currentUser.username);
-            const newLikedBy = hasLiked
-                ? c.likedBy.filter((u: string) => u !== currentUser.username)
-                : [...(c.likedBy || []), currentUser.username];
-
-            if (!hasLiked && c.user !== currentUser.username) {
-                const authorNotifKey = `sinepro_notifications_${c.user}`;
-                const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
-                const newNotif = {
-                    id: Date.now(),
-                    text: `@${currentUser.username}, "${c.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
-                    isRead: false,
-                    date: new Date().toLocaleDateString('tr-TR')
-                };
-                authorNotifs.unshift(newNotif);
-                localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
-            }
-
-            return { ...c, likedBy: newLikedBy, likes: newLikedBy.length };
+        if (originalUser !== currentUser.username) {
+            const authorNotifKey = `sinepro_notifications_${originalUser}`;
+            const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+            authorNotifs.unshift({
+                id: Date.now(),
+                text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
+                isRead: false,
+                date: new Date().toLocaleDateString('tr-TR')
+            });
+            localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
         }
-        return c;
-    });
 
-    const newAllComments = { ...comments, [itemID]: updatedComments };
-    setComments(newAllComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(newAllComments));
+        setReplyText("");
+        setReplyingToId(null);
+        triggerHaptic();
+    } catch (error) { console.error("Yanıt hatası:", error); }
   };
 
-  const deleteComment = (itemID: number, commentID: number) => {
-    const updatedComments = { ...comments, [itemID]: comments[itemID].filter((c: any) => c.id !== commentID) };
-    setComments(updatedComments);
-    localStorage.setItem("sinepro_comments", JSON.stringify(updatedComments));
+  const deleteReply = async (itemID: number, commentID: any, replyID: any) => {
+      const itemComments = comments[itemID] || [];
+      const targetComment = itemComments.find((c: any) => c.id == commentID);
+      if (!targetComment) return;
+
+      const replyToRemove = targetComment.replies.find((r: any) => r.id == replyID);
+      if (!replyToRemove) return;
+
+      try {
+          await updateDoc(doc(db, "comments", String(commentID)), {
+              replies: arrayRemove(replyToRemove)
+          });
+      } catch (error) { console.error("Yanıt silinemedi:", error); }
   };
+
+  // ==============================================================
 
   useEffect(() => {
     setMounted(true);
+
     const savedMode = localStorage.getItem("sinepro_dark_mode");
     if (savedMode !== null) setIsDarkMode(JSON.parse(savedMode));
+    const savedTheme = localStorage.getItem("sinepro_theme");
+    if (savedTheme) setTheme(JSON.parse(savedTheme));
 
-    const session = localStorage.getItem("sinepro_active_session");
-    if (session) setCurrentUser(JSON.parse(session));
+    // ☁️ FIREBASE GİRİŞ DENETLEYİCİSİ (Favoriler ve Avatarı buluttan çeker)
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        let cloudAvatar = "default";
+        let cloudUsername = user.displayName || user.email?.split('@')[0];
+        let cloudFavs: any[] = [];
+
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            if (data.avatar) cloudAvatar = data.avatar;
+            if (data.username) cloudUsername = data.username;
+            if (data.favorites) cloudFavs = data.favorites;
+        }
+
+        if (cloudFavs.length > 0) {
+          setFavorites(cloudFavs);
+          localStorage.setItem("sinepro_favs", JSON.stringify(cloudFavs));
+        }
+
+        setCurrentUser({
+          uid: user.uid,
+          email: user.email,
+          username: cloudUsername,
+          avatar: cloudAvatar,
+          uploadedAvatar: cloudAvatar !== "default" ? cloudAvatar : null
+        });
+      } else {
+        setCurrentUser(null);
+        setFavorites([]); 
+      }
+    });
+
     const savedFavs = localStorage.getItem("sinepro_favs");
     const savedComments = localStorage.getItem("sinepro_comments");
     const savedHistory = localStorage.getItem("sinepro_recently_viewed");
-    const savedTheme = localStorage.getItem("sinepro_theme");
+    
     if (savedFavs) setFavorites(JSON.parse(savedFavs));
     if (savedComments) setComments(JSON.parse(savedComments));
     if (savedHistory) setRecentlyViewed(JSON.parse(savedHistory));
-    if (savedTheme) setTheme(JSON.parse(savedTheme));
 
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowUserDropdown(false);
@@ -758,21 +816,35 @@ export default function Home() {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    
-    const params = new URLSearchParams(window.location.search);
-    const sharedId = params.get('id');
-    const sharedType = params.get('type') as "movie" | "tv";
-    if (sharedId && sharedType) {
-       setTimeout(() => {
-           setContentType(sharedType);
-           if (sharedType === "movie") setActiveBottomTab("movies");
-           if (sharedType === "tv") setActiveBottomTab("tv");
-           fetchExtraDetails(Number(sharedId), sharedType);
-       }, 500); 
-       window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      unsubscribe(); 
+    };
   }, []);
+
+  // --- CANLI YORUM TAKİP SİSTEMİ ---
+  useEffect(() => {
+    if (!selectedItem?.id) return;
+
+    const q = query(
+      collection(db, "comments"),
+      where("itemID", "==", selectedItem.id),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedComments = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      setComments((prev: any) => ({ ...prev, [selectedItem.id]: loadedComments }));
+    });
+
+    return () => unsubscribe(); 
+  }, [selectedItem?.id]);
+
 
   const fetchData = async () => {
     if (!mounted || viewMode !== "home") return;
@@ -824,18 +896,26 @@ export default function Home() {
 
   useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
 
-  const toggleFavorite = (e: React.MouseEvent, item: any) => {
+  const toggleFavorite = async (e: React.MouseEvent, item: any) => {
     e.stopPropagation();
     triggerHaptic(); 
+    
     if (!currentUser) {
-       alert("Özellik Kilitli: Favorilere eklemek veya favori listenizi görmek için önce giriş yapmalısın!");
+       alert("Favorilere eklemek için giriş yapmalısın!");
        setAuthMode("login");
        setShowLogin(true);
        return;
     }
-    let updated = favorites.find(f => f.id === item.id) ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
+
+    let isFav = favorites.find(f => f.id === item.id);
+    let updated = isFav ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
+    
     setFavorites(updated);
     localStorage.setItem("sinepro_favs", JSON.stringify(updated));
+
+    if (currentUser.uid) {
+      await syncFavoritesToFirebase(currentUser.uid, updated);
+    }
   };
 
   const handleScrollClick = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
@@ -1607,7 +1687,6 @@ export default function Home() {
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
                         <UserAvatar user={currentUser} size="45px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                         
-                        {/* GİRİŞ YAPMA YÖNLENDİRMESİ BURADA EKLENDİ */}
                         <input 
                           type="text" 
                           placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için dokunun veya tıklayın..."} 
@@ -1633,7 +1712,6 @@ export default function Home() {
                        
                        <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', borderLeft: `3px solid ${activeColor}`, position: 'relative' }}>
                           
-                          {/* SİLME BUTONU POZİSYONU GÜVENLİ BÖLGEYE ALINDI */}
                           {currentUser && currentUser.username === c.user && (
                               <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px', zIndex: 5 }}>❌</button>
                           )}
@@ -1645,7 +1723,6 @@ export default function Home() {
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                     <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
-                                    {/* TARİH KAYMASI DÜZELTİLDİ: Artık kullanıcı adının altında */}
                                     <span style={{ color: textLight, fontSize: '10px' }}>{c.date}</span>
                                 </div>
                                 <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
@@ -1668,7 +1745,7 @@ export default function Home() {
                               </button>
                           </div>
 
-                          {/* INSTAGRAM TARZI İÇ İÇE YANITLAR (ZİNCİRLEME) */}
+                          {/* INSTAGRAM TARZI İÇ İÇE YANITLAR */}
                           {c.replies && c.replies.length > 0 && (
                              <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {!expandedReplies[c.id] ? (
@@ -1693,7 +1770,6 @@ export default function Home() {
                                               </div>
                                               <p style={{ margin: '5px 0', color: textMuted, fontSize: '13px', lineHeight: '1.4' }}>{r.text}</p>
                                               
-                                              {/* CEVABA CEVAP VERME (MENTION SİSTEMİ) */}
                                               <button onClick={() => {
                                                   if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
                                                   setReplyingToId(c.id);
@@ -1711,7 +1787,6 @@ export default function Home() {
                              </div>
                           )}
 
-                          {/* CEVAP YAZMA KUTUSU */}
                           {replyingToId === c.id && (
                              <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px' }}>
                                  <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '10px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
@@ -1961,7 +2036,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* SADECE YARDIM VEYA HAKKIMIZDA MODUNDAYSA EKRANIN ALTINDA SABİT GÖZÜKÜR */}
       {(viewMode === "support" || viewMode === "about") && (
           <div style={{ 
               display: 'flex', 
