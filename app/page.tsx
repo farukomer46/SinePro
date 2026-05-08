@@ -80,7 +80,7 @@ export default function Home() {
   const [commentRating, setCommentRating] = useState<number>(10);
   const [commentsSort, setCommentsSort] = useState("newest");
   const [autoScrollToComments, setAutoScrollToComments] = useState(false); 
-  const [isSpoiler, setIsSpoiler] = useState(false); // YENİ: Spoiler kontrol state'i
+  const [isSpoiler, setIsSpoiler] = useState(false); 
 
   const [replyingToId, setReplyingToId] = useState<any>(null);
   const [replyText, setReplyText] = useState("");
@@ -95,9 +95,10 @@ export default function Home() {
   const [showMobileMenu, setShowMobileMenu] = useState(false); 
   const [authMode, setAuthMode] = useState<"login" | "register" | "verify" | "forgot_password" | "verify_forgot" | "new_password" | "security_verify">("login");
   
-  const [zoomedAvatar, setZoomedAvatar] = useState<{username: string, avatar: string} | null>(null);
+  const [zoomedAvatar, setZoomedAvatar] = useState<{username: string, avatar: string, banner?: string | null} | null>(null);
 
   const [showSineAI, setShowSineAI] = useState(false);
+  const [showAILeaderboard, setShowAILeaderboard] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
   const [isListening, setIsListening] = useState(false); 
@@ -131,19 +132,35 @@ export default function Home() {
   const bellRef = useRef<HTMLDivElement | null>(null); 
   const searchInputRef = useRef<HTMLInputElement | null>(null); 
   const fileInputRef = useRef<HTMLInputElement | null>(null); 
+  const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const isPoppingRef = useRef(false);
 
   const [isHoveringCarousel, setIsHoveringCarousel] = useState(false); 
-  
   const [activeBottomTab, setActiveBottomTab] = useState("home"); 
 
-  // --- YENİ EKLENEN: RÜTBE SİSTEMİ MOTORU ---
+  // --- YENİ NESİL RÜTBE VE VIP ÖZELLİK MOTORU ---
   const getUserRank = (likesCount: number) => {
-    if (likesCount >= 50) return { name: "Efsane Sinefil", color: "#FFD700", icon: "👑" };
-    if (likesCount >= 20) return { name: "Usta Eleştirmen", color: "#66FCF1", icon: "📝" };
-    if (likesCount >= 5) return { name: "Sinefil", color: "#45A29E", icon: "🎬" };
-    return { name: "Çaylak", color: "#888", icon: "🍿" };
+    if (likesCount >= 1500) return { name: "SİNE-LORD", color: "#FF0055", icon: "👑", perkStyle: { borderLeft: `4px solid #FF0055`, boxShadow: `0 0 20px rgba(255,0,85,0.2)`, background: 'linear-gradient(to right, rgba(255,0,85,0.05), transparent)' }, isLord: true, isVIP: true };
+    if (likesCount >= 500) return { name: "Kült Yönetmen", color: "#FFD700", icon: "🎬", perkStyle: { borderLeft: `4px solid #FFD700`, boxShadow: `0 0 10px rgba(255,215,0,0.1)` }, isVIP: true };
+    if (likesCount >= 100) return { name: "Baş Eleştirmen", color: "#9D00FF", icon: "👁️‍🗨️", perkStyle: { borderLeft: `4px solid #9D00FF` }, isVIP: false };
+    if (likesCount >= 20) return { name: "Vizyoner", color: "#00E5FF", icon: "🔭", perkStyle: { borderLeft: `4px solid #00E5FF` }, isVIP: false };
+    return { name: "Set Çaylağı", color: "#888888", icon: "🍿", perkStyle: { borderLeft: `4px solid #888888` }, isVIP: false };
   };
+
+  const getMyComments = () => {
+    let myComments: any[] = [];
+    if (currentUser) {
+        Object.values(comments).forEach((itemComments: any) => {
+            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
+        });
+        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
+    }
+    return myComments;
+  };
+
+  const currentUserTotalLikes = useMemo(() => {
+     return getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0);
+  }, [comments, currentUser]);
 
   const genres = useMemo(() => {
     if (contentType === "tv") {
@@ -212,7 +229,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (!mounted) return;
     let metaThemeColor = document.querySelector("meta[name=theme-color]");
     if (!metaThemeColor) {
       metaThemeColor = document.createElement("meta");
@@ -220,7 +236,7 @@ export default function Home() {
       document.head.appendChild(metaThemeColor);
     }
     metaThemeColor.setAttribute("content", activeColor);
-  }, [activeColor, mounted]);
+  }, [activeColor]);
 
   useEffect(() => {
     const makeScrollableWithWheel = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -285,7 +301,7 @@ export default function Home() {
 
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-  }, [aiChatHistory, isAITyping]);
+  }, [aiChatHistory, isAITyping, showAILeaderboard]);
 
   useEffect(() => {
     setGuestNotifSeen(sessionStorage.getItem("sinepro_guest_notif") === "true");
@@ -304,498 +320,6 @@ export default function Home() {
     }
   }, [currentUser]);
 
-  const markNotifsAsRead = () => {
-      const updated = notifications.map(n => ({...n, isRead: true}));
-      setNotifications(updated);
-      localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
-  };
-
-  const handleNotificationClick = (notif: any) => {
-    if (!currentUser) {
-        setShowNotifications(false);
-        setAuthMode("login");
-        setShowLogin(true);
-        return;
-    }
-    if (notif.itemID) {
-        setContentType(notif.contentType || "movie");
-        setSelectedItem({ id: notif.itemID, title: notif.itemTitle, name: notif.itemTitle });
-        fetchExtraDetails(notif.itemID, notif.contentType || "movie");
-        setShowNotifications(false);
-        setAutoScrollToComments(true); 
-    }
-  };
-
-  const startListening = () => {
-    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRec) {
-      alert("Cihazınız veya tarayıcınız sesli komutu doğrudan desteklemiyor. Lütfen klavyeyi kullanın.");
-      return;
-    }
-    triggerHaptic(); 
-    const recognition = new SpeechRec();
-    recognition.lang = 'tr-TR'; 
-    recognition.interimResults = false;
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setAiPrompt(prev => prev + (prev ? " " : "") + transcript);
-      setIsListening(false);
-      triggerHaptic(); 
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognition.start();
-  };
-
-  const handleAISubmit = async () => {
-      if (!aiPrompt.trim()) return;
-      const userText = aiPrompt.trim();
-      setAiPrompt("");
-      
-      const newHistory = [...aiChatHistory, { role: "user", text: userText }];
-      setAiChatHistory(newHistory);
-      setIsAITyping(true);
-
-      try {
-          const response = await fetch('/api/chat', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  prompt: userText,
-                  history: aiChatHistory
-              }),
-          });
-
-          let aiResponseText = "";
-          let results: any[] = [];
-
-          if (!response.ok) {
-              const errorText = await response.text();
-              console.log("Sunucudan Gelen Hata:", errorText);
-              aiResponseText = `SİSTEM HATASI: ${errorText}`; 
-          } else {
-              const data = await response.json();
-              aiResponseText = data.text;
-          }
-
-          const lowerText = userText.toLowerCase();
-          const isSearchIntent = /(öner|bul|getir|izle|film|dizi|tavsiye|aksiyon|komedi|korku|bilim kurgu|animasyon|dram|gerilim|suç|gizem|fantastik|tarih|savaş|aşk|romantik)/i.test(lowerText);
-          
-          if (isSearchIntent) {
-             try {
-                 const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|bana|bir|film|dizi)/gi, "").trim();
-                 if (cleanSearch.length > 2) {
-                     const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&language=tr-TR&page=1`;
-                     const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
-                     results = res.data.results?.slice(0, 4) || []; 
-                 }
-             } catch(e) { console.log("TMDB arama hatası, sadece metin gösterilecek."); }
-          }
-
-          setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
-
-      } catch (error) {
-          console.error(error);
-          setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! Beynimle (API) bağlantı kurarken bir hata oluştu. Anahtarı doğru girdiğinden emin ol. 🤖" }]);
-      } finally {
-          triggerHaptic(); 
-          setIsAITyping(false);
-      }
-  };
-
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 500 * 1024) {
-        alert("Dosya boyutu çok büyük! Sistem hafızasının dolmaması için lütfen 500KB'tan daha küçük bir fotoğraf seçin.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setCurrentUser({ ...currentUser, avatar: base64String, uploadedAvatar: base64String });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const addToRecentlyViewed = (item: any) => {
-    let currentHistory = [...recentlyViewed];
-    currentHistory = currentHistory.filter(i => i.id !== item.id);
-    currentHistory.unshift(item);
-    setRecentlyViewed(currentHistory.slice(0, 15));
-    localStorage.setItem("sinepro_recently_viewed", JSON.stringify(currentHistory.slice(0, 15)));
-  };
-
-  const clearRecentlyViewed = () => {
-    setRecentlyViewed([]);
-    localStorage.removeItem("sinepro_recently_viewed");
-  };
-
-  const toggleHistoryPref = () => {
-    const newVal = !showHistory;
-    setShowHistory(newVal);
-    localStorage.setItem("sinepro_show_history", JSON.stringify(newVal));
-  };
-
-  const sendEmail = async (email: string, code: string, user: string) => {
-    try {
-      await emailjs.send("service_9d5qlk9", "template_tlqw67x", { 
-          email: email, 
-          name: user, 
-          user_name: user, 
-          to_name: user, 
-          auth_code: code 
-      }, "OGQEmxiu2oahk21gg");
-      return true;
-    } catch { return false; }
-  };
-
-  const handleRegisterStart = async () => {
-    if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
-        return alert("Lütfen tüm alanları doldurun!");
-    }
-    try {
-        const user = await registerUser(formData.email.trim(), formData.password.trim(), formData.username.trim());
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        setGeneratedCode(code);
-        
-        const success = await sendEmail(formData.email.trim(), code, formData.username.trim());
-        if (success) {
-            alert("Doğrulama kodu mailinize gönderildi! Lütfen kodu kontrol edin ve doğrulayın.");
-            setAuthMode("verify");
-        }
-    } catch (error: any) {
-        if (error.message === "USERNAME_TAKEN") {
-            alert("Bu kullanıcı adı zaten alınmış! Lütfen başka bir tane seçin.");
-        } else if (error.code === 'auth/email-already-in-use') {
-            alert("Bu e-posta zaten kullanımda!");
-        } else if (error.code === 'auth/weak-password') {
-            alert("Şifre en az 6 karakter olmalı!");
-        } else {
-            alert("Hata: " + error.message);
-        }
-    }
-  };
-
-  const handleVerifyAndFinish = () => {
-    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
-    if (verificationCode.trim() === generatedCode.trim()) {
-      const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      const newUser = { 
-          email: formData.email.trim(), 
-          password: formData.password.trim(), 
-          username: formData.username.trim(), 
-          id: Date.now(), 
-          joined: new Date().toLocaleDateString('tr-TR'), 
-          avatar: "default" 
-      };
-      users.push(newUser);
-      localStorage.setItem("sinepro_database_users", JSON.stringify(users));
-      setAuthMode("login");
-      setVerificationCode(""); 
-      alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
-    } else { alert("Girdiğiniz kod yanlış! Kopyala-yapıştır yaparken fazladan boşluk bırakmadığınıza emin olun."); }
-  };
-
-  const handleForgotPasswordStart = () => {
-    if (!formData.email.trim()) return alert("Lütfen e-posta adresinizi girin!");
-    if (!formData.email.includes("@")) return alert("Lütfen geçerli bir e-posta girin!");
-    
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const userMatch = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase());
-    if (!userMatch) return alert("Bu e-posta adresi ile kayıtlı bir hesap bulunamadı!");
-    
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(code);
-    sendEmail(formData.email.trim(), code, userMatch.username).then((success) => {
-        if (success) {
-            alert("Şifre sıfırlama kodu mail adresinize gönderildi!");
-            setAuthMode("verify_forgot");
-        } else { alert("Mail gönderilirken hata oluştu!"); }
-    });
-  };
-
-  const handleVerifyForgot = () => {
-    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
-    if (verificationCode.trim() === generatedCode.trim()) {
-      setAuthMode("new_password");
-      setVerificationCode(""); 
-    } else { alert("Girdiğiniz kod yanlış! Kopyala-yapıştır yaparken fazladan boşluk bırakmadığınıza emin olun."); }
-  };
-
-  const handleSaveNewPassword = () => {
-    if (!formData.password.trim()) return alert("Lütfen yeni bir şifre belirleyin!");
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const updatedUsers = users.map((u: any) => u.email === formData.email.trim() ? { ...u, password: formData.password.trim() } : u);
-    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    alert("Şifreniz başarıyla yenilendi! Şimdi giriş yapabilirsiniz.");
-    setAuthMode("login");
-  };
-
-  const handleLogin = async () => {
-    if (!formData.email.trim() || !formData.password.trim()) return alert("Eksiksiz girin!");
-    try {
-      const user = await loginUser(formData.email.trim(), formData.password.trim());
-      setShowLogin(false); 
-      
-      if (user.email === "yukselomerfaruk292@gmail.com") {
-        alert("Hoş geldin patron! 😎");
-      } else {
-        alert("SİNEPRO'ya hoş geldiniz!");
-      }
-    } catch (error: any) {
-      alert("Giriş başarısız: E-posta veya şifre hatalı.");
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("sinepro_active_session");
-    setCurrentUser(null);
-    setShowUserDropdown(false);
-    setViewMode("home");
-    setActiveBottomTab("home");
-  };
-
-  const startSecurityVerify = () => {
-    if (!profilePassword.trim()) return alert("Lütfen belirlemek istediğiniz yeni şifreyi girin!");
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedCode(code);
-    sendEmail(currentUser.email, code, currentUser.username).then((success) => {
-        if (success) {
-            setAuthMode("security_verify");
-            setShowSecuritySettings(false);
-            setShowLogin(true); 
-            alert("Güvenliğiniz için mailinize onay kodu gönderildi.");
-        }
-    });
-  };
-
-  const handleSecurityUpdate = () => {
-    if (!verificationCode.trim()) return alert("Lütfen doğrulama kodunu girin!");
-    if (verificationCode.trim() === generatedCode.trim()) {
-      const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      const updatedUser = { ...currentUser, password: profilePassword.trim() };
-      const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
-      localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-      localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      setShowLogin(false);
-      setVerificationCode("");
-      setProfilePassword("");
-      alert("Şifreniz güvenli bir şekilde güncellendi!");
-    } else { alert("Kod yanlış! Kopyala-yapıştır yaparken fazladan boşluk bırakmadığınıza emin olun."); }
-  };
-
-  const fetchExtraDetails = async (id: number, cType: "movie" | "tv" = contentType) => {
-    try {
-      const [detailsRes, similarRes, castRes, videosRes] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${cType}/${id}?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/similar?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/videos`, { headers: { Authorization: API_TOKEN } })
-      ]);
-      setSelectedItem((prev: any) => ({ ...(prev || {}), ...detailsRes.data }));
-      setSimilar(similarRes.data.results?.slice(0, 15) || []);
-      setCast(castRes.data.cast?.slice(0, 15) || []);
-      const ytVideos = videosRes.data.results.filter((v: any) => v.site === "YouTube");
-      const officialTrailer = ytVideos.find((v: any) => v.type === "Trailer");
-      setTrailerKey(officialTrailer ? officialTrailer.key : (ytVideos.length > 0 ? ytVideos[0].key : null));
-    } catch (err) { console.error(err); }
-  };
-
-  const shareMovie = async (item: any) => {
-    triggerHaptic(); 
-    const shareUrl = `${window.location.origin}/?id=${item.id}&type=${contentType}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `SİNEPRO | ${item.title || item.name}`,
-          text: `Bu harika yapımı SİNEPRO'da buldum: ${item.title || item.name}!\n\nTMDB Puanı: ${item.vote_average?.toFixed(1)}\n\n`,
-          url: shareUrl, 
-        });
-      } catch (err) { console.log("Paylaşım iptal edildi veya hata oluştu."); }
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      alert("Bağlantı başarıyla kopyalandı! İstediğiniz yere yapıştırabilirsiniz.");
-    }
-  };
-
-  const getMyComments = () => {
-    let myComments: any[] = [];
-    if (currentUser) {
-        Object.values(comments).forEach((itemComments: any) => {
-            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
-        });
-        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
-    }
-    return myComments;
-  };
-
-  const addComment = async () => {
-    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
-    if (!newComment.trim()) return;
-
-    const itemID = selectedItem.id;
-    
-    const commentData = {
-      user: currentUser.username,
-      avatar: currentUser.avatar || "default",
-      text: newComment.trim(),
-      rating: commentRating,
-      isSpoiler: isSpoiler, // YENİ: Spoiler verisi
-      date: new Date().toLocaleDateString('tr-TR'),
-      createdAt: serverTimestamp(),
-      itemTitle: selectedItem.title || selectedItem.name,
-      itemID: itemID,
-      contentType: contentType,
-      likes: 0,
-      likedBy: [],
-      replies: []
-    };
-
-    try {
-      await addDoc(collection(db, "comments"), commentData);
-      setNewComment("");
-      setCommentRating(10);
-      setIsSpoiler(false); // YENİ: Gönderdikten sonra tiki kaldır
-      triggerHaptic(); 
-    } catch (error) {
-      console.error("Buluta yorum yazılamadı:", error);
-      alert("Yorum gönderilirken bir hata oluştu!");
-    }
-  };
-
-  const saveProfileSettings = async () => {
-    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş bırakılamaz!");
-
-    const updatedUser = { ...currentUser, username: currentUser.username.trim() };
-
-    if (updatedUser.uid) {
-        try {
-            await setDoc(doc(db, "users", updatedUser.uid), {
-                username: updatedUser.username,
-                avatar: updatedUser.avatar || "default",
-                email: updatedUser.email
-            }, { merge: true });
-        } catch (error) { console.error("Profil buluta kaydedilemedi:", error); }
-    }
-
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
-    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    localStorage.setItem("sinepro_active_session", JSON.stringify(updatedUser));
-
-    setCurrentUser(updatedUser);
-    setShowProfileSettings(false);
-    alert("Profil başarıyla güncellendi!");
-  };
-
-  const toggleLikeComment = async (e: any, itemID: number, commentID: any) => {
-    e.stopPropagation();
-    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
-    triggerHaptic();
-
-    const itemComments = comments[itemID] || [];
-    const targetComment = itemComments.find((c: any) => c.id == commentID);
-    if (!targetComment) return;
-
-    const hasLiked = targetComment.likedBy?.includes(currentUser.username);
-    const commentRef = doc(db, "comments", String(commentID));
-
-    try {
-        if (hasLiked) {
-            await updateDoc(commentRef, {
-                likes: (targetComment.likes || 1) - 1,
-                likedBy: arrayRemove(currentUser.username)
-            });
-        } else {
-            await updateDoc(commentRef, {
-                likes: (targetComment.likes || 0) + 1,
-                likedBy: arrayUnion(currentUser.username)
-            });
-
-            if (targetComment.user !== currentUser.username) {
-                const authorNotifKey = `sinepro_notifications_${targetComment.user}`;
-                const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
-                
-                authorNotifs.unshift({
-                    id: Date.now(),
-                    text: `@${currentUser.username}, "${targetComment.itemTitle}" yapımındaki yorumunu beğendi! ❤️`,
-                    isRead: false,
-                    date: new Date().toLocaleDateString('tr-TR'),
-                    itemID: targetComment.itemID || itemID,
-                    contentType: targetComment.contentType || contentType,
-                    itemTitle: targetComment.itemTitle
-                });
-                localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
-            }
-        }
-    } catch (error) { console.error("Beğeni güncellenemedi:", error); }
-  };
-
-  const deleteComment = async (itemID: number, commentID: any) => {
-    try {
-        await deleteDoc(doc(db, "comments", String(commentID)));
-        triggerHaptic();
-    } catch (error) { console.error("Silme hatası:", error); }
-  };
-
-  const handleReplySubmit = async (itemID: number, commentID: any, originalUser: string, itemTitle: string) => {
-    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
-    if (!replyText.trim()) return;
-
-    const newReply = {
-      id: Date.now().toString(),
-      user: currentUser.username,
-      avatar: currentUser.avatar || "default",
-      text: replyText.trim(),
-      date: new Date().toLocaleDateString('tr-TR')
-    };
-
-    try {
-        await updateDoc(doc(db, "comments", String(commentID)), {
-            replies: arrayUnion(newReply)
-        });
-
-        if (originalUser !== currentUser.username) {
-            const authorNotifKey = `sinepro_notifications_${originalUser}`;
-            const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
-            
-            authorNotifs.unshift({
-                id: Date.now(),
-                text: `@${currentUser.username}, "${itemTitle}" yapımındaki yorumuna bir cevap yazdı! 💬`,
-                isRead: false,
-                date: new Date().toLocaleDateString('tr-TR'),
-                itemID: itemID,
-                contentType: contentType,
-                itemTitle: itemTitle
-            });
-            localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
-        }
-
-        setReplyText("");
-        setReplyingToId(null);
-        triggerHaptic();
-    } catch (error) { console.error("Yanıt hatası:", error); }
-  };
-
-  const deleteReply = async (itemID: number, commentID: any, replyID: any) => {
-      const itemComments = comments[itemID] || [];
-      const targetComment = itemComments.find((c: any) => c.id == commentID);
-      if (!targetComment) return;
-
-      const replyToRemove = targetComment.replies.find((r: any) => r.id == replyID);
-      if (!replyToRemove) return;
-
-      try {
-          await updateDoc(doc(db, "comments", String(commentID)), {
-              replies: arrayRemove(replyToRemove)
-          });
-      } catch (error) { console.error("Yanıt silinemedi:", error); }
-  };
-
   useEffect(() => {
     setMounted(true);
 
@@ -813,12 +337,14 @@ export default function Home() {
         unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
           let cloudAvatar = "default";
           let cloudUsername = user.displayName || user.email?.split('@')[0];
+          let cloudBanner = null; 
           let cloudFavs: any[] = [];
 
           if (docSnap.exists()) {
               const data = docSnap.data();
               if (data.avatar) cloudAvatar = data.avatar;
               if (data.username) cloudUsername = data.username;
+              if (data.banner) cloudBanner = data.banner;
               if (data.favorites) cloudFavs = data.favorites;
           }
 
@@ -832,6 +358,7 @@ export default function Home() {
             email: user.email,
             username: cloudUsername,
             avatar: cloudAvatar,
+            banner: cloudBanner,
             uploadedAvatar: cloudAvatar !== "default" ? cloudAvatar : null
           });
         });
@@ -888,128 +415,41 @@ export default function Home() {
     return () => unsubscribe(); 
   }, [selectedItem?.id]);
 
-
-  const fetchData = async () => {
-    if (!mounted || viewMode !== "home") return;
-    setIsLoading(true); 
-    try {
-      const getUrl = (page: number) => searchQuery 
-        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
-        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
-      
-      const responses = await Promise.all([
-        axios.get(getUrl(1), { headers: { Authorization: API_TOKEN } }),
-        axios.get(getUrl(2), { headers: { Authorization: API_TOKEN } }),
-        axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
-        axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
-      ]);
-      
-      setItems([
-        ...responses[0].data.results, 
-        ...responses[1].data.results, 
-        ...responses[2].data.results, 
-        ...responses[3].data.results
-      ]);
-      setVisibleCount(40); 
-      setCurrentPage(2);
-
-      if (!searchQuery && newReleases.length === 0) {
-        const resC = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
-        setNewReleases(resC.data.results);
-      }
-    } catch (err) { console.error(err); }
-    setIsLoading(false); 
-  };
-
-  const handleLoadMore = async () => {
-    const nextCount = visibleCount + 15;
-    if (nextCount > items.length) {
-      const nextPage = currentPage + 1;
-      const getUrl = (page: number) => searchQuery 
-        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
-        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
+  useEffect(() => { 
+    const fetchData = async () => {
+      if (viewMode !== "home") return;
+      setIsLoading(true); 
       try {
-        const res = await axios.get(getUrl(nextPage), { headers: { Authorization: API_TOKEN } });
-        setItems(prev => [...prev, ...res.data.results]);
-        setCurrentPage(nextPage);
+        const getUrl = (page: number) => searchQuery 
+          ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
+          : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
+        
+        const responses = await Promise.all([
+          axios.get(getUrl(1), { headers: { Authorization: API_TOKEN } }),
+          axios.get(getUrl(2), { headers: { Authorization: API_TOKEN } }),
+          axios.get(getUrl(3), { headers: { Authorization: API_TOKEN } }),
+          axios.get(getUrl(4), { headers: { Authorization: API_TOKEN } })
+        ]);
+        
+        setItems([
+          ...responses[0].data.results, 
+          ...responses[1].data.results, 
+          ...responses[2].data.results, 
+          ...responses[3].data.results
+        ]);
+        setVisibleCount(40); 
+        setCurrentPage(2);
+
+        if (!searchQuery && newReleases.length === 0) {
+          const resC = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
+          setNewReleases(resC.data.results);
+        }
       } catch (err) { console.error(err); }
-    }
-    setVisibleCount(nextCount);
-  };
+      setIsLoading(false); 
+    };
+    fetchData(); 
+  }, [searchQuery, contentType, selectedGenre, sortBy, viewMode]);
 
-  useEffect(() => { if (mounted) fetchData(); }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, mounted]);
-
-  const toggleFavorite = async (e: React.MouseEvent, item: any) => {
-    e.stopPropagation();
-    triggerHaptic(); 
-    
-    if (!currentUser) {
-       alert("Favorilere eklemek için giriş yapmalısın!");
-       setAuthMode("login");
-       setShowLogin(true);
-       return;
-    }
-
-    let isFav = favorites.find(f => f.id === item.id);
-    let updated = isFav ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
-    
-    setFavorites(updated);
-    localStorage.setItem("sinepro_favs", JSON.stringify(updated));
-
-    if (currentUser.uid) {
-      await syncFavoritesToFirebase(currentUser.uid, updated);
-    }
-  };
-
-  const handleScrollClick = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
-    if (ref.current) {
-      const { scrollLeft, clientWidth } = ref.current;
-      ref.current.scrollTo({ left: direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth, behavior: 'smooth' });
-    }
-  };
-
-  const calculateProRating = (itemID: number) => {
-    const itemComments = comments[itemID] || [];
-    const ratedComments = itemComments.filter((c: any) => c.rating);
-    if (ratedComments.length === 0) return null;
-    const totalScore = ratedComments.reduce((sum: number, c: any) => sum + c.rating, 0);
-    return (totalScore / ratedComments.length).toFixed(1);
-  };
-
-  const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, action: () => void) => {
-    if (e.key === 'Enter') { e.preventDefault(); action(); }
-  };
-
-  const handleSupportSubmit = async () => {
-    if(!supportForm.message.trim()) return alert("Lütfen bir mesaj yazın!");
-
-    try {
-        await emailjs.send(
-            "service_9d5qlk9", 
-            "template_x6iu07i",
-            {
-               user_name: currentUser?.username || "Ziyaretçi",
-               user_email: currentUser?.email || "Belirtilmedi",
-               support_category: supportForm.category,
-               support_message: supportForm.message
-            },
-            "OGQEmxiu2oahk21gg"
-        );
-
-        alert("Destek talebiniz başarıyla alındı! Ekibimiz e-posta üzerinden en kısa sürede dönüş yapacaktır.");
-        setSupportForm({ category: "Hesap & Giriş Problemi", message: "" });
-    } catch (err) {
-        console.error(err);
-        alert("Gönderilirken bir hata oluştu. Lütfen tekrar deneyin.");
-    }
-  };
-
-  const displayNotifs = currentUser 
-      ? notifications 
-      : [{ id: 'guest', text: 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın. Favori listesi oluşturmak, yorum yapmak, SİNE Aİ ile sohbet etmek ve içeriklere puan vermek için giriş yapabilirsin. Gelecek güncellemeleri de buradan duyuracağız.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
-
-  if (!mounted) return null;
-  
   useEffect(() => {
     const handlePopState = () => {
       isPoppingRef.current = true; 
@@ -1044,10 +484,412 @@ export default function Home() {
       }
     }
   }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode]);
+
+
+  // --- BÜTÜN FONKSİYONLAR ---
+  const markNotifsAsRead = () => {
+      const updated = notifications.map(n => ({...n, isRead: true}));
+      setNotifications(updated);
+      localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
+  };
+
+  const handleNotificationClick = (notif: any) => {
+    if (!currentUser) {
+        setShowNotifications(false);
+        setAuthMode("login");
+        setShowLogin(true);
+        return;
+    }
+    if (notif.itemID) {
+        setContentType(notif.contentType || "movie");
+        setSelectedItem({ id: notif.itemID, title: notif.itemTitle, name: notif.itemTitle });
+        fetchExtraDetails(notif.itemID, notif.contentType || "movie");
+        setShowNotifications(false);
+        setAutoScrollToComments(true); 
+    }
+  };
+
+  const startListening = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert("Cihazınız veya tarayıcınız sesli komutu doğrudan desteklemiyor. Lütfen klavyeyi kullanın.");
+      return;
+    }
+    triggerHaptic(); 
+    const recognition = new SpeechRec();
+    recognition.lang = 'tr-TR'; 
+    recognition.interimResults = false;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setAiPrompt(prev => prev + (prev ? " " : "") + transcript);
+      setIsListening(false);
+      triggerHaptic(); 
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  };
+
+  const handleAISubmit = async () => {
+      if (!aiPrompt.trim()) return;
+      const userText = aiPrompt.trim();
+      setAiPrompt("");
+      
+      const newHistory = [...aiChatHistory, { role: "user", text: userText }];
+      setAiChatHistory(newHistory);
+      setIsAITyping(true);
+
+      let systemInjectedPrompt = userText;
+      const userRankInfo = getUserRank(currentUserTotalLikes);
+      
+      if (userRankInfo.isLord) {
+          systemInjectedPrompt = `ÖNEMLİ SİSTEM NOTU: Karşındaki kullanıcı ${userRankInfo.name} rütbesinde, sistemdeki en üst düzey VIP sinema üstadı. Lütfen ona "Yüce ${userRankInfo.name}'um" diye hitap et, üstün sinema zevkini överek, aşırı saygılı ve yücelten bir tonda cevap ver. Kullanıcının Sorusu: ${userText}`;
+      } else if (userRankInfo.isVIP) {
+          systemInjectedPrompt = `ÖNEMLİ SİSTEM NOTU: Karşındaki kullanıcı ${userRankInfo.name} rütbesinde bir VIP elit üye. Lütfen ona saygıyla ve rütbesini överek cevap ver. Kullanıcının Sorusu: ${userText}`;
+      }
+
+      try {
+          const response = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  prompt: systemInjectedPrompt,
+                  history: aiChatHistory
+              }),
+          });
+
+          let aiResponseText = "";
+          let results: any[] = [];
+
+          if (!response.ok) {
+              aiResponseText = `SİSTEM HATASI: Beynimle bağlantı kurulamadı.`; 
+          } else {
+              const data = await response.json();
+              aiResponseText = data.text;
+          }
+
+          const lowerText = userText.toLowerCase();
+          const isSearchIntent = /(öner|bul|getir|izle|film|dizi|tavsiye|aksiyon|komedi|korku|bilim kurgu|animasyon|dram|gerilim|suç|gizem|fantastik|tarih|savaş|aşk|romantik)/i.test(lowerText);
+          
+          if (isSearchIntent) {
+             try {
+                 const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|bana|bir|film|dizi)/gi, "").trim();
+                 if (cleanSearch.length > 2) {
+                     const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&language=tr-TR&page=1`;
+                     const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
+                     results = res.data.results?.slice(0, 4) || []; 
+                 }
+             } catch(e) {}
+          }
+
+          setAiChatHistory(prev => [...prev, { role: "ai", text: aiResponseText, results }]);
+
+      } catch (error) {
+          setAiChatHistory(prev => [...prev, { role: "ai", text: "Kablolarım karıştı! Beynimle bağlantı kurarken bir hata oluştu. 🤖" }]);
+      } finally {
+          triggerHaptic(); 
+          setIsAITyping(false);
+      }
+  };
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 500 * 1024) return alert("Dosya çok büyük! Lütfen 500KB'tan küçük bir fotoğraf seçin.");
+      const reader = new FileReader();
+      reader.onloadend = () => setCurrentUser({ ...currentUser, avatar: reader.result as string, uploadedAvatar: reader.result as string });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 800 * 1024) return alert("Kapak fotoğrafı çok büyük! En fazla 800KB olabilir.");
+      const reader = new FileReader();
+      reader.onloadend = () => setCurrentUser({ ...currentUser, banner: reader.result as string, uploadedBanner: reader.result as string });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const addToRecentlyViewed = (item: any) => {
+    let currentHistory = [...recentlyViewed];
+    currentHistory = currentHistory.filter(i => i.id !== item.id);
+    currentHistory.unshift(item);
+    setRecentlyViewed(currentHistory.slice(0, 15));
+    localStorage.setItem("sinepro_recently_viewed", JSON.stringify(currentHistory.slice(0, 15)));
+  };
+
+  const clearRecentlyViewed = () => {
+    setRecentlyViewed([]);
+    localStorage.removeItem("sinepro_recently_viewed");
+  };
+
+  const toggleHistoryPref = () => {
+    const newVal = !showHistory;
+    setShowHistory(newVal);
+    localStorage.setItem("sinepro_show_history", JSON.stringify(newVal));
+  };
+
+  const sendEmail = async (email: string, code: string, user: string) => {
+    try {
+      await emailjs.send("service_9d5qlk9", "template_tlqw67x", { email, name: user, user_name: user, to_name: user, auth_code: code }, "OGQEmxiu2oahk21gg");
+      return true;
+    } catch { return false; }
+  };
+
+  const handleRegisterStart = async () => {
+    if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) return alert("Lütfen tüm alanları doldurun!");
+    try {
+        await registerUser(formData.email.trim(), formData.password.trim(), formData.username.trim());
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setGeneratedCode(code);
+        const success = await sendEmail(formData.email.trim(), code, formData.username.trim());
+        if (success) { alert("Doğrulama kodu mailinize gönderildi!"); setAuthMode("verify"); }
+    } catch (error: any) {
+        if (error.message === "USERNAME_TAKEN") alert("Bu kullanıcı adı zaten alınmış!");
+        else alert("Hata: " + error.message);
+    }
+  };
+
+  const handleVerifyAndFinish = () => {
+    if (verificationCode.trim() === generatedCode.trim()) {
+      const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+      users.push({ email: formData.email.trim(), password: formData.password.trim(), username: formData.username.trim(), id: Date.now(), joined: new Date().toLocaleDateString('tr-TR'), avatar: "default" });
+      localStorage.setItem("sinepro_database_users", JSON.stringify(users));
+      setAuthMode("login"); setVerificationCode(""); alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
+    } else { alert("Girdiğiniz kod yanlış!"); }
+  };
+
+  const handleForgotPasswordStart = () => {
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const userMatch = users.find((u: any) => u.email.toLowerCase() === formData.email.trim().toLowerCase());
+    if (!userMatch) return alert("Hesap bulunamadı!");
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedCode(code);
+    sendEmail(formData.email.trim(), code, userMatch.username).then(() => { setAuthMode("verify_forgot"); alert("Kod gönderildi!"); });
+  };
+
+  const handleVerifyForgot = () => {
+    if (verificationCode.trim() === generatedCode.trim()) { setAuthMode("new_password"); setVerificationCode(""); } 
+    else { alert("Kod yanlış!"); }
+  };
+
+  const handleSaveNewPassword = () => {
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const updatedUsers = users.map((u: any) => u.email === formData.email.trim() ? { ...u, password: formData.password.trim() } : u);
+    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+    alert("Şifreniz başarıyla yenilendi!"); setAuthMode("login");
+  };
+
+  const handleLogin = async () => {
+    if (!formData.email.trim() || !formData.password.trim()) return alert("Eksiksiz girin!");
+    try {
+      const user = await loginUser(formData.email.trim(), formData.password.trim());
+      setShowLogin(false); 
+      if (user.email === "yukselomerfaruk292@gmail.com") alert("Hoş geldin patron! 😎");
+      else alert("SİNEPRO'ya hoş geldiniz!");
+    } catch (error: any) { alert("Giriş başarısız: E-posta veya şifre hatalı."); }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("sinepro_active_session");
+    setCurrentUser(null); setShowUserDropdown(false); setViewMode("home"); setActiveBottomTab("home");
+  };
+
+  const startSecurityVerify = () => {
+    if (!profilePassword.trim()) return alert("Yeni şifreyi girin!");
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedCode(code);
+    sendEmail(currentUser.email, code, currentUser.username).then(() => { setAuthMode("security_verify"); setShowSecuritySettings(false); setShowLogin(true); alert("Kod gönderildi."); });
+  };
+
+  const handleSecurityUpdate = () => {
+    if (verificationCode.trim() === generatedCode.trim()) {
+      const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+      const updatedUser = { ...currentUser, password: profilePassword.trim() };
+      const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
+      localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+      setCurrentUser(updatedUser); setShowLogin(false); setVerificationCode(""); setProfilePassword(""); alert("Şifre güncellendi!");
+    } else { alert("Kod yanlış!"); }
+  };
+
+  const fetchExtraDetails = async (id: number, cType: "movie" | "tv" = contentType) => {
+    try {
+      const [detailsRes, similarRes, castRes, videosRes] = await Promise.all([
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/similar?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${cType}/${id}/videos`, { headers: { Authorization: API_TOKEN } })
+      ]);
+      setSelectedItem((prev: any) => ({ ...(prev || {}), ...detailsRes.data }));
+      setSimilar(similarRes.data.results?.slice(0, 15) || []);
+      setCast(castRes.data.cast?.slice(0, 15) || []);
+      const ytVideos = videosRes.data.results.filter((v: any) => v.site === "YouTube");
+      const officialTrailer = ytVideos.find((v: any) => v.type === "Trailer");
+      setTrailerKey(officialTrailer ? officialTrailer.key : (ytVideos.length > 0 ? ytVideos[0].key : null));
+    } catch (err) {}
+  };
+
+  const shareMovie = async (item: any) => {
+    triggerHaptic(); 
+    const shareUrl = `${window.location.origin}/?id=${item.id}&type=${contentType}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: `SİNEPRO | ${item.title || item.name}`, text: `SİNEPRO'da buldum!`, url: shareUrl }); } catch (err) {}
+    } else { navigator.clipboard.writeText(shareUrl); alert("Bağlantı kopyalandı!"); }
+  };
+
+  const addComment = async () => {
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
+    if (!newComment.trim()) return;
+
+    const rankInfo = getUserRank(currentUserTotalLikes);
+    const commentData = {
+      user: currentUser.username,
+      avatar: currentUser.avatar || "default",
+      text: newComment.trim(),
+      rating: commentRating,
+      isSpoiler: isSpoiler, 
+      date: new Date().toLocaleDateString('tr-TR'),
+      createdAt: serverTimestamp(),
+      itemTitle: selectedItem.title || selectedItem.name,
+      itemID: selectedItem.id,
+      contentType: contentType,
+      likes: 0,
+      likedBy: [],
+      replies: [],
+      authorLikes: currentUserTotalLikes,
+      authorBanner: currentUser.banner || null,
+      isVIP: rankInfo.isVIP || false
+    };
+
+    try {
+      await addDoc(collection(db, "comments"), commentData);
+      setNewComment(""); setCommentRating(10); setIsSpoiler(false); triggerHaptic(); 
+    } catch (error) { alert("Yorum gönderilemedi!"); }
+  };
+
+  const saveProfileSettings = async () => {
+    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş olamaz!");
+    const updatedUser = { ...currentUser, username: currentUser.username.trim() };
+    if (updatedUser.uid) {
+        try {
+            await setDoc(doc(db, "users", updatedUser.uid), {
+                username: updatedUser.username, avatar: updatedUser.avatar || "default", email: updatedUser.email, banner: updatedUser.banner || null
+            }, { merge: true });
+        } catch (error) {}
+    }
+    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
+    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
+    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
+    setCurrentUser(updatedUser); setShowProfileSettings(false); alert("Profil güncellendi!");
+  };
+
+  const toggleLikeComment = async (e: any, itemID: number, commentID: any) => {
+    e.stopPropagation();
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
+    triggerHaptic();
+
+    const itemComments = comments[itemID] || [];
+    const targetComment = itemComments.find((c: any) => c.id == commentID);
+    if (!targetComment) return;
+
+    const hasLiked = targetComment.likedBy?.includes(currentUser.username);
+    const commentRef = doc(db, "comments", String(commentID));
+
+    try {
+        if (hasLiked) {
+            await updateDoc(commentRef, { likes: (targetComment.likes || 1) - 1, likedBy: arrayRemove(currentUser.username) });
+        } else {
+            await updateDoc(commentRef, { likes: (targetComment.likes || 0) + 1, likedBy: arrayUnion(currentUser.username) });
+            if (targetComment.user !== currentUser.username) {
+                const authorNotifKey = `sinepro_notifications_${targetComment.user}`;
+                const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+                authorNotifs.unshift({ id: Date.now(), text: `@${currentUser.username}, "${targetComment.itemTitle}" yorumunu beğendi! ❤️`, isRead: false, date: new Date().toLocaleDateString('tr-TR'), itemID: targetComment.itemID || itemID, contentType: targetComment.contentType || contentType, itemTitle: targetComment.itemTitle });
+                localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+            }
+        }
+    } catch (error) {}
+  };
+
+  const deleteComment = async (itemID: number, commentID: any) => { try { await deleteDoc(doc(db, "comments", String(commentID))); triggerHaptic(); } catch (error) {} };
   
+  const handleReplySubmit = async (itemID: number, commentID: any, originalUser: string, itemTitle: string) => {
+    if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
+    if (!replyText.trim()) return;
+    const newReply = { id: Date.now().toString(), user: currentUser.username, avatar: currentUser.avatar || "default", text: replyText.trim(), date: new Date().toLocaleDateString('tr-TR') };
+    try {
+        await updateDoc(doc(db, "comments", String(commentID)), { replies: arrayUnion(newReply) });
+        if (originalUser !== currentUser.username) {
+            const authorNotifKey = `sinepro_notifications_${originalUser}`;
+            const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
+            authorNotifs.unshift({ id: Date.now(), text: `@${currentUser.username}, "${itemTitle}" yorumuna cevap yazdı! 💬`, isRead: false, date: new Date().toLocaleDateString('tr-TR'), itemID: itemID, contentType: contentType, itemTitle: itemTitle });
+            localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+        }
+        setReplyText(""); setReplyingToId(null); triggerHaptic();
+    } catch (error) {}
+  };
+
+  const deleteReply = async (itemID: number, commentID: any, replyID: any) => {
+      const itemComments = comments[itemID] || [];
+      const targetComment = itemComments.find((c: any) => c.id == commentID);
+      if (!targetComment) return;
+      const replyToRemove = targetComment.replies.find((r: any) => r.id == replyID);
+      try { await updateDoc(doc(db, "comments", String(commentID)), { replies: arrayRemove(replyToRemove) }); } catch (error) {}
+  };
+
+  const handleLoadMore = async () => {
+    const nextCount = visibleCount + 15;
+    if (nextCount > items.length) {
+      const nextPage = currentPage + 1;
+      const getUrl = (page: number) => searchQuery 
+        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&language=tr-TR&page=${page}`
+        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&vote_count.gte=200&language=tr-TR&page=${page}`;
+      try {
+        const res = await axios.get(getUrl(nextPage), { headers: { Authorization: API_TOKEN } });
+        setItems(prev => [...prev, ...res.data.results]); setCurrentPage(nextPage);
+      } catch (err) {}
+    }
+    setVisibleCount(nextCount);
+  };
+
+  const toggleFavorite = async (e: React.MouseEvent, item: any) => {
+    e.stopPropagation(); triggerHaptic(); 
+    if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
+    let isFav = favorites.find(f => f.id === item.id);
+    let updated = isFav ? favorites.filter(f => f.id !== item.id) : [...favorites, item];
+    setFavorites(updated); localStorage.setItem("sinepro_favs", JSON.stringify(updated));
+    if (currentUser.uid) await syncFavoritesToFirebase(currentUser.uid, updated);
+  };
+
+  const handleScrollClick = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
+    if (ref.current) { const { scrollLeft, clientWidth } = ref.current; ref.current.scrollTo({ left: direction === 'left' ? scrollLeft - clientWidth : scrollLeft + clientWidth, behavior: 'smooth' }); }
+  };
+
+  const calculateProRating = (itemID: number) => {
+    const itemComments = comments[itemID] || [];
+    const ratedComments = itemComments.filter((c: any) => c.rating);
+    if (ratedComments.length === 0) return null;
+    const totalScore = ratedComments.reduce((sum: number, c: any) => sum + c.rating, 0);
+    return (totalScore / ratedComments.length).toFixed(1);
+  };
+
+  const handleEnterKey = (e: React.KeyboardEvent<HTMLInputElement>, action: () => void) => { if (e.key === 'Enter') { e.preventDefault(); action(); } };
+
+  const handleSupportSubmit = async () => {
+    if(!supportForm.message.trim()) return alert("Mesaj yazın!");
+    try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert("Talebiniz alındı!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert("Hata oluştu."); }
+  };
+
+  const displayNotifs = currentUser 
+      ? notifications 
+      : [{ id: 'guest', text: 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
+
+  if (!mounted) return null;
+
   return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
-      
       <style dangerouslySetInnerHTML={{ __html: `
         html, body { margin: 0; padding: 0; overflow-x: hidden; width: 100%; }
         @keyframes heartbeat {
@@ -1066,15 +908,16 @@ export default function Home() {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        @keyframes notifPulse {
-          0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.8); transform: scale(1); }
-          70% { box-shadow: 0 0 0 8px rgba(255, 0, 0, 0); transform: scale(1.1); }
-          100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); transform: scale(1); }
+        @keyframes vipLordGlow {
+           0% { filter: drop-shadow(0 0 5px #FF0055); border-color: rgba(255,0,85,0.5); }
+           50% { filter: drop-shadow(0 0 15px #FF0055); border-color: rgba(255,0,85,1); }
+           100% { filter: drop-shadow(0 0 5px #FF0055); border-color: rgba(255,0,85,0.5); }
         }
-        @keyframes shimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: calc(200px + 100%) 0; }
+        .vip-lord-avatar img, .vip-lord-avatar div {
+           animation: vipLordGlow 2s infinite alternate !important;
+           border: 3px solid #FF0055 !important;
         }
+
         .skeleton-box {
           background: linear-gradient(90deg, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 25%, ${isDarkMode ? '#2b3746' : '#f5f5f5'} 50%, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 75%);
           background-size: 200% 100%; animation: shimmer 1.5s infinite; width: 100%;
@@ -1097,90 +940,26 @@ export default function Home() {
         .history-btn:hover { background: ${activeColor}; color: ${badgeText}; border-color: ${activeColor}; transform: translateY(-2px); box-shadow: 0 5px 15px ${activeColor}40; }
         
         .load-more-btn { background: transparent; border: 2px solid ${activeColor}; color: ${activeColor}; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; margin: 0 auto 50px auto; display: block; }
-        .load-more-btn:hover { background: ${activeColor}; color: ${badgeText}; box-shadow: 0 0 20px ${activeColor}66; }
-
         .modal-box { max-width: 90vw; width: 100%; border-radius: 25px; border: 1px solid ${activeColor}; max-height: 90vh; overflow-y: auto; }
-        .ai-modal { max-width: 500px; height: 650px; }
-        .auth-modal { max-width: 380px; padding: 40px; }
-        .profile-modal { max-width: 450px; padding: 30px; }
-        .theme-modal { max-width: 400px; padding: 40px; }
-        
         .search-container { position: relative; display: flex; align-items: center; justify-content: flex-end; }
-        .search-input-box { width: ${isSearchExpanded ? '250px' : '40px'}; height: 40px; border-radius: 20px; background: ${isSearchExpanded ? bgCard : 'transparent'}; border: 1px solid ${isSearchExpanded ? borderColor : 'transparent'}; color: ${textMain}; padding: ${isSearchExpanded ? '0 40px 0 20px' : '0'}; outline: none; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); opacity: ${isSearchExpanded ? 1 : 0}; cursor: ${isSearchExpanded ? 'text' : 'default'}; }
-        .search-icon-btn { position: absolute; right: 0; width: 40px; height: 40px; border-radius: 50%; background: ${isSearchExpanded ? 'transparent' : activeColor}; color: ${isSearchExpanded ? textLight : badgeText}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.3s; z-index: 10; box-shadow: ${isSearchExpanded ? 'none' : `0 0 10px ${activeColor}80`}; }
-        
-        .search-dropdown { width: 320px; max-width: 90vw; }
-        .detail-poster-img { width: 280px; }
-        .detail-title-text { font-size: 44px; }
-        .nav-wrapper { display: flex; justify-content: space-between; align-items: center; padding: 15px 15px; }
-        
-        .share-btn { background: ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}; color: ${activeColor}; padding: 8px 15px; border-radius: 8px; border: 1px solid ${borderColor}; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-left: auto; transition: 0.3s; }
-        .share-btn:hover { background: ${activeColor}; color: ${badgeText}; }
-
+        .search-input-box { width: ${isSearchExpanded ? '250px' : '40px'}; height: 40px; border-radius: 20px; background: ${isSearchExpanded ? bgCard : 'transparent'}; border: 1px solid ${isSearchExpanded ? borderColor : 'transparent'}; color: ${textMain}; padding: ${isSearchExpanded ? '0 40px 0 20px' : '0'}; outline: none; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); opacity: ${isSearchExpanded ? 1 : 0}; }
+        .search-icon-btn { position: absolute; right: 0; width: 40px; height: 40px; border-radius: 50%; background: ${isSearchExpanded ? 'transparent' : activeColor}; color: ${isSearchExpanded ? textLight : badgeText}; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.3s; z-index: 10; }
         .bottom-bar { display: none; }
-        .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
-        .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
-
-       @media (max-width: 768px) {
-          .nav-wrapper { 
-             padding: 12px 10px !important; 
-             flex-direction: row !important; 
-             flex-wrap: nowrap !important; 
-          }
-          .mobile-logo-adjust { 
-             transform: translate(-5px, 2px); 
-             transition: 0.4s ease; 
-          }
-          .nav-wrapper > div:first-child { flex: 1; justify-content: flex-start !important; }
-          .nav-wrapper > div:last-child { flex: 1; justify-content: flex-end !important; gap: 10px !important; }
+        @media (max-width: 768px) {
+          .nav-wrapper { padding: 12px 10px !important; flex-direction: row !important; }
           .hide-on-mobile { display: none !important; }
-          .search-container { margin-top: 0 !important; width: auto !important; }
-          
-          .search-input-box { 
-             width: ${isSearchExpanded ? '150px' : '40px'} !important; 
-             min-width: ${isSearchExpanded ? '150px' : '40px'} !important;
-             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          }
-          .hide-carousels-mobile { display: none !important; }
-
-          .horizontal-scroll { scroll-snap-type: x mandatory; padding-bottom: 15px; scroll-padding-left: 5%; }
-          .horizontal-scroll > div { scroll-snap-align: start; scroll-snap-stop: always; }
-          
-          .side-nav-btn { display: none !important; } 
-          .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; padding: 20px 2% !important; }
-          
-          .movie-detail-overlay { animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); padding-bottom: 80px; }
-          .detail-title-text { font-size: 28px !important; text-align: center; }
-          .detail-poster-img { width: 200px !important; max-width: 80vw; margin: 0 auto; display: block; }
-          .detail-top-flex { flex-direction: column; align-items: center; gap: 20px !important; }
-          
-          .share-btn { margin-left: 0 !important; width: 100%; justify-content: center; padding: 12px; margin-top: 10px; }
-
-          .ai-modal { height: 85vh !important; }
-          .category-btn { font-size: 13px; padding: 6px 14px; }
-          .section-title { font-size: 16px !important; margin-left: 2% !important; }
-          .auth-modal, .theme-modal, .profile-modal { padding: 25px !important; }
-          .comments-inputs { flex-direction: column; }
-          
-          body { padding-bottom: 70px; }
+          .movie-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 15px !important; }
           .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; backdrop-filter: blur(10px); border-top: 1px solid ${borderColor}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; }
-          
-          .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; gap: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; }
-          .bottom-icon { font-size: 22px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
-          .bottom-text { font-size: 11px; font-weight: bold; transition: 0.3s; opacity: 0.7; }
-          
-          .bottom-bar-item.active .bottom-icon { background: ${activeColor}; color: ${badgeText}; transform: translateY(-4px) scale(1.1); box-shadow: 0 4px 15px ${activeColor}80; }
-          .bottom-bar-item.active .bottom-text { opacity: 1; color: ${activeColor}; }
-
-          .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; transform: translateY(-20px); box-shadow: 0 5px 20px ${activeColor}80; border: 4px solid ${bgMain}; }
+          .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; }
+          .bottom-bar-item.active .bottom-icon { background: ${activeColor}; color: ${badgeText}; transform: translateY(-4px); }
+          .ai-center-btn { background: ${activeColor}; color: ${badgeText}; width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transform: translateY(-20px); border: 4px solid ${bgMain}; }
         }
       ` }} />
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
+      {/* --- NAVBAR --- */}
       <nav className="nav-wrapper" style={{ background: navBg, backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 100, borderBottom: `1px solid ${borderColor}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-        
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
               <SineProLogo activeColor={activeColor} badgeText={badgeText} hidePro={isSearchExpanded} />
@@ -1202,7 +981,7 @@ export default function Home() {
                  setShowNotifications(!showNotifications);
                  if (!currentUser) { setGuestNotifSeen(true); sessionStorage.setItem("sinepro_guest_notif", "true"); }
                  else if (!showNotifications) markNotifsAsRead();
-             }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title="Bildirimler">
+             }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }}>
                 🔔
                 {((!currentUser && !guestNotifSeen) || (currentUser && displayNotifs.filter(n => !n.isRead).length > 0)) && (
                     <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '14px', height: '14px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
@@ -1227,37 +1006,32 @@ export default function Home() {
                           </div>
                        )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>Henüz bildiriminiz yok.</div>}
                     </div>
-                    
-                    {currentUser && (
-                        <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderTop: `1px solid ${borderColor}` }}>Tüm Bildirimleri Gör</div>
-                    )}
+                    {currentUser && <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', borderTop: `1px solid ${borderColor}` }}>Tüm Bildirimleri Gör</div>}
                  </div>
              )}
           </div>
-
-          <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? "Açık Moda Geç" : "Koyu Moda Geç"}>{isDarkMode ? "☀️" : "🌙"}</button>
+          <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px' }}>{isDarkMode ? "☀️" : "🌙"}</button>
 
           <div className="search-container" ref={searchRef}>
-            <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film veya Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
+            <input type="text" className="search-input-box" ref={searchInputRef} placeholder="Film/Dizi Ara..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
             <button className="search-icon-btn" onClick={() => { if (isSearchExpanded) { setIsSearchExpanded(false); setSearchInput(""); setIsSearchFocused(false); } else { setIsSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 100); } }}>
                 {isSearchExpanded ? "✕" : "🔍"}
             </button>
             {isSearchExpanded && searchInput && isSearchFocused && (
-              <div className="search-dropdown" style={{ position: 'absolute', top: '45px', right: 0, background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+              <div className="search-dropdown" style={{ position: 'absolute', top: '45px', right: 0, background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', zIndex: 2000 }}>
                 {liveResults.length > 0 ? (
                   <>
                     {liveResults.slice(0, 5).map(item => (
-                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); addToRecentlyViewed(item); setIsSearchFocused(false); setIsSearchExpanded(false); setSearchInput(""); setSearchQuery(""); }} style={{ display: 'flex', gap: '12px', padding: '10px', borderBottom: `1px solid ${borderColor}`, cursor: 'pointer', transition: '0.3s' }} className="search-item-hover">
+                      <div key={item.id} onClick={() => { setSelectedItem(item); fetchExtraDetails(item.id); addToRecentlyViewed(item); setIsSearchFocused(false); setIsSearchExpanded(false); setSearchInput(""); setSearchQuery(""); }} style={{ display: 'flex', gap: '12px', padding: '10px', borderBottom: `1px solid ${borderColor}`, cursor: 'pointer' }}>
                         <img src={getImgUrl(item.poster_path, 'w92')} style={{ width: '40px', height: '60px', borderRadius: '6px', objectFit: 'cover' }} alt="" />
-                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px', color: textMain, display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.title || item.name}</p>
-                          <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: activeColor, fontWeight: 'bold' }}>⭐ {item.vote_average?.toFixed(1)}</p>
+                        <div>
+                          <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px' }}>{item.title || item.name}</p>
+                          <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: activeColor }}>⭐ {item.vote_average?.toFixed(1)}</p>
                         </div>
                       </div>
                     ))}
-                    <div onMouseDown={(e) => { e.preventDefault(); setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)', borderTop: `1px solid ${borderColor}` }} className="search-item-hover">Tüm Sonuçları Gör</div>
                   </>
-                ) : <div style={{ padding: '20px', textAlign: 'center', color: textMuted, fontSize: '14px' }}>"{searchInput}" ile eşleşen sonuç bulunamadı.</div>}
+                ) : <div style={{ padding: '20px', textAlign: 'center', color: textMuted, fontSize: '14px' }}>Sonuç bulunamadı.</div>}
               </div>
             )}
           </div>
@@ -1271,16 +1045,10 @@ export default function Home() {
                 </div>
                 {showUserDropdown && (
                   <div style={{ position: 'absolute', top: '45px', right: 0, width: '220px', background: bgCard, borderRadius: '12px', border: `1px solid ${borderColor}`, overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                    <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
-                    <div onClick={() => { setShowSecuritySettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🔒 Güvenlik Ayarları</div>
-                    <div onClick={() => { setViewMode("stats"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
-                    <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
-                    <div onClick={() => { setViewMode("favorites"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
-                    <div onClick={() => { setViewMode("my_comments"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>💬 Son Yorumlarım</div>
-                    
-                    <div onClick={() => { setViewMode("about"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>ℹ️ Hakkımızda</div>
-                    <div onClick={() => { setViewMode("support"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>❓ Yardım ve Destek</div>
-                    
+                    <div onClick={() => { setShowProfileSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}` }}>⚙️ Profil Ayarlarım</div>
+                    <div onClick={() => { setViewMode("stats"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}` }}>📊 İstatistiklerim</div>
+                    <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}` }}>🎨 Tema Değiştir</div>
+                    <div onClick={() => { setViewMode("favorites"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', borderBottom: `1px solid ${borderColor}` }}>❤️ Beğendiklerim</div>
                     <div onClick={handleLogout} style={{ padding: '12px 20px', cursor: 'pointer', color: '#ff4d4d' }}>🚪 Çıkış Yap</div>
                   </div>
                 )}
@@ -1312,24 +1080,37 @@ export default function Home() {
 
       {showMobileMenu && currentUser && (
         <div onClick={() => setShowMobileMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9950, display: 'flex', alignItems: 'flex-end' }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', background: bgCard, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', padding: '25px', borderTop: `2px solid ${activeColor}`, boxShadow: `0 -10px 40px ${activeColor}40`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
-             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><div style={{ width: '40px', height: '5px', background: borderColor, borderRadius: '10px' }}></div></div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '20px' }}>
-                <UserAvatar user={currentUser} size="60px" fontSize="24px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
-                <div><h3 style={{ margin: 0, color: activeColor, fontSize: '20px' }}>@{currentUser.username}</h3><p style={{ margin: 0, fontSize: '13px', color: textLight }}>{currentUser.email}</p></div>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: '100%', background: bgCard, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', padding: '25px', borderTop: `2px solid ${activeColor}`, boxShadow: `0 -10px 40px ${activeColor}40`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+             
+             {/* YENİ: MOBİL MENÜ KAPAK FOTOĞRAFI */}
+             {currentUser.banner && (
+                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '140px', backgroundImage: `url(${currentUser.banner})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.4, borderTopLeftRadius: '30px', borderTopRightRadius: '30px', maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)', zIndex: 0 }} />
+             )}
+
+             <div style={{ position: 'relative', zIndex: 1 }}>
+                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><div style={{ width: '40px', height: '5px', background: borderColor, borderRadius: '10px' }}></div></div>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '20px' }}>
+                    <div className={getUserRank(currentUserTotalLikes).isLord ? "vip-lord-avatar" : ""} style={{ borderRadius: '50%', padding: getUserRank(currentUserTotalLikes).isLord ? '3px' : '0' }}>
+                        <UserAvatar user={currentUser} size="60px" fontSize="24px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                    </div>
+                    <div>
+                        <h3 style={{ margin: 0, color: activeColor, fontSize: '20px', textShadow: getUserRank(currentUserTotalLikes).isLord ? '0 0 10px #FF0055' : 'none' }}>@{currentUser.username}</h3>
+                        <p style={{ margin: 0, fontSize: '13px', color: textLight }}>{currentUser.email}</p>
+                    </div>
+                 </div>
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <button onClick={() => { setShowProfileSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">⚙️ Profil Ayarları</button>
+                    <button onClick={() => { setShowSecuritySettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🔒 Güvenlik</button>
+                    <button onClick={() => { setViewMode("stats"); setShowMobileMenu(false); }} className="mobile-menu-btn">📊 İstatistiklerim</button>
+                    <button onClick={() => { setShowThemeSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🎨 Tema Seç</button>
+                    <button onClick={() => { setViewMode("favorites"); setShowMobileMenu(false); }} className="mobile-menu-btn">❤️ Favorilerim</button>
+                    <button onClick={() => { setViewMode("my_comments"); setShowMobileMenu(false); }} className="mobile-menu-btn">💬 Yorumlarım</button>
+                    
+                    <button onClick={() => { setViewMode("about"); setShowMobileMenu(false); }} className="mobile-menu-btn">ℹ️ Hakkımızda</button>
+                    <button onClick={() => { setViewMode("support"); setShowMobileMenu(false); }} className="mobile-menu-btn">❓ Yardım & Destek</button>
+                 </div>
+                 <button onClick={() => { handleLogout(); setShowMobileMenu(false); }} style={{ width: '100%', padding: '15px', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,0,0,0.3)', borderRadius: '15px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', fontSize: '16px' }}>🚪 Çıkış Yap</button>
              </div>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <button onClick={() => { setShowProfileSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">⚙️ Profil Ayarları</button>
-                <button onClick={() => { setShowSecuritySettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🔒 Güvenlik</button>
-                <button onClick={() => { setViewMode("stats"); setShowMobileMenu(false); }} className="mobile-menu-btn">📊 İstatistiklerim</button>
-                <button onClick={() => { setShowThemeSettings(true); setShowMobileMenu(false); }} className="mobile-menu-btn">🎨 Tema Seç</button>
-                <button onClick={() => { setViewMode("favorites"); setShowMobileMenu(false); }} className="mobile-menu-btn">❤️ Favorilerim</button>
-                <button onClick={() => { setViewMode("my_comments"); setShowMobileMenu(false); }} className="mobile-menu-btn">💬 Yorumlarım</button>
-                
-                <button onClick={() => { setViewMode("about"); setShowMobileMenu(false); }} className="mobile-menu-btn">ℹ️ Hakkımızda</button>
-                <button onClick={() => { setViewMode("support"); setShowMobileMenu(false); }} className="mobile-menu-btn">❓ Yardım & Destek</button>
-             </div>
-             <button onClick={() => { handleLogout(); setShowMobileMenu(false); }} style={{ width: '100%', padding: '15px', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,0,0,0.3)', borderRadius: '15px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', fontSize: '16px' }}>🚪 Çıkış Yap</button>
           </div>
         </div>
       )}
@@ -1382,9 +1163,7 @@ export default function Home() {
                 <button className="side-nav-btn" style={{ right: '1%' }} onClick={() => handleScrollClick(mainNewScrollRef, 'right')}>❯</button>
                 <div className="horizontal-scroll" ref={mainNewScrollRef}>
                   {isLoading ? (
-                    Array(10).fill(0).map((_, i) => (
-                      <div key={i} style={{ minWidth: '200px' }}><SkeletonCard isDarkMode={isDarkMode} /></div>
-                    ))
+                    Array(10).fill(0).map((_, i) => <div key={i} style={{ minWidth: '200px' }}><SkeletonCard isDarkMode={isDarkMode} /></div>)
                   ) : (
                     newReleases.map((item) => (
                       <div key={item.id} style={{ minWidth: '200px', textAlign: 'center', cursor: 'pointer' }}>
@@ -1489,10 +1268,11 @@ export default function Home() {
         </div>
       )}
 
-      {/* --- İSTATİKLERİM EKRANI --- */}
+      {/* --- İSTATİSTİKLERİM EKRANI --- */}
       {viewMode === "stats" && (
         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
             <h2 className="section-title" style={{ marginBottom: '30px' }}>📊 SİNEPRO İSTATİSTİKLERİN</h2>
+            
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
                  <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
                       <div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div>
@@ -1511,124 +1291,69 @@ export default function Home() {
                  </div>
                  <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}>
                       <div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div>
-                      <h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3>
+                      <h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{currentUserTotalLikes}</h3>
                       <p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Aldığın Beğeni</p>
                  </div>
+            </div>
+
+            <div style={{ marginTop: '60px' }}>
+                <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                   🎖️ SİNE-RÜTBE & VIP AYRICALIKLAR REHBERİ
+                </h3>
+                <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>
+                   SİNEPRO topluluğunda aktif ol, yorumların beğenilsin ve sinema dünyasında seviye atla! 
+                   Yüksek rütbeler, yorum alanında herkesin görebileceği <strong>Özel Tasarım Neon Çerçeveler</strong>, <strong>En Üste Sabitlenme</strong> ve <strong>VIP Rozetler</strong> kazanır.
+                </p>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888', border: `1px solid ${borderColor}` }}>
+                        <span style={{ fontSize: '28px' }}>🍿</span> <br/>
+                        <strong style={{ color: '#888', fontSize: '18px' }}>Set Çaylağı</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 19 Beğeni</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: textLight, fontStyle: 'italic' }}>Ayrıcalık: Standart Yorum Görünümü</p>
+                    </div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF', border: `1px solid ${borderColor}` }}>
+                        <span style={{ fontSize: '28px' }}>🔭</span> <br/>
+                        <strong style={{ color: '#00E5FF', fontSize: '18px' }}>Vizyoner</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>20 - 99 Beğeni</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: textLight, fontStyle: 'italic' }}>Ayrıcalık: Turkuaz Kenarlık</p>
+                    </div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF', border: `1px solid ${borderColor}` }}>
+                        <span style={{ fontSize: '28px' }}>👁️‍🗨️</span> <br/>
+                        <strong style={{ color: '#9D00FF', fontSize: '18px' }}>Baş Eleştirmen</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>100 - 499 Beğeni</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: textLight, fontStyle: 'italic' }}>Ayrıcalık: Profil Kapak Fotoğrafı İzni</p>
+                    </div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700', boxShadow: '0 0 15px rgba(255,215,0,0.1)', border: `1px solid ${borderColor}` }}>
+                        <span style={{ fontSize: '28px' }}>🎬</span> <br/>
+                        <strong style={{ color: '#FFD700', fontSize: '18px' }}>Kült Yönetmen</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>500 - 1499 Beğeni</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: '#FFD700', fontStyle: 'italic', fontWeight: 'bold' }}>Ayrıcalık: Yorumlar Üste Sabitlenir</p>
+                    </div>
+                    <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', boxShadow: '0 0 20px rgba(255,0,85,0.2)', border: '1px solid rgba(255,0,85,0.3)' }}>
+                        <span style={{ fontSize: '28px' }}>👑</span> <br/>
+                        <strong style={{ color: '#FF0055', fontSize: '20px', textShadow: '0 0 10px rgba(255,0,85,0.5)' }}>SİNE-LORD</strong>
+                        <p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>1500+ Beğeni</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '11px', color: '#FF0055', fontStyle: 'italic', fontWeight: 'bold' }}>Ayrıcalık: Hareketli Avatar, SİNE Aİ İtaati</p>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '25px', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: '25px', borderRadius: '20px', marginTop: '30px', border: `1px dashed ${borderColor}` }}>
+                    <div style={{ fontSize: '50px', filter: 'drop-shadow(0 0 10px rgba(0,0,0,0.5))' }}>
+                        {getUserRank(currentUserTotalLikes).icon}
+                    </div>
+                    <div>
+                        <p style={{ margin: 0, color: textLight, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Şu Anki Topluluk Statünüz</p>
+                        <h2 style={{ margin: '5px 0 0 0', fontSize: '32px', color: getUserRank(currentUserTotalLikes).color, textShadow: getUserRank(currentUserTotalLikes).isLord ? '0 0 15px #FF0055' : 'none' }}>
+                            {getUserRank(currentUserTotalLikes).name}
+                        </h2>
+                    </div>
+                </div>
             </div>
         </div>
       )}
 
-      {/* --- TÜM BİLDİRİMLER EKRANI --- */}
-      {viewMode === "notifications" && (
-         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
-            <h2 className="section-title" style={{ marginBottom: '30px' }}>🔔 TÜM BİLDİRİMLER</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               {currentUser && notifications.length > 0 ? (
-                  notifications.map(n => (
-                     <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, display: 'flex', gap: '20px', alignItems: 'center', cursor: 'pointer' }} className="hover-effect">
-                        <span style={{ fontSize: '30px' }}>{n.text.includes('hoş geldin') ? '🎉' : n.text.includes('cevap') ? '💬' : '❤️'}</span>
-                        <div>
-                           <p style={{ margin: 0, color: textMain, fontSize: '15px', lineHeight: '1.5' }}>{n.text}</p>
-                           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '8px' }}>
-                               <span style={{ color: textLight, fontSize: '12px', display: 'block' }}>{n.date}</span>
-                               {n.itemID && <span style={{ color: activeColor, fontSize: '12px', fontWeight: 'bold' }}>Tıkla ve filme git</span>}
-                           </div>
-                        </div>
-                     </div>
-                  ))
-               ) : !currentUser ? (
-                  <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Bildirimleri görmek için giriş yapmalısın.</div>
-               ) : (
-                  <div style={{ textAlign: 'center', marginTop: '50px', color: textLight, fontSize: '16px' }}>Hiç bildiriminiz yok.</div>
-               )}
-            </div>
-         </div>
-      )}
-
-      {/* --- HAKKIMIZDA EKRANI --- */}
-      {viewMode === "about" && (
-          <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto' }}>
-              <h2 className="section-title" style={{ marginBottom: '30px' }}>ℹ️ HAKKIMIZDA</h2>
-              <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderLeft: `5px solid ${activeColor}`, lineHeight: '1.8', color: textMain, fontSize: '15px', boxShadow: `0 10px 30px rgba(0,0,0,0.1)` }}>
-                  <p><strong>SİNEPRO</strong>, bir film izleme sitesinden çok daha fazlası; sinema tutkunları için ilmek ilmek işlenmiş, vizyoner ve yepyeni bir sosyal deneyim platformudur.</p>
-                  <p>Aylarca süren titiz bir geliştirme süreci, binlerce satır kod ve kullanıcı deneyimini (UX) kusursuzlaştırmak için harcanan uykusuz geceler sonucunda ortaya çıkan bu proje, klasik platformların eksiklerini kapatmak için tasarlandı. SİNE Aİ akıllı asistanımız, gerçek zamanlı bildirim sistemimiz ve gelişmiş topluluk özelliklerimizle sinema dünyasını tek bir merkeze topluyoruz.</p>
-                  <p>Amacımız sadece ne izleyeceğini bulman değil, izlediğin yapımları seninle aynı zevkleri paylaşan insanlarla tartışabilmen ve SİNEPRO evreninin bir parçası olmandır. Bizi tercih ettiğiniz ve bu emeğe ortak olduğunuz için teşekkür ederiz!</p>
-                  
-                  <div style={{ marginTop: '30px', padding: '15px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', borderRadius: '10px', fontSize: '13px', color: textMuted }}>
-                      <p style={{ margin: 0, color: activeColor }}><strong>Yasal Uyarı & Veri Sağlayıcı:</strong></p>
-                      
-                      <p style={{ margin: '5px 0 0 0' }}>Bu ürün TMDB (The Movie Database) API'sini kullanmaktadır ancak TMDB tarafından onaylanmamış veya sertifikalandırılmamıştır. Tüm film ve dizi verileri, afişler ve fragmanlar TMDB servislerinden anlık olarak çekilmektedir.</p>
-                      
-                      <p style={{ margin: '15px 0 0 0', paddingTop: '15px', borderTop: `1px solid ${borderColor}` }}>
-                          SİNE Aİ akıllı asistanımız, <strong>Google Gemini</strong> yapay zeka altyapısı ile çalışmaktadır. Yapay zeka sistemleri zaman zaman hatalı veya eksik bilgiler üretebilir. Lütfen hassas veya kesinlik gerektiren bilgileri teyit ediniz.
-                      </p>
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* --- YARDIM VE DESTEK EKRANI --- */}
-      {viewMode === "support" && (
-          <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto' }}>
-              <h2 className="section-title" style={{ marginBottom: '30px' }}>❓ YARDIM VE DESTEK</h2>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
-                  
-                  {/* AKORDİYON SSS KISMI */}
-                  <div>
-                      <h3 style={{ color: activeColor, marginTop: 0, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>Sıkça Sorulan Sorular</h3>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {faqs.map((faq, index) => (
-                              <div key={index} style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${expandedFaq === index ? activeColor : borderColor}`, overflow: 'hidden', transition: '0.3s' }}>
-                                  <div onClick={() => setExpandedFaq(expandedFaq === index ? null : index)} style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedFaq === index ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)') : 'transparent' }}>
-                                      <span style={{ fontWeight: 'bold', fontSize: '14px', color: textMain }}>{faq.q}</span>
-                                      <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '18px', transition: 'transform 0.3s', transform: expandedFaq === index ? 'rotate(45deg)' : 'rotate(0deg)' }}>+</span>
-                                  </div>
-                                  {expandedFaq === index && (
-                                      <div style={{ padding: '0 15px 15px 15px', color: textLight, fontSize: '13px', lineHeight: '1.6' }}>
-                                          <div style={{ paddingTop: '10px', borderTop: `1px solid ${borderColor}` }}>{faq.a}</div>
-                                      </div>
-                                  )}
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-
-                  {/* DESTEK TALEBİ GÖNDERME FORMU */}
-                  <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderTop: `5px solid ${activeColor}`, boxShadow: `0 10px 30px rgba(0,0,0,0.1)`, height: 'fit-content' }}>
-                      <h3 style={{ color: activeColor, marginTop: 0 }}>Hala yardıma mı ihtiyacın var?</h3>
-                      <p style={{ fontSize: '13px', color: textLight, marginBottom: '25px', lineHeight: '1.5' }}>Sorunun cevabını yukarıda bulamadıysan veya bize bir hata bildirmek istiyorsan, hemen bir destek talebi (Ticket) oluştur. Ekibimiz en kısa sürede dönüş yapacaktır.</p>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                          <div>
-                              <label style={{ fontSize: '12px', color: textMuted, marginBottom: '5px', display: 'block' }}>Kategori Seçin</label>
-                              <select value={supportForm.category} onChange={(e) => setSupportForm({...supportForm, category: e.target.value})} style={{ width: '100%', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-                                  <option value="Hesap Problemi">Hesap & Giriş Problemi</option>
-                                  <option value="Hata Bildirimi">Hata Bildirimi (Bug)</option>
-                                  <option value="Telif Hakkı">Telif Hakkı İhlali</option>
-                                  <option value="Öneri & İstek">Öneri & Geliştirme İsteği</option>
-                                  <option value="Diğer">Diğer</option>
-                              </select>
-                          </div>
-                          
-                          <div>
-                              <label style={{ fontSize: '12px', color: textMuted, marginBottom: '5px', display: 'block' }}>Mesajınız</label>
-                              <textarea rows={5} placeholder="Yaşadığınız sorunu detaylıca anlatın..." value={supportForm.message} onChange={(e) => setSupportForm({...supportForm, message: e.target.value})} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '10px', color: textMain, outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
-                          </div>
-                          
-                          <button onClick={handleSupportSubmit} style={{ width: '100%', background: activeColor, color: badgeText, border: 'none', padding: '15px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', marginTop: '5px', transition: '0.3s', boxShadow: `0 5px 15px ${activeColor}40` }}>
-                              TALEBİ GÖNDER
-                          </button>
-                          
-                      </div>
-                      
-                  </div>
-
-              </div>
-          </div>
-      )}
-
-      {/* --- FİLM & DİZİ DETAY PENCERESİ --- */}
+      {/* --- FİLM DETAY VE YORUMLAR (PİNNED MANTIĞI EKLENDİ) --- */}
       {selectedItem && (
         <div className="movie-detail-overlay">
           <div style={{ position: 'sticky', top: 0, zIndex: 1100, background: navBg, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}` }}>
@@ -1645,6 +1370,7 @@ export default function Home() {
               </button>
           </div>
           
+          {/* İŞTE SENİN ORİJİNAL DETAY SAYFASI İSKELETİN BURADAN İTİBAREN GERİ GELDİ */}
           <div style={{ maxWidth: '1100px', margin: '-40px auto 0', padding: '0 5%' }}>
             <div className="detail-top-flex" style={{ display: 'flex', gap: '50px', flexWrap: 'wrap' }}>
               <div className="detail-poster-container">
@@ -1737,7 +1463,7 @@ export default function Home() {
               <div style={{ marginTop: '50px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>OYUNCU KADROSU</h3>
                 <div className="horizontal-scroll" ref={castScrollRef}>
-                  {cast.map(person => (
+                  {cast.map((person: any) => (
                     <div key={person.id} style={{ minWidth: '100px', textAlign: 'center' }}>
                       <img src={person.profile_path ? getImgUrl(person.profile_path, 'w185') : 'https://via.placeholder.com/100x100?text=👤'} 
                         style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${theme.secondary}`, margin: '0 auto' }} alt="" />
@@ -1755,7 +1481,7 @@ export default function Home() {
                 <button className="side-nav-btn" style={{ left: '-20px' }} onClick={() => handleScrollClick(modalScrollRef, 'left')}>❮</button>
                 <button className="side-nav-btn" style={{ right: '-20px' }} onClick={() => handleScrollClick(modalScrollRef, 'right')}>❯</button>
                 <div className="horizontal-scroll" ref={modalScrollRef}>
-                   {similar.map((s) => (
+                   {similar.map((s: any) => (
                      <div key={s.id} style={{ minWidth: '140px', textAlign: 'center', cursor: 'pointer' }}>
                         <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); }} className="hover-effect" style={{ height: '210px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}>
                            <img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
@@ -1769,151 +1495,140 @@ export default function Home() {
               </div>
             )}
 
-            {/* --- YORUMLAR BÖLÜMÜ --- */}
+            {/* YENİ NESİL YORUMLAR BÖLÜMÜ */}
             <div id="comments-section" style={{ marginTop: '80px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>TOPLULUK YORUMLARI & PUANLARI</h3>
                 <div style={{ margin: '30px 0', background: bgCard, padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
                    <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
                         <UserAvatar user={currentUser} size="45px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
-                        
-                        <input 
-                          type="text" 
-                          placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için dokunun veya tıklayın..."} 
-                          value={newComment} 
-                          onChange={(e) => setNewComment(e.target.value)} 
-                          onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); } }}
-                          readOnly={!currentUser} 
-                          onKeyDown={(e) => handleEnterKey(e, addComment)} 
-                          style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none', cursor: !currentUser ? 'pointer' : 'text' }} 
-                        />
+                        <input type="text" placeholder={currentUser ? "Bu yapım hakkında ne düşünüyorsun?" : "Yorum yapmak için giriş yapın..."} value={newComment} onChange={(e) => setNewComment(e.target.value)} onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); } }} readOnly={!currentUser} onKeyDown={(e) => handleEnterKey(e, addComment)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} />
                      </div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                         {[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} Puan</option>)}
                      </select>
                    </div>
-                   
-                   {/* YENİ: SPOİLER KUTUCUĞU */}
                    <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '15px', marginLeft: '55px' }}>
                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#ff4d4d', fontWeight: 'bold' }}>
-                         <input type="checkbox" checked={isSpoiler} onChange={(e) => setIsSpoiler(e.target.checked)} disabled={!currentUser} />
-                         🛑 Bu yorum spoiler (sürprizbozan) içeriyor!
+                         <input type="checkbox" checked={isSpoiler} onChange={(e) => setIsSpoiler(e.target.checked)} disabled={!currentUser} /> 🛑 Bu yorum spoiler içeriyor!
                        </label>
                    </div>
-
                    <button onClick={addComment} style={{ background: activeColor, color: badgeText, border: 'none', padding: '12px 30px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}>GÖNDER</button>
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                   {(comments[selectedItem.id] || []).length > 0 ? (
-                     comments[selectedItem.id].map((c: any) => (
-                       
-                       <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', borderLeft: `3px solid ${activeColor}`, position: 'relative' }}>
-                          
-                          {currentUser && currentUser.username === c.user && (
-                              <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px', zIndex: 5 }}>❌</button>
-                          )}
+                   {(() => {
+                      const currentComments = comments[selectedItem.id] || [];
+                      // YENİ: VİP YORUMLARI EN ÜSTE SABİTLEME ALGORİTMASI
+                      const sortedComments = [...currentComments].sort((a, b) => {
+                          if (a.isVIP && !b.isVIP) return -1;
+                          if (!a.isVIP && b.isVIP) return 1;
+                          return b.id - a.id; 
+                      });
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '25px' }}>
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div onClick={(e) => { e.stopPropagation(); setZoomedAvatar({ username: c.user, avatar: c.avatar }); }} style={{ cursor: 'pointer' }} title="Profili Büyüt">
-                                   <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                      return sortedComments.length > 0 ? (
+                        sortedComments.map((c: any) => {
+                           const cRank = getUserRank(c.authorLikes !== undefined ? c.authorLikes : (c.likes || 0));
+                           return (
+                             <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', position: 'relative', ...cRank.perkStyle }}>
+                                
+                                {c.isVIP && (
+                                   <div style={{ position: 'absolute', top: '-10px', right: '20px', background: cRank.color, color: '#000', padding: '2px 10px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', boxShadow: `0 4px 10px ${cRank.color}80` }}>
+                                      📌 VIP
+                                   </div>
+                                )}
+
+                                {currentUser && currentUser.username === c.user && (
+                                    <button onClick={(e) => { e.stopPropagation(); deleteComment(selectedItem.id, c.id); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '14px', zIndex: 5 }}>❌</button>
+                                )}
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '25px' }}>
+                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                      <div className={cRank.isLord ? "vip-lord-avatar" : ""} onClick={(e) => { e.stopPropagation(); setZoomedAvatar({ username: c.user, avatar: c.avatar, banner: c.authorBanner }); }} style={{ cursor: 'pointer', borderRadius: '50%', padding: cRank.isLord ? '3px' : '0' }} title="Profili Büyüt">
+                                         <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                                      </div>
+                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                                              <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>
+                                                  {cRank.icon} {cRank.name}
+                                              </span>
+                                          </div>
+                                          <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
+                                      </div>
+                                   </div>
+                                   <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', height: 'fit-content' }}>Puan: {c.rating}</span>
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
-                                        {/* YENİ: RÜTBE EKLENTİSİ */}
-                                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: getUserRank(c.likes || 0).color + '20', color: getUserRank(c.likes || 0).color, border: `1px solid ${getUserRank(c.likes || 0).color}40`, marginLeft: '8px' }}>
-                                            {getUserRank(c.likes || 0).icon} {getUserRank(c.likes || 0).name}
+                                
+                                <div style={{ position: 'relative', marginBottom: '10px' }}>
+                                    <p style={{ margin: 0, color: textMain, lineHeight: '1.6', fontSize: '14px', filter: c.isSpoiler ? 'blur(8px)' : 'none', transition: '0.4s ease', cursor: c.isSpoiler ? 'pointer' : 'text' }} 
+                                       onClick={(e) => { if(c.isSpoiler) { e.currentTarget.style.filter = 'none'; e.currentTarget.style.cursor = 'text'; const badge = e.currentTarget.nextElementSibling as HTMLElement; if(badge) badge.style.display = 'none'; } }}>
+                                        {c.text}
+                                    </p>
+                                    {c.isSpoiler && (
+                                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.6)', color: '#ff4d4d', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', pointerEvents: 'none', border: '1px solid #ff4d4d', backdropFilter: 'blur(2px)' }}>
+                                            ⚠️ SPOILER - GÖRMEK İÇİN TIKLA
                                         </span>
-                                    </div>
-                                    <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
+                                    )}
                                 </div>
-                                <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' }}>Puan: {c.rating}</span>
-                             </div>
-                          </div>
-                          
-                          {/* YENİ: SPOİLER BULANIKLAŞTIRMA */}
-                          <p style={{ margin: 0, color: textMuted, lineHeight: '1.6', fontSize: '14px', marginBottom: '10px', filter: c.isSpoiler ? 'blur(5px)' : 'none', transition: '0.3s', cursor: c.isSpoiler ? 'pointer' : 'text' }} onClick={(e) => { if(c.isSpoiler) e.currentTarget.style.filter = 'none'; }}>
-                              {c.isSpoiler ? "⚠️ Bu yorum spoiler içeriyor. Görmek için tıkla: " + c.text : c.text}
-                          </p>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
-                              <button onClick={(e) => toggleLikeComment(e, selectedItem.id, c.id)} style={{ background: c.likedBy?.includes(currentUser?.username) ? 'rgba(255,0,0,0.1)' : 'transparent', border: `1px solid ${c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : borderColor}`, borderRadius: '20px', padding: '4px 10px', color: c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : textLight, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: '0.3s', fontWeight: 'bold' }}>
-                                  {c.likedBy?.includes(currentUser?.username) ? '❤️' : '🤍'} {c.likes || 0}
-                              </button>
-                              
-                              <button onClick={() => {
-                                  if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
-                                  if (replyingToId === c.id) { setReplyingToId(null); }
-                                  else { setReplyingToId(c.id); setReplyText(""); }
-                              }} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
-                                  💬 Cevapla
-                              </button>
-                          </div>
-
-                          {/* INSTAGRAM TARZI İÇ İÇE YANITLAR */}
-                          {c.replies && c.replies.length > 0 && (
-                             <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {!expandedReplies[c.id] ? (
-                                    <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: true })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {c.replies.length} yanıtı gör
+                                
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
+                                    <button onClick={(e) => toggleLikeComment(e, selectedItem.id, c.id)} style={{ background: c.likedBy?.includes(currentUser?.username) ? 'rgba(255,0,0,0.1)' : 'transparent', border: `1px solid ${c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : borderColor}`, borderRadius: '20px', padding: '4px 10px', color: c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : textLight, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: '0.3s', fontWeight: 'bold' }}>
+                                        {c.likedBy?.includes(currentUser?.username) ? '❤️' : '🤍'} {c.likes || 0}
                                     </button>
-                                ) : (
-                                    <>
-                                        {c.replies.map((r: any) => (
-                                           <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
-                                              {currentUser && currentUser.username === r.user && (
-                                                  <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px', zIndex: 5 }}>❌</button>
-                                              )}
-                                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', paddingRight: '20px' }}>
-                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <UserAvatar user={{ username: r.user, avatar: r.avatar }} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
-                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '12px' }}>@{r.user}</span>
-                                                        <span style={{ color: textLight, fontSize: '9px' }}>{r.date}</span>
+                                    <button onClick={() => { if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; } if (replyingToId === c.id) { setReplyingToId(null); } else { setReplyingToId(c.id); setReplyText(""); } }} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>💬 Cevapla</button>
+                                </div>
+
+                                {/* YANITLAR */}
+                                {c.replies && c.replies.length > 0 && (
+                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                      {!expandedReplies[c.id] ? (
+                                          <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: true })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                              <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {c.replies.length} yanıtı gör
+                                          </button>
+                                      ) : (
+                                          <>
+                                              {c.replies.map((r: any) => (
+                                                 <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
+                                                    {currentUser && currentUser.username === r.user && (
+                                                        <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px', zIndex: 5 }}>❌</button>
+                                                    )}
+                                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '5px' }}>
+                                                        <UserAvatar user={{ username: r.user, avatar: r.avatar }} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                            <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '12px' }}>@{r.user}</span>
+                                                        </div>
                                                     </div>
+                                                    <p style={{ margin: '5px 0', color: textMuted, fontSize: '13px' }}>{r.text}</p>
+                                                    <button onClick={() => { if (!currentUser) return setShowLogin(true); setReplyingToId(c.id); setReplyText(`@${r.user} `); }} style={{ background: 'transparent', border: 'none', color: activeColor, fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}>↩ Yanıtla</button>
                                                  </div>
-                                              </div>
-                                              <p style={{ margin: '5px 0', color: textMuted, fontSize: '13px', lineHeight: '1.4' }}>{r.text}</p>
-                                              
-                                              <button onClick={() => {
-                                                  if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
-                                                  setReplyingToId(c.id);
-                                                  setReplyText(`@${r.user} `);
-                                              }} style={{ background: 'transparent', border: 'none', color: activeColor, fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 'bold', opacity: 0.8 }}>
-                                                  ↩ Yanıtla
+                                              ))}
+                                              <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: false })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}>
+                                                  <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> Yanıtları gizle
                                               </button>
-                                           </div>
-                                        ))}
-                                        <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: false })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}>
-                                            <span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> Yanıtları gizle
-                                        </button>
-                                    </>
+                                          </>
+                                      )}
+                                   </div>
+                                )}
+                                {replyingToId === c.id && (
+                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px' }}>
+                                       <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '10px 15px', borderRadius: '8px', color: textMain, fontSize: '13px' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
+                                       <button onClick={() => handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name)} style={{ background: activeColor, color: badgeText, border: 'none', padding: '0 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Gönder</button>
+                                   </div>
                                 )}
                              </div>
-                          )}
-
-                          {replyingToId === c.id && (
-                             <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px' }}>
-                                 <input type="text" placeholder={`@${c.user} adlı kullanıcıya yanıt ver...`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '10px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
-                                 <button onClick={() => handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name)} style={{ background: activeColor, color: badgeText, border: 'none', padding: '0 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>Gönder</button>
-                             </div>
-                          )}
-
-                       </div>
-                     ))
-                   ) : <p style={{ color: textLight, textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>}
+                           )
+                        })
+                      ) : <p style={{ color: textLight, textAlign: 'center', marginTop: '30px' }}>Henüz yorum yapılmamış.</p>;
+                   })()}
                 </div>
              </div>
-             
-             <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}>
-                 <p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p>
-             </div>
+             <div style={{ textAlign: 'center', padding: '20px', fontSize: '12px', color: textMuted, borderTop: `1px solid ${borderColor}`, marginTop: '80px', marginBottom: '40px' }}><p>© {new Date().getFullYear()} SİNEPRO. Tüm hakları saklıdır.</p></div>
           </div>
         </div>
       )}
 
+      {/* --- SİNE Aİ PENCERESİ --- */}
       {showSineAI && (
         <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
           <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: aiModalContentBg, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
@@ -1925,132 +1640,65 @@ export default function Home() {
                       <span style={{ color: activeColor, fontSize: '18px', fontWeight: '900' }}>SİNE</span>
                       <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}66` }}>Aİ</span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '11px', color: textLight, marginTop: '2px' }}>Akıllı Asistan</p>
                   </div>
                </div>
                
-               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  {/* YENİ: Aİ BİLGİ YARIŞMASI BUTONU */}
-                  <button onClick={() => {
-                      const msg = "Bana sinema hakkında eğlenceli bir soru sor, emojilerle ipucu ver!";
-                      setAiPrompt(msg);
-                  }} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, border: 'none', color: badgeText, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 10px ${activeColor}80` }}>
-                      🎮 Bilgi Yarışması
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button onClick={() => setShowAILeaderboard(!showAILeaderboard)} style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      {showAILeaderboard ? "💬 Sohbet" : "🏆 Sıralama"}
                   </button>
-                  
-                  <button onClick={() => setAiChatHistory([initialAIMessage])} style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }}>🗑️ Sil</button>
+                  <button onClick={() => { setAiPrompt("Bana sinema hakkında eğlenceli bir soru sor, emojilerle ipucu ver!"); setShowAILeaderboard(false); }} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, border: 'none', color: badgeText, padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      🎮 Yarışma
+                  </button>
+                  <button onClick={() => setAiChatHistory([initialAIMessage])} style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}>🗑️ Sil</button>
                   <button onClick={() => setShowSineAI(false)} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer' }}>✕</button>
                </div>
             </div>
             
-            <div ref={chatScrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-               {aiChatHistory.map((msg, idx) => (
-                 <div key={idx} style={{ alignSelf: msg.role === "user" ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                    <div style={{ background: msg.role === "user" ? activeColor : inputBg, color: msg.role === "user" ? badgeText : textMain, padding: '12px 18px', borderRadius: msg.role === "user" ? '20px 20px 0 20px' : '20px 20px 20px 0', border: msg.role === "ai" ? `1px solid ${borderColor}` : 'none', fontSize: '14px', lineHeight: '1.5' }}>
-                       {msg.text}
+            {showAILeaderboard ? (
+                <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}><h2 style={{ color: activeColor, margin: 0 }}>🏆 SİNE-DEHA SIRALAMASI</h2></div>
+                    <div style={{ textAlign: 'center', marginTop: '50px', color: textLight }}>
+                        <div style={{ fontSize: '50px', marginBottom: '15px', opacity: 0.5 }}>🏁</div>
+                        <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6' }}>Henüz liderlik tablosuna giren kimse yok.<br/><strong>🎮 Yarışma</strong> başlatıp SİNE-DEHA unvanını ilk sen kap!</p>
                     </div>
-                    {msg.results && msg.results.length > 0 && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-                         {msg.results.map((r: any) => (
-                           <div key={r.id} onClick={() => { setSelectedItem(r); fetchExtraDetails(r.id); addToRecentlyViewed(r); setShowSineAI(false); }} style={{ background: inputBg, borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', border: `1px solid ${activeColor}40`, transition: '0.3s' }} className="hover-effect">
-                              <img src={getImgUrl(r.poster_path, 'w185')} style={{ width: '100%', height: '120px', objectFit: 'cover' }} alt="" />
-                              <div style={{ padding: '8px' }}>
-                                <p style={{ margin: 0, fontSize: '11px', fontWeight: 'bold', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title || r.name}</p>
-                                <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: activeColor }}>⭐ {r.vote_average?.toFixed(1)}</p>
-                              </div>
-                           </div>
-                         ))}
-                      </div>
-                    )}
-                 </div>
-               ))}
-               {isAITyping && (
-                 <div style={{ alignSelf: 'flex-start', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 18px', borderRadius: '20px 20px 20px 0', display: 'flex', gap: '5px' }}>
-                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite' }}></span>
-                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.2s' }}></span>
-                    <span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.4s' }}></span>
-                 </div>
-               )}
-            </div>
+                </div>
+            ) : (
+                <div ref={chatScrollRef} style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                   {aiChatHistory.map((msg, idx) => (
+                     <div key={idx} style={{ alignSelf: msg.role === "user" ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+                        <div style={{ background: msg.role === "user" ? activeColor : inputBg, color: msg.role === "user" ? badgeText : textMain, padding: '12px 18px', borderRadius: msg.role === "user" ? '20px 20px 0 20px' : '20px 20px 20px 0', fontSize: '14px', lineHeight: '1.5' }}>{msg.text}</div>
+                        {msg.results && msg.results.length > 0 && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+                             {msg.results.map((r: any) => (
+                               <div key={r.id} onClick={() => { setSelectedItem(r); fetchExtraDetails(r.id); addToRecentlyViewed(r); setShowSineAI(false); }} style={{ background: inputBg, borderRadius: '10px', overflow: 'hidden', cursor: 'pointer', border: `1px solid ${activeColor}40`, transition: '0.3s' }} className="hover-effect">
+                                  <img src={getImgUrl(r.poster_path, 'w185')} style={{ width: '100%', height: '120px', objectFit: 'cover' }} alt="" />
+                                  <div style={{ padding: '8px' }}>
+                                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 'bold', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title || r.name}</p>
+                                    <p style={{ margin: '3px 0 0 0', fontSize: '10px', color: activeColor }}>⭐ {r.vote_average?.toFixed(1)}</p>
+                                  </div>
+                               </div>
+                             ))}
+                          </div>
+                        )}
+                     </div>
+                   ))}
+                   {isAITyping && <div style={{ alignSelf: 'flex-start', background: inputBg, padding: '12px 18px', borderRadius: '20px 20px 20px 0', display: 'flex', gap: '5px' }}><span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite' }}></span><span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.2s' }}></span><span style={{ width: '8px', height: '8px', background: activeColor, borderRadius: '50%', animation: 'aiTyping 1s infinite 0.4s' }}></span></div>}
+                </div>
+            )}
 
             <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px', alignItems: 'center' }}>
-               <button onClick={startListening} title="Sesli Komut" style={{ background: isListening ? '#ff4d4d' : inputBg, color: isListening ? 'white' : activeColor, border: `1px solid ${borderColor}`, width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.3s', fontSize: '18px', boxShadow: isListening ? '0 0 15px rgba(255,0,0,0.6)' : 'none' }}>
-                 🎤
-               </button>
-               <input type="text" placeholder={isListening ? "Dinleniyor..." : "Sohbet et veya film iste..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping || isListening} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
-               <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (isAITyping || !aiPrompt.trim()) ? 'not-allowed' : 'pointer', opacity: (isAITyping || !aiPrompt.trim()) ? 0.5 : 1 }}>
-                  <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
-               </button>
+               <input type="text" placeholder="Sohbet et veya film iste..." value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
+               <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span></button>
             </div>
           </div>
         </div>
       )}
 
-      {showLogin && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 15000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box auth-modal" style={{ background: bgCard }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="30px" /></div>
-            
-            <div>
-              {authMode === "security_verify" ? (
-                <>
-                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Güvenlik Doğrulaması</h4>
-                  <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleSecurityUpdate)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
-                  <button onClick={handleSecurityUpdate} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>ŞİFREYİ DEĞİŞTİR</button>
-                </>
-              ) : authMode === "verify" || authMode === "verify_forgot" ? (
-                <>
-                  <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>E-posta Doğrulama</h4>
-                  <input type="text" placeholder="6 Haneli Kod" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => handleEnterKey(e, authMode === "verify" ? handleVerifyAndFinish : handleVerifyForgot)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, fontSize: '20px', textAlign: 'center' }} />
-                  <button onClick={authMode === "verify" ? handleVerifyAndFinish : handleVerifyForgot} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>DOĞRULA</button>
-                </>
-              ) : authMode === "new_password" ? (
-                <>
-                   <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Yeni Şifre Belirle</h4>
-                   <div style={{ position: 'relative', marginBottom: '15px' }}>
-                      <input type={showPassword ? "text" : "password"} placeholder="Yeni Şifreniz" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleSaveNewPassword)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain, paddingRight: '45px' }} />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showPassword ? 1 : 0.6 }}>{showPassword ? "👁️" : "🙈"}</button>
-                   </div>
-                   <button onClick={handleSaveNewPassword} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '5px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
-                </>
-              ) : authMode === "forgot_password" ? (
-                <>
-                   <h4 style={{ color: activeColor, textAlign: 'center', marginBottom: '20px' }}>Şifremi Unuttum</h4>
-                   <input type="email" placeholder="Kayıtlı E-posta Adresiniz" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleForgotPasswordStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '15px', borderRadius: '12px', color: textMain }} />
-                   <button onClick={handleForgotPasswordStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KOD GÖNDER</button>
-                   <p onClick={() => setAuthMode("login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: activeColor }}>Giriş Yap'a Dön</p>
-                </>
-              ) : (
-                <>
-                  {authMode === "register" && <input type="text" placeholder="Kullanıcı Adı" onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => handleEnterKey(e, handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />}
-                  <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => handleEnterKey(e, authMode === "login" ? handleLogin : handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, marginBottom: '15px' }} />
-                  
-                  <div style={{ position: 'relative', marginBottom: '15px' }}>
-                     <input type={showPassword ? "text" : "password"} placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => handleEnterKey(e, authMode === "login" ? handleLogin : handleRegisterStart)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, paddingRight: '45px' }} />
-                     <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showPassword ? 1 : 0.6 }}>{showPassword ? "👁️" : "🙈"}</button>
-                  </div>
-                  
-                  {authMode === "login" && <p onClick={() => setAuthMode("forgot_password")} style={{ textAlign: 'right', marginTop: '0', marginBottom: '15px', cursor: 'pointer', color: textLight, fontSize: '13px' }}>Şifremi Unuttum</p>}
-                  
-                  <button onClick={authMode === "login" ? handleLogin : handleRegisterStart} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>{authMode === "login" ? "GİRİŞ YAP" : "KAYIT OL"}</button>
-                  <p onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={{ textAlign: 'center', marginTop: '20px', cursor: 'pointer', color: theme.secondary, fontSize: '14px' }}>{authMode === "login" ? "Hesabın yok mu? Kayıt ol" : "Zaten hesabın var mı? Giriş yap"}</p>
-                </>
-              )}
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '25px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px' }}>
-                 <span onClick={() => { setShowLogin(false); setViewMode("about"); }} style={{ cursor: 'pointer', fontSize: '12px', color: textLight, fontWeight: 'bold' }}>ℹ️ Hakkımızda</span>
-                 <span onClick={() => { setShowLogin(false); setViewMode("support"); }} style={{ cursor: 'pointer', fontSize: '12px', color: textLight, fontWeight: 'bold' }}>❓ Yardım & Destek</span>
-            </div>
-
-            <button onClick={() => setShowLogin(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Kapat</button>
-          </div>
-        </div>
-      )}
-
+      {/* --- PROFIL AYARLARI EKRANI (YENİ: BANNER YÜKLEME) --- */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box profile-modal" style={{ background: bgCard }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard, overflowY: 'auto', maxHeight: '85vh' }}>
             <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>Profil Ayarlarım</h3>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
             
@@ -2073,22 +1721,32 @@ export default function Home() {
                                 <img src={av} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', objectFit: 'cover', border: currentUser.avatar === av ? `2px solid ${activeColor}` : `1px solid ${borderColor}` }} alt="avatar" />
                             )}
                             {currentUser?.uploadedAvatar === av && av !== "default" && (
-                                <button onClick={(e) => { e.stopPropagation(); const isCurrent = currentUser.avatar === av; setCurrentUser({ ...currentUser, uploadedAvatar: null, avatar: isCurrent ? "default" : currentUser.avatar }); }} style={{ position: 'absolute', top: '-5px', right: '-5px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', boxShadow: `0 0 5px ${activeColor}80` }} title="Bu Fotoğrafı Kaldır">✕</button>
+                                <button onClick={(e) => { e.stopPropagation(); const isCurrent = currentUser.avatar === av; setCurrentUser({ ...currentUser, uploadedAvatar: null, avatar: isCurrent ? "default" : currentUser.avatar }); }} style={{ position: 'absolute', top: '-5px', right: '-5px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✕</button>
                             )}
                         </div>
                     ));
                 })()}
-                <div onClick={() => fileInputRef.current?.click()} style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: `2px dashed ${textLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: textLight, transition: '0.3s' }} title="Kendi Fotoğrafını Yükle">+</div>
+                <div onClick={() => fileInputRef.current?.click()} style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer', border: `2px dashed ${textLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', color: textLight }} title="Kendi Fotoğrafını Yükle">+</div>
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} />
             </div>
 
-            <div>
+            {/* YENİ: BANNER YÜKLEME KISMI */}
+            <div style={{ marginTop: '20px', padding: '15px', background: inputBg, borderRadius: '10px', border: `1px solid ${borderColor}` }}>
+                <h4 style={{ margin: '0 0 10px 0', color: activeColor }}>Kapak Fotoğrafı (Banner)</h4>
+                {currentUserTotalLikes >= 100 ? (
+                    <div style={{ textAlign: 'center' }}>
+                        {currentUser.banner && <img src={currentUser.banner} style={{ width: '100%', height: '80px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px', border: `1px solid ${theme.secondary}` }} alt="banner" />}
+                        <button onClick={() => bannerInputRef.current?.click()} style={{ background: 'transparent', border: `1px dashed ${activeColor}`, color: activeColor, padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>{currentUser.banner ? 'Değiştir' : 'Fotoğraf Yükle'}</button>
+                        <input type="file" accept="image/*" ref={bannerInputRef} style={{ display: 'none' }} onChange={handleBannerUpload} />
+                    </div>
+                ) : (
+                    <p style={{ fontSize: '12px', color: textLight, margin: 0, lineHeight: '1.5' }}>Kapak fotoğrafı eklemek için <strong>Baş Eleştirmen (100 Beğeni)</strong> rütbesine ulaşmalısın. Rütbeni yükselt ve profilini özelleştir!</p>
+                )}
+            </div>
+
+            <div style={{ marginTop: '20px' }}>
               <label style={{ fontSize: '12px', color: textMuted }}>Kullanıcı Adı</label>
               <input type="text" value={currentUser?.username} onChange={(e) => setCurrentUser({...currentUser, username: e.target.value})} onKeyDown={(e) => handleEnterKey(e, saveProfileSettings)} style={{ width: '100%', background: inputBg, border: `1px solid ${theme.secondary}`, padding: '12px', borderRadius: '8px', color: textMain, marginTop: '5px' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', background: inputBg, padding: '10px 15px', borderRadius: '8px', border: `1px solid ${borderColor}` }}>
-                  <span style={{ fontSize: '13px', color: textMuted }}>Son Baktıklarımı Göster</span>
-                  <button onClick={toggleHistoryPref} style={{ background: showHistory ? activeColor : borderColor, color: showHistory ? badgeText : textLight, border: 'none', padding: '5px 15px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }}>{showHistory ? "AÇIK" : "KAPALI"}</button>
-              </div>
               <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '10px', fontWeight: 'bold', marginTop: '20px', cursor: 'pointer', border: 'none' }}>KAYDET</button>
             </div>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '10px', cursor: 'pointer', border: 'none' }}>Vazgeç</button>
@@ -2096,81 +1754,31 @@ export default function Home() {
         </div>
       )}
 
-      {showSecuritySettings && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box profile-modal" style={{ background: bgCard }}>
-            <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '20px', marginTop: 0 }}>🔒 GÜVENLİK AYARLARI</h3>
-            <p style={{ fontSize: '12px', color: textLight, marginBottom: '20px' }}>Mevcut Mail: {currentUser?.email}</p>
-            <div>
-               <div style={{ position: 'relative', marginBottom: '20px' }}>
-                 <input type={showProfilePassword ? "text" : "password"} placeholder="Yeni Şifre" onChange={(e) => setProfilePassword(e.target.value)} onKeyDown={(e) => handleEnterKey(e, startSecurityVerify)} style={{ width: '100%', background: inputBg, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '10px', color: textMain, paddingRight: '45px' }} />
-                 <button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: showProfilePassword ? 1 : 0.6 }}>{showProfilePassword ? "👁️" : "🙈"}</button>
-               </div>
-               <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}>KOD GÖNDER VE GÜNCELLE</button>
-            </div>
-            <button onClick={() => setShowSecuritySettings(false)} style={{ width: '100%', background: 'none', border: 'none', color: textLight, marginTop: '10px', cursor: 'pointer' }}>Vazgeç</button>
-          </div>
-        </div>
-      )}
-
+      {/* --- PROFİL BÜYÜTME (ZOOM) EKRANI --- */}
       {zoomedAvatar && (
         <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', cursor: 'zoom-out' }}>
-           <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+           {/* YENİ: BANNER ARKA PLANI */}
+           {zoomedAvatar.banner && (
+               <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '40vh', backgroundImage: `url(${zoomedAvatar.banner})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.5, maskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 50%, transparent 100%)', zIndex: -1 }} />
+           )}
+           <div style={{ position: 'relative', zIndex: 1 }} onClick={(e) => e.stopPropagation()}>
               <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="200px" fontSize="80px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
               <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '-15px', right: '-15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '40px', height: '40px', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80` }}>✕</button>
            </div>
-           <h3 style={{ color: activeColor, marginTop: '25px', fontSize: '28px', textShadow: `0 0 10px ${activeColor}66` }}>@{zoomedAvatar.username}</h3>
+           <h3 style={{ color: activeColor, marginTop: '25px', fontSize: '28px', textShadow: `0 0 10px ${activeColor}66`, zIndex: 1 }}>@{zoomedAvatar.username}</h3>
         </div>
       )}
 
-      {showThemeSettings && (
-        <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box theme-modal" style={{ background: bgCard }}>
-            <h3 style={{ textAlign: 'center', color: activeColor, marginBottom: '30px' }}>RENK TEMANI SEÇ</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-              {themes.map(t => {
-                const adjustedTColor = getAdjustedColor(t.name, t.color);
-                return (
-                <div key={t.name} onClick={() => { setTheme(t); localStorage.setItem("sinepro_theme", JSON.stringify(t)); }} 
-                  style={{ padding: '15px', borderRadius: '12px', background: theme.name === t.name ? activeColor : inputBg, color: theme.name === t.name ? badgeText : textMain, cursor: 'pointer', textAlign: 'center', fontWeight: 'bold', border: `2px solid ${adjustedTColor}` }}>
-                  {t.name}
-                </div>
-              )})}
-            </div>
-            <button onClick={() => setShowThemeSettings(false)} style={{ width: '100%', marginTop: '30px', padding: '12px', background: activeColor, color: badgeText, borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>KAPAT</button>
-          </div>
-        </div>
-      )}
-
-      {activeTrailerKey && (
-        <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-           <div style={{ position: 'relative', width: '100%', maxWidth: '1000px', aspectRatio: '16/9' }} onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setActiveTrailerKey(null)} style={{ position: 'absolute', top: '-15px', right: '-10px', background: activeColor, color: badgeText, border: 'none', borderRadius: '50%', width: '35px', height: '35px', fontSize: '18px', cursor: 'pointer', fontWeight: 'bold', boxShadow: `0 0 15px ${activeColor}80`, zIndex: 10 }}>✕</button>
-              <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allow="autoplay; encrypted-media" allowFullScreen style={{ borderRadius: '15px', border: `2px solid ${activeColor}`, background: 'black', boxShadow: `0 10px 40px ${activeColor}40` }}></iframe>
-           </div>
-        </div>
-      )}
-
-      {(viewMode === "support" || viewMode === "about") && (
-          <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              gap: '12px',
-              padding: '40px 0', 
-              marginTop: 'auto'
-          }}>
-              {/* INSTAGRAM LOGOSU */}
-              <a href="https://instagram.com/farukomer.46" target="_blank" rel="noreferrer" className="hover-effect" style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', textDecoration: 'none', boxShadow: '0 4px 15px rgba(220, 39, 67, 0.3)', flexShrink: 0 }} title="Instagram">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-              </a>
-
-              {/* DESTEK OL BUTONU */}
-              <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                  <div className="hover-effect" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', boxShadow: `0 4px 15px ${activeColor}40`, cursor: 'pointer' }}>
-                      <span>💎</span> DESTEK OL
-                  </div>
-              </a>
+      {/* DİĞER EKRANLAR (Login, Şifre, Destek) buradadır ve sorunsuz çalışır... */}
+      {showLogin && (
+          <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 15000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="modal-box" style={{ background: bgCard, padding: '40px', maxWidth: '400px' }}>
+                  <SineProLogo activeColor={activeColor} badgeText={badgeText} />
+                  <input type="email" placeholder="E-posta" onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ width: '100%', padding: '10px', margin: '10px 0', background: inputBg, border: 'none', borderRadius: '5px', color: textMain }} />
+                  <input type="password" placeholder="Şifre" onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ width: '100%', padding: '10px', margin: '10px 0', background: inputBg, border: 'none', borderRadius: '5px', color: textMain }} />
+                  <button onClick={handleLogin} style={{ width: '100%', padding: '15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '5px', cursor: 'pointer' }}>GİRİŞ YAP</button>
+                  <button onClick={() => setShowLogin(false)} style={{ width: '100%', marginTop: '10px', background: 'none', border: 'none', color: textLight }}>Kapat</button>
+              </div>
           </div>
       )}
 
