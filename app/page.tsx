@@ -116,7 +116,7 @@ export default function Home() {
   const [aiChatHistory, setAiChatHistory] = useState<any[]>([initialAIMessage]);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
-
+const [showCommentBox, setShowCommentBox] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "", username: "" });
   const [verificationCode, setVerificationCode] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
@@ -219,6 +219,26 @@ export default function Home() {
       } else {
           await updateDoc(postRef, { likes: arrayUnion(currentUser.username) });
       }
+  };
+  const handleDeleteComment = async (postId: string, commentToDelete: any) => {
+    if (!selectedPost) return;
+
+    // 1. Ekranı (Arayüzü) anında güncelle
+    const updatedComments = selectedPost.comments.filter((c: any) => 
+      // Hem kullanıcı adı hem de metin eşleşiyorsa o yorumu listeden çıkar
+      !(c.username === commentToDelete.username && c.text === commentToDelete.text)
+    );
+    
+    setSelectedPost({ ...selectedPost, comments: updatedComments });
+
+    // 2. Veritabanında (Firestore) kalıcı olarak güncelle
+    try {
+      const postRef = doc(db, "posts", postId);
+      await setDoc(postRef, { comments: updatedComments }, { merge: true });
+    } catch (error) {
+      console.error("Yorum silinirken hata oluştu:", error);
+      alert("Yorum silinemedi, lütfen tekrar deneyin.");
+    }
   };
 
 
@@ -564,26 +584,69 @@ export default function Home() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode, showSocialPanel]);
 
+  
+  
+  
   // --- EYLEM (ACTION) FONKSİYONLARI ---
   const sendGlobalMessage = async () => {
     if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!newGlobalMessage.trim() && !globalMessageImage) return;
 
+    const mesajMetni = newGlobalMessage.trim(); // Bildirimde kullanmak için mesajı yedekledik
+
     try {
+      // 1. MESAJI KÜRESEL SOHBETE KAYDET
       await addDoc(collection(db, "global_chat"), {
         user: currentUser.username,
         avatar: currentUser.avatar || "default",
-        text: newGlobalMessage.trim(),
+        text: mesajMetni,
         image: globalMessageImage,
         likes: [], 
         date: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         fullDate: new Date().toLocaleDateString('tr-TR'),
         createdAt: serverTimestamp(),
       });
+
+      // =========================================================
+      // 2. BİLDİRİM DEDEKTÖRÜ (RADAR DEVREYE GİRİYOR)
+      // =========================================================
+      const mentionRegex = /@(\w+)/g;
+      let match;
+      const mentionedUsers = new Set();
+      
+      // Mesajın içinde @ ile başlayan kelimeleri arar
+      while ((match = mentionRegex.exec(mesajMetni)) !== null) {
+          mentionedUsers.add(match[1]); 
+      }
+
+      // Bulduğu her ismin veritabanına "Seni etiketlediler" bildirimi bırakır
+      mentionedUsers.forEach(async (etiketlenenKisi) => {
+          if (etiketlenenKisi !== currentUser.username) { // İnsan kendine bildirim atamasın :)
+              try {
+                  await addDoc(collection(db, "notifications"), {
+                      recipient: etiketlenenKisi, 
+                      sender: currentUser.username, 
+                      type: "mention",
+                      text: mesajMetni, 
+                      read: false,
+                      date: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+                      timestamp: new Date().getTime()
+                  });
+              } catch (error) {
+                  console.error("Bildirim atılamadı:", error);
+              }
+          }
+      });
+      // =========================================================
+
+      // 3. EKRANI TEMİZLE
       setNewGlobalMessage("");
       setGlobalMessageImage(null);
       triggerHaptic();
-    } catch (error) { console.error("Gönderme hatası:", error); alert("Mesaj gönderilemedi!"); }
+    } catch (error) { 
+        console.error("Gönderme hatası:", error); 
+        alert("Mesaj gönderilemedi!"); 
+    }
   };
 
   const handleGlobalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -618,6 +681,7 @@ export default function Home() {
     reader.readAsDataURL(file);
     e.target.value = ''; 
   };
+  
 
   const handleGlobalLike = async (msgId: string, currentLikes: string[] = []) => {
      if (!currentUser) return alert("Beğenmek için giriş yapmalısın!");
@@ -918,22 +982,60 @@ const startAITrivia = async () => {
     } catch (error) { alert("Yorum gönderilemedi!"); }
   };
 
-  const saveProfileSettings = async () => {
-    if (!currentUser.username.trim()) return alert("Kullanıcı adı boş olamaz!");
-    const updatedUser = { ...currentUser, username: currentUser.username.trim(), bio: currentUser.bio };
-    if (updatedUser.uid) {
-        try {
-            await setDoc(doc(db, "users", updatedUser.uid), {
-                username: updatedUser.username, avatar: updatedUser.avatar || "default", email: updatedUser.email, banner: updatedUser.banner || null, bio: updatedUser.bio || ""
-            }, { merge: true });
-        } catch (error) {}
-    }
-    const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-    const updatedUsers = users.map((u: any) => u.email === currentUser.email ? updatedUser : u);
-    localStorage.setItem("sinepro_database_users", JSON.stringify(updatedUsers));
-    setCurrentUser(updatedUser); setShowProfileSettings(false); alert("Profil güncellendi!");
-  };
+ const saveProfileSettings = async () => {
+      if (!currentUser?.username?.trim()) return alert("Kullanıcı adı boş olamaz!");
+      
+      const updatedUser = { ...currentUser, username: currentUser.username.trim(), bio: currentUser.bio };
+      
+      if (updatedUser.uid) {
+          try {
+              // Veritabanına kaydetme işlemi (Senin orijinal ve doğru kodun)
+              await setDoc(doc(db, "users", updatedUser.uid), {
+                  username: updatedUser.username, 
+                  avatar: updatedUser.avatar || "default", 
+                  email: updatedUser.email, 
+                  banner: updatedUser.banner || null, 
+                  bio: updatedUser.bio || ""
+              }, { merge: true });
+   // --- V4 KESKİN NİŞANCI AVATAR GÜNCELLEME ROBOTU ---
+    try {
+        console.log("🕵️‍♂️ Robot doğru hedefle yola çıktı...");
+        const chatRef = collection(db, "global_chat");
+        
+        // İŞTE SİHİRLİ DOKUNUŞ: "username" kelimesini "user" yaptık!
+        const q = query(chatRef, where("user", "==", currentUser.username));
+        const querySnapshot = await getDocs(q);
+        
+        console.log(`🎯 Robot tam ${querySnapshot.size} adet eski mesajını buldu!`);
+        
+        if (querySnapshot.size > 0) {
+            const yeniAvatar = currentUser.uploadedAvatar || currentUser.avatar || "default";
 
+            const updatePromises = querySnapshot.docs.map((chatDocument) => {
+                return updateDoc(doc(db, "global_chat", chatDocument.id), {
+                    avatar: yeniAvatar
+                });
+            });
+            
+            await Promise.all(updatePromises);
+            console.log("✅ Görev Başarılı! Tüm küresel mesajlarındaki avatarlar güncellendi.");
+        } else {
+            console.log("⚠️ Değiştirilecek eski mesaj bulunamadı.");
+        }
+    } catch (error) {
+        console.error("❌ Robot kaza yaptı:", error);
+    }
+    // -------------------------------------------------------------
+              // Kayıt başarılı olunca çalışacak kısım (Bizim eklediğimiz)
+              alert("Profil ayarların başarıyla güncellendi!");
+              setShowProfileSettings(false); // Pencereyi kapat
+              
+          } catch (error) {
+              console.error("Kayıt hatası:", error);
+              alert("Kaydedilirken bir hata oluştu.");
+          }
+      }
+  };
   const openProfileCard = async (username: string, fallbackAvatar: string, fallbackBanner?: any, postCount: number = 0) => {
       setZoomedAvatar({ 
           username, avatar: fallbackAvatar, banner: fallbackBanner, bio: "Yükleniyor...", stats: { posts: postCount, followers: 0, following: 0 }
@@ -1043,14 +1145,71 @@ const startAITrivia = async () => {
 
   if (!mounted) return null;
 
-  function handleAvatarUpload(event: ChangeEvent<HTMLInputElement, HTMLInputElement>): void {
-    throw new Error('Function not implemented.');
-  }
+ const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+          e.target.value = ''; // Hata verirse de hafızayı temizle
+          return alert("Dosya çok büyük! Maksimum 10MB boyutunda bir resim seçin.");
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400; 
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          if (currentUser) {
+            setCurrentUser({ ...currentUser, avatar: dataUrl, uploadedAvatar: dataUrl });
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = ''; // İŞTE SİHİRLİ DOKUNUŞ! Seçim hafızasını sıfırlar, böylece tekrar resim seçebilirsin.
+  };
 
-  function handleBannerUpload(event: ChangeEvent<HTMLInputElement, HTMLInputElement>): void {
-    throw new Error('Function not implemented.');
-  }
-
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+          e.target.value = '';
+          return alert("Dosya çok büyük! Maksimum 10MB boyutunda bir resim seçin.");
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (event: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000; 
+          const scaleSize = MAX_WIDTH / img.width;
+          canvas.width = MAX_WIDTH;
+          canvas.height = img.height * scaleSize;
+          
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          if (currentUser) {
+            setCurrentUser({ ...currentUser, banner: dataUrl });
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = ''; // İŞTE SİHİRLİ DOKUNUŞ!
+  };
 // --- BÖLÜM 1 BURADA BİTİYOR ---
 return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
@@ -1491,7 +1650,19 @@ return (
                     </div>
                 )}
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                    <button onClick={() => document.getElementById('globalImageInputV2')?.click()} style={{ background: inputBg, border: `1px solid ${borderColor}`, width: '60px', height: '60px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', color: activeColor, transition: '0.3s' }} className="hover-effect" title="Fotoğraf Ekle">📷</button>
+                   <button 
+                           onClick={() => {
+                               const input = document.getElementById('modalCommentInput');
+                               if(input) {
+                                   input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                   setTimeout(() => input.focus(), 300);
+                               }
+                           }} 
+                           style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
+                           className="hover-effect"
+                       >
+                           💬
+                       </button>
                     <input type="file" accept="image/*" onChange={handleGlobalImageUpload} style={{ display: 'none' }} id="globalImageInputV2" />
                     <input type="text" placeholder={currentUser ? "SİNEPRO halkına bir şeyler söyle... (Win + . ile emoji)" : "Sohbete katılmak için giriş yap..."} value={newGlobalMessage} onChange={(e) => setNewGlobalMessage(e.target.value)} onKeyDown={(e) => handleEnterKey(e, sendGlobalMessage)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '20px 30px', borderRadius: '35px', color: textMain, outline: 'none', fontSize: '18px' }} />
                     <button onClick={sendGlobalMessage} disabled={!currentUser || (!newGlobalMessage.trim() && !globalMessageImage)} style={{ background: activeColor, color: badgeText, border: 'none', width: '60px', height: '60px', borderRadius: '50%', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', transition: '0.3s', opacity: (!newGlobalMessage.trim() && !globalMessageImage) ? 0.5 : 1, boxShadow: `0 5px 15px ${activeColor}40` }} className="hover-effect">➤</button>
@@ -2002,12 +2173,13 @@ return (
           <div className="modal-box profile-modal" style={{ background: bgCard, overflowY: 'auto', maxHeight: '85vh', width: '100%', maxWidth: '450px', borderRadius: '25px', padding: '30px', border: `1px solid ${activeColor}` }}>
             <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0, marginBottom: '20px' }}>Profil Ayarlarım</h3>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
-            
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '25px' }}>
+          
+           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '25px' }}>
                 {(() => {
                     const baseAvatars = ["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"];
                     const displayAvatars = [...baseAvatars];
                     if (currentUser?.uploadedAvatar && !displayAvatars.includes(currentUser.uploadedAvatar)) displayAvatars.splice(1, 0, currentUser.uploadedAvatar);
+                    
                     return displayAvatars.map((av, i) => (
                         <div key={i} style={{ position: 'relative' }}>
                             {av === "default" ? (
@@ -2015,11 +2187,28 @@ return (
                                     {currentUser?.username?.charAt(0)?.toUpperCase() || "?"}
                                 </div>
                             ) : (
-                                <img src={av} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', objectFit: 'cover', border: currentUser.avatar === av ? `2px solid ${activeColor}` : `1px solid ${borderColor}` }} alt="avatar" />
+                                <>
+                                    <img src={av} onClick={() => setCurrentUser({...currentUser, avatar: av})} style={{ width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', objectFit: 'cover', border: currentUser.avatar === av ? `2px solid ${activeColor}` : `1px solid ${borderColor}` }} alt="avatar" />
+                                    
+                                    {/* SADECE YÜKLENEN AVATARIN SAĞ ÜSTÜNDE ÇIKAN KÜÇÜK ÇARPI */}
+                                    {av === currentUser?.uploadedAvatar && (
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); // Resme tıklanmış gibi olmasını engeller
+                                                setCurrentUser({...currentUser, uploadedAvatar: null, avatar: 'default'}); 
+                                            }} 
+                                            style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'rgba(255,0,0,0.8)', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold' }}
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </>
                             )}
                         </div>
                     ));
                 })()}
+                
+                {/* YENİ RESİM YÜKLEME ARTI (+) BUTONU */}
                 <div onClick={() => fileInputRef.current?.click()} style={{ width: '42px', height: '42px', borderRadius: '50%', cursor: 'pointer', border: `2px dashed ${textLight}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', background: inputBg, color: textLight }}>+</div>
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} />
             </div>
@@ -2028,6 +2217,14 @@ return (
                 <h4 style={{ margin: '0 0 10px 0', color: activeColor, fontSize: '14px' }}>Kapak Fotoğrafı (Banner)</h4>
                 <p style={{ fontSize: '11px', color: textLight, margin: '0 0 15px 0', lineHeight: '1.4' }}>Profiline istediğin bir resmi veya film karesini ekle (Maks 10MB).</p>
                 <div style={{ textAlign: 'center' }}>
+                    {/* BANNER SİL BUTONU */}
+                    {currentUser?.banner && (
+                        <div style={{ marginBottom: '10px' }}>
+                            <button onClick={() => setCurrentUser({...currentUser, banner: null})} style={{ background: '#ff4d4d', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }} className="hover-effect">
+                                ✕ Kapak Fotoğrafını Kaldır
+                            </button>
+                        </div>
+                    )}
                     {currentUser.banner && <img src={currentUser.banner} style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '10px', marginBottom: '15px', border: `1px solid ${theme.secondary}` }} alt="banner" />}
                     <button onClick={() => bannerInputRef.current?.click()} style={{ background: 'transparent', border: `1px dashed ${activeColor}`, color: activeColor, padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', width: '100%', fontSize: '13px' }}>{currentUser.banner ? 'Fotoğrafı Değiştir' : 'Görsel Yükle'}</button>
                     <input type="file" accept="image/*" ref={bannerInputRef} style={{ display: 'none' }} onChange={handleBannerUpload} />
@@ -2178,7 +2375,7 @@ return (
 
       {/* --- YENİ EKLENEN: INSTAGRAM STİLİ GÖNDERİ DETAY EKRANI --- */}
       {selectedPost && (
-        <div onClick={() => setSelectedPost(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 21000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div onClick={() => { setSelectedPost(null); setShowCommentBox(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 21000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
            <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '900px', background: bgCard, borderRadius: '20px', display: 'flex', flexDirection: 'row', overflow: 'hidden', maxHeight: '80vh', border: `1px solid ${borderColor}` }}>
               <div style={{ flex: 1.5, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                  <img src={selectedPost.image} style={{ width: '100%', maxHeight: '80vh', objectFit: 'contain' }} alt="Gönderi" />
@@ -2199,17 +2396,135 @@ return (
                           </div>
                        </div>
                     )}
-                    <div style={{ color: textLight, fontSize: '13px', textAlign: 'center', marginTop: '40px' }}>Yorum özelliği yakında aktif olacak! 🚀</div>
+                   {/* YORUMLAR LİSTESİ */}
+{selectedPost.comments && selectedPost.comments.length > 0 ? (
+    selectedPost.comments.map((comment: any, index: number) => (
+        <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'flex-start' }}>
+            <div style={{ width: '25px', height: '25px', borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
+                {comment.username?.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <span style={{ fontWeight: 'bold', color: textMain, marginRight: '8px', fontSize: '13px' }}>@{comment.username}</span>
+                        <span style={{ color: textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
+                    </div>
+
+                    {/* SADECE YORUM SAHİBİNE GÖRÜNEN SİL BUTONU */}
+                    {comment.username === currentUser?.username && (
+                        <button 
+                            onClick={() => {
+                                if(window.confirm("Bu yorumu kalıcı olarak silmek istiyor musun?")) {
+                                    handleDeleteComment(selectedPost.id, comment);
+                                }
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '0 5px' }}
+                        >
+                            Sil
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    ))
+) : (
+    <div style={{ color: textLight, fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>Henüz yorum yok. İlk yorumu sen yap!</div>
+)}
                  </div>
                  <div style={{ padding: '15px', borderTop: `1px solid ${borderColor}` }}>
                     <div style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
-                       <button onClick={() => handlePostLike(selectedPost.id, selectedPost.likes)} style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}>
+                       <button 
+                         onClick={() => {
+                             handlePostLike(selectedPost.id, selectedPost.likes);
+                             const isLiked = selectedPost.likes?.includes(currentUser?.username);
+                             const newLikes = isLiked 
+                                 ? selectedPost.likes.filter((u: any) => u !== currentUser?.username) 
+                                 : [...(selectedPost.likes || []), currentUser?.username];
+                             setSelectedPost({ ...selectedPost, likes: newLikes });
+                         }} 
+                         style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
+                         className="hover-effect"
+                       >
                           {selectedPost.likes?.includes(currentUser?.username) ? '❤️' : '🤍'}
                        </button>
-                       <button style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}>💬</button>
+                       <button 
+                           onClick={(e) => {
+                               e.preventDefault();
+                               setShowCommentBox(!showCommentBox); // Kutuyu aç/kapat
+                               
+                               // Eğer kutu açılıyorsa içine odaklan
+                               if (!showCommentBox) {
+                                   setTimeout(() => {
+                                       const inputField = document.getElementById('modalCommentInput');
+                                       if(inputField) {
+                                           inputField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                           inputField.focus();
+                                       }
+                                   }, 100);
+                               }
+                           }} 
+                           style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
+                           className="hover-effect"
+                       >
+                           💬
+                       </button>
                     </div>
                     <span style={{ fontWeight: 'bold', color: textMain, fontSize: '14px' }}>{selectedPost.likes?.length || 0} beğenme</span>
                     <span style={{ display: 'block', color: textLight, fontSize: '11px', marginTop: '5px' }}>{selectedPost.date}</span>
+                   
+                   {/* YORUM YAPMA KUTUSU */}
+                    {showCommentBox && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px', marginTop: '15px' }}>
+                            <input 
+                                id="modalCommentInput"
+                                type="text" 
+                                placeholder="Yorum ekle..." 
+                                style={{ flex: 1, background: 'transparent', border: 'none', color: textMain, outline: 'none', fontSize: '14px' }}
+                                onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                                        const commentText = e.currentTarget.value.trim();
+                                        const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
+                                        const updatedComments = [...(selectedPost.comments || []), newComment];
+                                        
+                                        // 1. Ekranda anında göster (Bekletmeden)
+                                        setSelectedPost({ ...selectedPost, comments: updatedComments });
+                                        e.currentTarget.value = ''; 
+                                        
+                                        // 2. KALICI HAFIZAYA (VERİTABANINA) KAYDET
+                                        if (selectedPost.id) {
+                                            try {
+                                                await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
+                                            } catch (error) { console.error("Yorum kaydedilemedi!", error); }
+                                        }
+                                    }
+                                }}
+                            />
+                            <button 
+                                onClick={async () => {
+                                    const input = document.getElementById('modalCommentInput') as HTMLInputElement;
+                                    if (input && input.value.trim()) {
+                                        const commentText = input.value.trim();
+                                        const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
+                                        const updatedComments = [...(selectedPost.comments || []), newComment];
+                                        
+                                        // 1. Ekranda anında göster
+                                        setSelectedPost({ ...selectedPost, comments: updatedComments });
+                                        input.value = '';
+                                        
+                                        // 2. KALICI HAFIZAYA (VERİTABANINA) KAYDET
+                                        if (selectedPost.id) {
+                                            try {
+                                                await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
+                                            } catch (error) { console.error("Yorum kaydedilemedi!", error); }
+                                        }
+                                    }
+                                }}
+                                style={{ background: 'transparent', border: 'none', color: activeColor, fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' }}
+                            >
+                                Paylaş
+                            </button>
+                        </div>
+                    )}
                  </div>
               </div>
            </div>
