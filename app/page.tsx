@@ -76,7 +76,7 @@ export default function Home() {
 
   const [comments, setComments] = useState<any>({}); 
   const [newComment, setNewComment] = useState("");
-  const [lang, setLang] = useState("TR"); // YENİ: Dil Şalteri
+  const [lang, setLang] = useState("TR");
   const [commentRating, setCommentRating] = useState<number>(10);
   const [commentsSort, setCommentsSort] = useState("newest");
   const [autoScrollToComments, setAutoScrollToComments] = useState(false); 
@@ -95,7 +95,7 @@ export default function Home() {
   const [showMobileMenu, setShowMobileMenu] = useState(false); 
   const [authMode, setAuthMode] = useState<"login" | "register" | "verify" | "forgot_password" | "verify_forgot" | "new_password" | "security_verify">("login");
   
-  const [zoomedAvatar, setZoomedAvatar] = useState<{username: string, avatar: string, banner?: string | null, bio?: string, stats?: {posts: number, followers: number, following: number}} | null>(null);
+  const [zoomedAvatar, setZoomedAvatar] = useState<{username: string, avatar: string, banner?: string | null, bio?: string, stats?: {posts: number, followers: number, following: number}, isPrivate?: boolean} | null>(null);
 
   const [showSineAI, setShowSineAI] = useState(false);
   const [showAILeaderboard, setShowAILeaderboard] = useState(false);
@@ -146,6 +146,7 @@ export default function Home() {
 
   // --- YENİ: INSTAGRAM TARZI PROFİL VE GÖNDERİ MOTORLARI ---
   const [profileTab, setProfileTab] = useState<"posts" | "settings">("posts");
+  const [targetProfile, setTargetProfile] = useState<any>(null); // YENİ: Başkasının profiline girdiğimizi anlayan hafıza
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const [newPostCaption, setNewPostCaption] = useState("");
@@ -153,16 +154,22 @@ export default function Home() {
 
   const currentUsername = (currentUser as any)?.username || null;
 
+  // --- GÖNDERİ ÇEKME MOTORU (Kendin VEYA Başkası) ---
   useEffect(() => {
-    if (viewMode === "profile" && currentUsername) {
-      const q = query(collection(db, "user_posts"), where("username", "==", currentUsername), orderBy("createdAt", "desc"));
+    const activeUserForProfile = targetProfile ? targetProfile.username : currentUsername;
+    if (viewMode === "profile" && activeUserForProfile) {
+      const q = query(collection(db, "user_posts"), where("username", "==", activeUserForProfile), orderBy("createdAt", "desc"));
       const unsubscribe = onSnapshot(q, (snapshot) => {
         setUserPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       });
       return () => unsubscribe();
     }
-  }, [viewMode, currentUsername]);
+  }, [viewMode, currentUsername, targetProfile]);
 
+  // Profil ekranından başka bir yere (Anasayfa vs.) geçilirse başkasının profilinden çık:
+  useEffect(() => {
+      if (viewMode !== "profile") setTargetProfile(null);
+  }, [viewMode]);
   const handlePostImageSelect = (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -307,14 +314,15 @@ export default function Home() {
   const activeColor = getAdjustedColor(theme.name, theme.color);
   const badgeText = isDarkMode ? '#0B0C10' : '#FFFFFF';
   
+  // DÜZELTME 1: ŞEFFAF EFEKTLER İPTAL EDİLDİ (ESKİ KATILIK GELDİ)
   const bgMain = isDarkMode ? '#0B0C10' : '#F5F7FA';
-  const bgCard = isDarkMode ? 'rgba(31, 40, 51, 0.7)' : 'rgba(255, 255, 255, 0.8)'; // TEMA GÜNCELLEMESİ (SAYDAM)
+  const bgCard = isDarkMode ? '#1F2833' : '#FFFFFF'; 
   const inputBg = isDarkMode ? '#0B0C10' : '#E8ECEF';
   const textMain = isDarkMode ? 'white' : '#111111';
   const textMuted = isDarkMode ? '#ccc' : '#666666';
   const textLight = isDarkMode ? '#888' : '#999999';
-  const borderColor = isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'; // TEMA GÜNCELLEMESİ (HAFİF ÇİZGİ)
-  const navBg = isDarkMode ? 'rgba(11, 12, 16, 0.8)' : 'rgba(245, 247, 250, 0.8)';
+  const borderColor = isDarkMode ? '#333' : '#DDDDDD'; 
+  const navBg = isDarkMode ? 'rgba(11, 12, 16, 0.95)' : 'rgba(245, 247, 250, 0.95)';
   const modalBg = isDarkMode ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.5)';
   const aiModalContentBg = isDarkMode ? 'rgba(31, 40, 51, 0.95)' : 'rgba(255, 255, 255, 0.95)';
   const aiHeaderBg = isDarkMode ? 'rgba(11, 12, 16, 0.9)' : '#F5F7FA';
@@ -397,11 +405,13 @@ export default function Home() {
     }
   }, [selectedItem, autoScrollToComments]);
 
+  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (ARAMA)
   useEffect(() => {
     if (searchInput.trim().length > 0) {
       const fetchLiveResults = async () => {
         try {
-          const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchInput)}&include_adult=false&language=tr-TR&page=1`;
+          const apiLang = lang === "TR" ? "tr-TR" : "en-US";
+          const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchInput)}&include_adult=false&language=${apiLang}&page=1`;
           const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
           setLiveResults(res.data.results || []);
         } catch (err) { console.error(err); }
@@ -411,7 +421,7 @@ export default function Home() {
       setLiveResults([]);
       setSearchQuery(""); 
     }
-  }, [searchInput, contentType]);
+  }, [searchInput, contentType, lang]);
 
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
@@ -523,14 +533,16 @@ export default function Home() {
     return () => unsubscribe(); 
   }, [selectedItem?.id]);
 
+  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (ANA SAYFA LİSTELERİ)
   useEffect(() => { 
     const fetchData = async () => {
       if (viewMode !== "home") return;
       setIsLoading(true); 
       try {
+        const apiLang = lang === "TR" ? "tr-TR" : "en-US";
         const getUrl = (page: number) => searchQuery 
-          ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&include_adult=false&language=tr-TR&page=${page}`
-          : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&include_adult=false&vote_count.gte=200&language=tr-TR&page=${page}`;
+          ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&include_adult=false&language=${apiLang}&page=${page}`
+          : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&include_adult=false&vote_count.gte=200&language=${apiLang}&page=${page}`;
         
         const responses = await Promise.all([
           axios.get(getUrl(1), { headers: { Authorization: API_TOKEN } }),
@@ -549,14 +561,14 @@ export default function Home() {
         setCurrentPage(2);
 
         if (!searchQuery && newReleases.length === 0) {
-          const resC = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&include_adult=false&language=tr-TR&page=1`, { headers: { Authorization: API_TOKEN } });
+          const resC = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&include_adult=false&language=${apiLang}&page=1`, { headers: { Authorization: API_TOKEN } });
           setNewReleases(resC.data.results);
         }
       } catch (err) { console.error(err); }
       setIsLoading(false); 
     };
     fetchData(); 
-  }, [searchQuery, contentType, selectedGenre, sortBy, viewMode]);
+  }, [searchQuery, contentType, selectedGenre, sortBy, viewMode, lang]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -590,7 +602,6 @@ export default function Home() {
     const mesajMetni = newGlobalMessage.trim(); 
 
     try {
-      // YENİ RÜTBE VE VIP BİLGİSİ EKLENDİ
       const rankInfo = getUserRank(currentUserTotalComments);
 
       await addDoc(collection(db, "global_chat"), {
@@ -760,7 +771,8 @@ export default function Home() {
              try {
                  const cleanSearch = userText.replace(/(öner|bul|getir|izlemek istiyorum|bana|bir|film|dizi)/gi, "").trim();
                  if (cleanSearch.length > 2) {
-                     const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&include_adult=false&language=tr-TR&page=1`;
+                     const apiLang = lang === "TR" ? "tr-TR" : "en-US";
+                     const url = `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(cleanSearch)}&include_adult=false&language=${apiLang}&page=1`;
                      const res = await axios.get(url, { headers: { Authorization: API_TOKEN } });
                      results = res.data.results?.slice(0, 4) || []; 
                  }
@@ -925,13 +937,16 @@ const startAITrivia = async () => {
       setCurrentUser(updatedUser); setShowLogin(false); setVerificationCode(""); setProfilePassword(""); alert("Şifre güncellendi!");
     } else { alert("Kod yanlış!"); }
   };
+
+  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (DETAYLAR)
   const fetchExtraDetails = async (id: any, cType?: string) => {
     const typeToUse = cType || contentType;
+    const apiLang = lang === "TR" ? "tr-TR" : "en-US";
     try {
       const [detailsRes, similarRes, castRes, videosRes] = await Promise.all([
-        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}/similar?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
-        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}/credits?language=tr-TR`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}?language=${apiLang}`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}/similar?language=${apiLang}`, { headers: { Authorization: API_TOKEN } }),
+        axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}/credits?language=${apiLang}`, { headers: { Authorization: API_TOKEN } }),
         axios.get(`https://api.themoviedb.org/3/${typeToUse}/${id}/videos`, { headers: { Authorization: API_TOKEN } })
       ]);
       setSelectedItem((prev: any) => ({ ...(prev || {}), ...detailsRes.data }));
@@ -945,6 +960,13 @@ const startAITrivia = async () => {
     }
   };
 
+  // DÜZELTME 7: DİL DEĞİŞTİĞİNDE AÇIK OLAN FİLMİN DİLİNİ DE GÜNCELLE
+  useEffect(() => {
+      if (selectedItem) {
+          fetchExtraDetails(selectedItem.id, contentType);
+      }
+  }, [lang]);
+
   const shareMovie = async (item: any) => {
     triggerHaptic(); 
     const shareUrl = `${window.location.origin}/?id=${item.id}&type=${contentType}`;
@@ -953,9 +975,7 @@ const startAITrivia = async () => {
     } else { navigator.clipboard.writeText(shareUrl); alert(lang === "TR" ? "Bağlantı kopyalandı!" : "Link copied!"); }
   };
 
-  // --- ORTAK SİLİCİ MOTOR (YENİ VE GÜVENLİ) ---
   const deleteItem = async (koleksiyonAdi: string, itemId: string, itemSahibi: string) => {
-    // Kurallar: Silen kişi patron mu? Veya mesajın asıl sahibi mi? Değilse reddet.
     const isPatron = currentUser?.email === "yukselomerfaruk292@gmail.com";
     if (!currentUser || (currentUser.username !== itemSahibi && !isPatron)) {
       return alert(lang === "TR" ? "Bu mesajı silmeye yetkiniz yok!" : "Unauthorized action!");
@@ -965,7 +985,6 @@ const startAITrivia = async () => {
 
     try {
       await deleteDoc(doc(db, koleksiyonAdi, itemId));
-      // alert(lang === "TR" ? "Başarıyla silindi!" : "Successfully deleted!");
       triggerHaptic();
     } catch (error) {
       console.error("Silme hatası:", error);
@@ -1005,10 +1024,10 @@ const startAITrivia = async () => {
                   avatar: updatedUser.avatar || "default", 
                   email: updatedUser.email, 
                   banner: updatedUser.banner || null, 
-                  bio: updatedUser.bio || ""
+                  bio: updatedUser.bio || "",
+                  isPrivate: updatedUser.isPrivate || false // YENİ: Gizlilik ayarı
               }, { merge: true });
 
-    // --- V4 KESKİN NİŞANCI AVATAR GÜNCELLEME ROBOTU ---
     try {
         const chatRef = collection(db, "global_chat");
         const q = query(chatRef, where("user", "==", currentUser.username));
@@ -1025,10 +1044,7 @@ const startAITrivia = async () => {
             
             await Promise.all(updatePromises);
         }
-    } catch (error) {
-        console.error("❌ Robot kaza yaptı:", error);
-    }
-    // -------------------------------------------------------------
+    } catch (error) {}
               
               alert(lang === "TR" ? "Profil ayarların başarıyla güncellendi!" : "Profile settings updated successfully!");
               setShowProfileSettings(false); 
@@ -1039,6 +1055,7 @@ const startAITrivia = async () => {
           }
       }
   };
+
   const openProfileCard = async (username: string, fallbackAvatar: string, fallbackBanner?: any, postCount: number = 0) => {
       setZoomedAvatar({ 
           username, avatar: fallbackAvatar, banner: fallbackBanner, bio: lang === "TR" ? "Yükleniyor..." : "Loading...", stats: { posts: postCount, followers: 0, following: 0 }
@@ -1048,9 +1065,10 @@ const startAITrivia = async () => {
           const snap = await getDocs(q);
           if (!snap.empty) {
               const data = snap.docs[0].data();
-              setZoomedAvatar({ 
+             setZoomedAvatar({ 
                   username, avatar: data.avatar || fallbackAvatar, banner: data.banner || fallbackBanner, bio: data.bio || "",
-                  stats: { posts: postCount, followers: data.followers?.length || 0, following: data.following?.length || 0 }
+                  stats: { posts: postCount, followers: data.followers?.length || 0, following: data.following?.length || 0 },
+                  isPrivate: data.isPrivate || false // YENİ: Gizlilik bilgisini çektik
               });
           }
       } catch(e) {}
@@ -1086,9 +1104,10 @@ const startAITrivia = async () => {
     const nextCount = visibleCount + 15;
     if (nextCount > items.length) {
       const nextPage = currentPage + 1;
+      const apiLang = lang === "TR" ? "tr-TR" : "en-US";
       const getUrl = (page: number) => searchQuery 
-        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&include_adult=false&language=tr-TR&page=${page}`
-        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&include_adult=false&vote_count.gte=200&language=tr-TR&page=${page}`;
+        ? `https://api.themoviedb.org/3/search/${contentType}?query=${encodeURIComponent(searchQuery)}&include_adult=false&language=${apiLang}&page=${page}`
+        : `https://api.themoviedb.org/3/discover/${contentType}?sort_by=${sortBy}${selectedGenre ? `&with_genres=${selectedGenre}` : ""}&include_adult=false&vote_count.gte=200&language=${apiLang}&page=${page}`;
       try {
         const res = await axios.get(getUrl(nextPage), { headers: { Authorization: API_TOKEN } });
         setItems(prev => [...prev, ...res.data.results]); setCurrentPage(nextPage);
@@ -1125,32 +1144,38 @@ const startAITrivia = async () => {
     try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert(lang === "TR" ? "Talebiniz alındı!" : "Request received!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert(lang === "TR" ? "Hata oluştu." : "An error occurred."); }
   };
 
-  // --- MOBİLDE TIKLANMAYAN BUTON VE ARKADAŞ İSTEĞİ SORUNU (ÇÖZÜLDÜ) ---
-  const handleFollowUser = async (targetUsername: string) => {
+const handleFollowUser = async (targetUsername: string) => {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
+      
       try {
-          // Hatalı sendFriendRequest yerine güvenli, %100 çalışan Firebase motoru:
-          await addDoc(collection(db, "friend_requests"), {
-              sender: currentUser.username,
-              receiver: targetUsername,
-              status: "pending",
-              createdAt: serverTimestamp()
-          });
+          // 1. Hedef kişiyi buluyoruz
+          const q = query(collection(db, "users"), where("username", "==", targetUsername));
+          const querySnapshot = await getDocs(q);
 
+          if (!querySnapshot.empty) {
+              // 2. Kişinin profiline gidip (users tablosu) "friendRequests" çantasına senin adını atıyoruz
+              const targetUserDoc = querySnapshot.docs[0];
+              await updateDoc(doc(db, "users", targetUserDoc.id), {
+                  friendRequests: arrayUnion(currentUser.username)
+              });
+          }
+
+          // Karşı tarafa anında bildirim gönder
           const targetNotifKey = `sinepro_notifications_${targetUsername}`;
           const targetNotifs = JSON.parse(localStorage.getItem(targetNotifKey) || "[]");
           targetNotifs.unshift({ id: Date.now(), text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı / istek gönderdi! 👤" : "started following you / sent a request! 👤"}`, isRead: false, date: new Date().toLocaleDateString('tr-TR') });
           localStorage.setItem(targetNotifKey, JSON.stringify(targetNotifs));
           
           alert(lang === "TR" ? `${targetUsername} adlı kullanıcıya istek gönderildi!` : `Request sent to ${targetUsername}!`);
-      } catch (error) { alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); }
+      } catch (error) { 
+          console.error("Takip Hatası:", error);
+          alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); 
+      }
   };
-
   const toggleLikeComment = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
       e.stopPropagation();
       if (!currentUser) return alert(lang === "TR" ? "Giriş yapmalısın!" : "Login required!");
-      // Beğeni logic'i buraya eklenecek (Firebase)
   };
 
   const displayNotifs = currentUser ? notifications : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
@@ -1222,8 +1247,7 @@ const startAITrivia = async () => {
     }
     e.target.value = ''; 
   };
-
-return (
+  return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       <style dangerouslySetInnerHTML={{ __html: `
       .modal-box::-webkit-scrollbar { display: none; }
@@ -1266,13 +1290,6 @@ return (
         .skeleton-box {
           background: linear-gradient(90deg, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 25%, ${isDarkMode ? '#2b3746' : '#f5f5f5'} 50%, ${isDarkMode ? '#1F2833' : '#e0e0e0'} 75%);
           background-size: 200% 100%; animation: shimmer 1.5s infinite; width: 100%;
-        }
-
-        .glass-panel {
-           background: ${isDarkMode ? 'rgba(31, 40, 51, 0.65)' : 'rgba(255, 255, 255, 0.75)'} !important;
-           backdrop-filter: blur(12px) !important;
-           -webkit-backdrop-filter: blur(12px) !important;
-           border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'} !important;
         }
 
         .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 25px; padding: 30px 5%; position: relative; z-index: 1; }
@@ -1359,7 +1376,7 @@ return (
           .comments-inputs { flex-direction: column; }
           
           body { padding-bottom: 70px; }
-          .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; border-top: 1px solid ${borderColor}; }
+          .bottom-bar { display: flex; position: fixed; bottom: 0; left: 0; width: 100%; background: ${navBg}; z-index: 9900; padding: 10px 10px calc(10px + env(safe-area-inset-bottom)) 10px; justify-content: space-between; align-items: center; border-top: 1px solid ${borderColor}; }
           
           .bottom-bar-item { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; color: ${textLight}; cursor: pointer; gap: 4px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; position: relative; }
           .bottom-icon { font-size: 22px; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; }
@@ -1374,7 +1391,7 @@ return (
 
       <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '80vw', height: '80vw', background: `radial-gradient(circle, ${activeColor}40 0%, transparent 65%)`, borderRadius: '50%', zIndex: 0, pointerEvents: 'none', animation: 'heartbeat 3s infinite' }} />
 
-      <nav className="nav-wrapper glass-panel" style={{ position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+      <nav className="nav-wrapper" style={{ background: navBg, position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
@@ -1388,7 +1405,7 @@ return (
               <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>
                 {lang === "TR" ? "DİZİLER" : "SERIES"}
               </button>
-              {/* YENİ: DİL ŞALTERİ - DİZİLERİN YANINDA */}
+              {/* DİL ŞALTERİ - DİZİLERİN YANINDA */}
               <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', marginLeft: '5px', fontWeight: 'bold' }}>
                   {lang === "TR" ? "🇬🇧 EN" : "🇹🇷 TR"}
               </button>
@@ -1422,7 +1439,7 @@ return (
                 )}
              </button>
              {showNotifications && (
-                 <div className="glass-panel" style={{ position: 'absolute', top: '45px', right: '-60px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
+                 <div style={{ background: bgCard, position: 'absolute', top: '45px', right: '-60px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
                     <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                        <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? (lang === "TR" ? "Bildirimleriniz" : "Your Notifications") : (lang === "TR" ? "Sistem Panosu" : "System Board")}</span>
                     </div>
@@ -1452,7 +1469,7 @@ return (
                 {isSearchExpanded ? "✕" : "🔍"}
             </button>
             {isSearchExpanded && searchInput && isSearchFocused && (
-              <div className="search-dropdown glass-panel" style={{ position: 'absolute', top: '45px', right: 0, borderRadius: '12px', overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
+              <div className="search-dropdown" style={{ background: bgCard, position: 'absolute', top: '45px', right: 0, borderRadius: '12px', overflow: 'hidden', zIndex: 2000, boxShadow: '0 10px 30px rgba(0,0,0,0.8)' }}>
                 {liveResults.length > 0 ? (
                   <>
                     {liveResults.slice(0, 5).map(item => (
@@ -1479,7 +1496,7 @@ return (
                   <UserAvatar user={currentUser} size="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                 </div>
                 {showUserDropdown && (
-                  <div className="glass-panel" style={{ position: 'absolute', top: '45px', right: 0, width: '220px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+                  <div style={{ background: bgCard, position: 'absolute', top: '45px', right: 0, width: '220px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
                     <div onClick={() => { setViewMode("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>👤 {lang === "TR" ? "Kişisel Profilim" : "My Profile"}</div>
                     <div onClick={() => { setViewMode("stats"); setActiveBottomTab("profile"); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>📊 {lang === "TR" ? "İstatistiklerim" : "My Stats"}</div>
                     <div onClick={() => { setShowThemeSettings(true); setShowUserDropdown(false); }} style={{ padding: '12px 20px', cursor: 'pointer', color: textMain, borderBottom: `1px solid ${borderColor}` }}>🎨 {lang === "TR" ? "Tema Değiştir" : "Change Theme"}</div>
@@ -1499,7 +1516,7 @@ return (
         </div>
       </nav>
 
-      <div className="bottom-bar glass-panel">
+      <div className="bottom-bar" style={{ background: navBg }}>
          <div className={`bottom-bar-item ${activeBottomTab === 'home' && !searchQuery ? 'active' : ''}`} onClick={() => { setActiveBottomTab("home"); setContentType("movie"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }}>
              <span className="bottom-icon">🏠</span><span className="bottom-text">{lang === "TR" ? "Anasayfa" : "Home"}</span>
          </div>
@@ -1545,10 +1562,8 @@ return (
                     <button onClick={() => { setViewMode("my_comments"); setShowMobileMenu(false); }} className="mobile-menu-btn">💬 {lang === "TR" ? "Yorumlarım" : "My Comments"}</button>
                     <button onClick={() => { setViewMode("about"); setShowMobileMenu(false); }} className="mobile-menu-btn">ℹ️ {lang === "TR" ? "Hakkımızda" : "About Us"}</button>
                     <button onClick={() => { setViewMode("support"); setShowMobileMenu(false); }} className="mobile-menu-btn">❓ {lang === "TR" ? "Yardım & Destek" : "Help & Support"}</button>
-                    {/* YENİ: KÜRESEL SOHBET MOBİL MENÜDE! */}
                     <button onClick={() => { setViewMode("global_chat"); setShowMobileMenu(false); }} className="mobile-menu-btn">🌍 {lang === "TR" ? "Küresel Sohbet" : "Global Chat"}</button>
                  </div>
-                 {/* YENİ: DİL ŞALTERİ MOBİLDE */}
                  <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ width: '100%', padding: '15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '15px', fontWeight: 'bold', marginTop: '15px', cursor: 'pointer', fontSize: '15px' }}>
                      🌐 {lang === "TR" ? "🇬🇧 Switch to English" : "🇹🇷 Türkçe Yap"}
                  </button>
@@ -1654,22 +1669,10 @@ return (
                                 <UserAvatar user={{ username: msg.user, avatar: msg.avatar }} size="45px" fontSize="16px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                             </div>
                             <div style={{ background: isMe ? activeColor : bgCard, color: isMe ? badgeText : textMain, padding: '12px 18px', borderRadius: isMe ? '20px 8px 20px 20px' : '8px 20px 20px 20px', border: isMe ? 'none' : `1px solid ${borderColor}`, position: 'relative', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', minWidth: '150px' }}>
-                                
-                                {/* ÇÖP KUTUSU (SİLİCİ) */}
-                                {(currentUser?.username === msg.user || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
-                                  <button 
-                                    onClick={() => deleteItem("global_chat", msg.id, msg.user)}
-                                    style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4d4d', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px', zIndex: 10 }}
-                                    title={lang === "TR" ? "Mesajı Sil" : "Delete Message"}
-                                  >
-                                    🗑️
-                                  </button>
-                                )}
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px', paddingRight: '30px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px', paddingRight: '10px' }}>
                                     <span style={{ fontWeight: '900', fontSize: '14px', color: isMe ? badgeText : activeColor, cursor: 'pointer' }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
                                         @{msg.user}
-                                        {/* VIP ROZETİ */}
                                         {msg.isVIP && <span style={{ marginLeft: '6px', padding: '2px 5px', background: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(255,215,0,0.2)', color: isMe ? badgeText : '#FFD700', borderRadius: '6px', fontSize: '10px', border: `1px solid ${isMe ? 'white' : '#FFD700'}` }} title="VIP">{msg.rankIcon || "👑"} VIP</span>}
                                     </span>
                                     <span style={{ fontSize: '11px', opacity: 0.8 }}>{msg.date}</span>
@@ -1686,6 +1689,12 @@ return (
                                 <div style={{ display: 'flex', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isMe ? 'rgba(255,255,255,0.2)' : borderColor}`, fontSize: '12px', fontWeight: 'bold' }}>
                                     <span onClick={() => handleGlobalLike(msg.id, msg.likes)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>{msg.likes?.includes(currentUser?.username) ? '❤️' : '🤍'} {msg.likes?.length || 0}</span>
                                     <span onClick={() => handleTagUser(msg.user)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>🏷️ {lang === "TR" ? "Etiketle" : "Tag"}</span>
+                                    {/* DÜZELTME 3: ÇÖP KUTUSU (SİLİCİ) AŞAĞIYA ALINDI VE RENKLENDİRİLDİ */}
+                                    {(currentUser?.username === msg.user || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
+                                      <span onClick={() => deleteItem("global_chat", msg.id, msg.user)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', color: isMe ? '#fff' : '#ff4d4d', marginLeft: 'auto', background: isMe ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)', padding: '4px 10px', borderRadius: '12px' }}>
+                                          🗑️ {lang === "TR" ? "Sil" : "Delete"}
+                                      </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1694,7 +1703,7 @@ return (
                     <div style={{ margin: 'auto', textAlign: 'center', color: textLight }}><span style={{ fontSize: '50px', opacity: 0.5 }}>💬</span><p style={{ fontSize: '18px', marginTop: '10px' }}>{lang === "TR" ? "Buralar sessiz... İlk mesajı sen gönder!" : "It's quiet here... Send the first message!"}</p></div>
                 )}
             </div>
-            <div className="glass-panel" style={{ marginTop: 'auto', padding: '20px', borderRadius: '25px', boxShadow: `0 -10px 30px rgba(0,0,0,0.3)` }}>
+            <div style={{ background: bgCard, marginTop: 'auto', padding: '20px', borderRadius: '25px', boxShadow: `0 -10px 30px rgba(0,0,0,0.3)` }}>
                 {globalMessageImage && (
                     <div style={{ position: 'relative', display: 'inline-block', marginBottom: '15px' }}>
                         <img src={globalMessageImage} style={{ height: '120px', borderRadius: '12px', border: `3px solid ${activeColor}` }} alt="Preview" />
@@ -1702,71 +1711,91 @@ return (
                     </div>
                 )}
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                   {/* DÜZELTME 2: FOTO EKLME BUTONU GERİ GELDİ */}
                    <button 
-                           onClick={() => {
-                               const input = document.getElementById('globalChatInput');
-                               if(input) {
-                                   input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                   setTimeout(() => input.focus(), 300);
-                               }
-                           }} 
-                           style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
-                           className="hover-effect"
-                       >
-                       💬
+                       onClick={() => document.getElementById('globalImageInputV2')?.click()} 
+                       style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
+                       className="hover-effect"
+                       title={lang === "TR" ? "Fotoğraf Ekle" : "Add Photo"}
+                   >
+                       📸
                    </button>
-                    <input type="file" accept="image/*" onChange={handleGlobalImageUpload} style={{ display: 'none' }} id="globalImageInputV2" />
-                    <input id="globalChatInput" type="text" placeholder={currentUser ? (lang === "TR" ? "SİNEPRO halkına bir şeyler söyle... (@ ile etiketle)" : "Say something to the community...") : (lang === "TR" ? "Sohbete katılmak için giriş yap..." : "Login to chat...")} value={newGlobalMessage} onChange={(e) => setNewGlobalMessage(e.target.value)} onKeyDown={(e) => handleEnterKey(e, sendGlobalMessage)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '20px 30px', borderRadius: '35px', color: textMain, outline: 'none', fontSize: '18px' }} />
-                    <button onClick={sendGlobalMessage} disabled={!currentUser || (!newGlobalMessage.trim() && !globalMessageImage)} style={{ background: activeColor, color: badgeText, border: 'none', width: '60px', height: '60px', borderRadius: '50%', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', transition: '0.3s', opacity: (!newGlobalMessage.trim() && !globalMessageImage) ? 0.5 : 1, boxShadow: `0 5px 15px ${activeColor}40` }} className="hover-effect">➤</button>
+                   <input type="file" accept="image/*" onChange={handleGlobalImageUpload} style={{ display: 'none' }} id="globalImageInputV2" />
+                   <input id="globalChatInput" type="text" placeholder={currentUser ? (lang === "TR" ? "SİNEPRO halkına bir şeyler söyle... (@ ile etiketle)" : "Say something to the community...") : (lang === "TR" ? "Sohbete katılmak için giriş yap..." : "Login to chat...")} value={newGlobalMessage} onChange={(e) => setNewGlobalMessage(e.target.value)} onKeyDown={(e) => handleEnterKey(e, sendGlobalMessage)} disabled={!currentUser} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '20px 30px', borderRadius: '35px', color: textMain, outline: 'none', fontSize: '18px' }} />
+                   <button onClick={sendGlobalMessage} disabled={!currentUser || (!newGlobalMessage.trim() && !globalMessageImage)} style={{ background: activeColor, color: badgeText, border: 'none', width: '60px', height: '60px', borderRadius: '50%', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', transition: '0.3s', opacity: (!newGlobalMessage.trim() && !globalMessageImage) ? 0.5 : 1, boxShadow: `0 5px 15px ${activeColor}40` }} className="hover-effect">➤</button>
                 </div>
             </div>
         </div>
       )}
 
-      {/* --- KİŞİSEL PROFİL VE GÖNDERİLER --- */}
+     {/* --- KİŞİSEL PROFİL VE GÖNDERİLER (KENDİN VEYA BAŞKASI) --- */}
       {viewMode === "profile" && currentUser && (
-        <div style={{ padding: '30px 2%', maxWidth: '1000px', margin: '0 auto', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '40px', marginBottom: '40px', paddingBottom: '30px', borderBottom: `1px solid ${borderColor}` }}>
-                <div style={{ flexShrink: 0 }}><UserAvatar user={currentUser} size="120px" fontSize="40px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
-                <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '15px' }}><h2 style={{ margin: 0, fontSize: '28px', color: textMain }}>@{currentUser?.username}</h2></div>
-                    <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', fontSize: '16px', color: textMain }}>
-                        <span><strong style={{ color: activeColor }}>{userPosts.length}</strong> {lang === "TR" ? "gönderi" : "posts"}</span>
-                        <span><strong style={{ color: activeColor }}>{(currentUser as any)?.followers?.length || 0}</strong> {lang === "TR" ? "takipçi" : "followers"}</span>
-                        <span><strong style={{ color: activeColor }}>{(currentUser as any)?.following?.length || 0}</strong> {lang === "TR" ? "takip" : "following"}</span>
-                    </div>
-                    <p style={{ margin: 0, color: textLight, fontSize: '15px', lineHeight: '1.5' }}>{(currentUser as any)?.bio || (lang === "TR" ? "Sinema aşığı, SİNEPRO üyesi. 🍿🎬 Henüz bir biyografi eklemedi." : "Cinema lover, SINEPRO member. 🍿🎬 No bio yet.")}</p>
-                </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', marginBottom: '25px', borderBottom: `1px solid ${borderColor}` }}>
-                <button onClick={() => setProfileTab("posts")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "posts" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "posts" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>🖼️ {lang === "TR" ? "GÖNDERİLER" : "POSTS"}</button>
-                <button onClick={() => setProfileTab("settings")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "settings" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "settings" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>⚙️ {lang === "TR" ? "AYARLAR" : "SETTINGS"}</button>
-            </div>
-            {profileTab === "posts" ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                       <button onClick={() => document.getElementById('postImageInput')?.click()} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 5px 15px ${activeColor}40` }}>➕ {lang === "TR" ? "Yeni Gönderi" : "New Post"}</button>
-                       <input type="file" id="postImageInput" accept="image/*" style={{ display: 'none' }} onChange={handlePostImageSelect} />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                        {userPosts.length > 0 ? userPosts.map(post => (
-                            <div key={post.id} onClick={() => setSelectedPost(post)} style={{ aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', background: '#000', cursor: 'pointer' }} className="hover-effect">
-                                <img src={post.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Gönderi" />
+        (() => {
+            const profileData = targetProfile || currentUser;
+            const isOwnProfile = profileData.username === currentUser.username;
+            
+            return (
+                <div style={{ padding: '30px 2%', maxWidth: '1000px', margin: '0 auto', width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '40px', marginBottom: '40px', paddingBottom: '30px', borderBottom: `1px solid ${borderColor}` }}>
+                        <div style={{ flexShrink: 0 }}><UserAvatar user={profileData} size="120px" fontSize="40px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
+                        <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '15px' }}>
+                                <h2 style={{ margin: 0, fontSize: '28px', color: textMain }}>@{profileData.username}</h2>
+                                {/* BAŞKASININ PROFİLİNDEYKEN ÇIKMAK İÇİN GERİ BUTONU */}
+                                {!isOwnProfile && (
+                                    <button onClick={() => setTargetProfile(null)} style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textMain, padding: '5px 15px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
+                                        ← {lang === "TR" ? "Geri Dön" : "Go Back"}
+                                    </button>
+                                )}
                             </div>
-                        )) : <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: textLight }}>{lang === "TR" ? "Henüz hiç gönderi yok." : "No posts yet."}</p>}
+                            <div style={{ display: 'flex', gap: '30px', marginBottom: '15px', fontSize: '16px', color: textMain }}>
+                                <span><strong style={{ color: activeColor }}>{userPosts.length}</strong> {lang === "TR" ? "gönderi" : "posts"}</span>
+                                <span><strong style={{ color: activeColor }}>{profileData.stats?.followers || profileData.followers?.length || 0}</strong> {lang === "TR" ? "takipçi" : "followers"}</span>
+                                <span><strong style={{ color: activeColor }}>{profileData.stats?.following || profileData.following?.length || 0}</strong> {lang === "TR" ? "takip" : "following"}</span>
+                            </div>
+                            <p style={{ margin: 0, color: textLight, fontSize: '15px', lineHeight: '1.5' }}>{profileData.bio || (lang === "TR" ? "Sinema aşığı, SİNEPRO üyesi. 🍿🎬 Henüz bir biyografi eklemedi." : "Cinema lover, SINEPRO member. 🍿🎬 No bio yet.")}</p>
+                        </div>
                     </div>
-                </div>
-            ) : (
-                <div className="glass-panel" style={{ padding: '30px', borderRadius: '15px', textAlign: 'center' }}>
-                    <h3 style={{ color: activeColor, marginTop: 0 }}>{lang === "TR" ? "Profil Ayarları" : "Profile Settings"}</h3>
-                    <p style={{ color: textLight, marginBottom: '30px' }}>{lang === "TR" ? "Hesap bilgilerini ve tercihlerini buradan güncelleyebilirsin." : "Update your account details and preferences."}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '400px', margin: '0 auto' }}>
-                        <button onClick={() => setShowProfileSettings(true)} style={{ padding: '15px', borderRadius: '12px', border: `1px solid ${borderColor}`, background: inputBg, color: textMain, cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}>👤 {lang === "TR" ? "Profili Düzenle" : "Edit Profile"}</button>
-                        <button onClick={() => setShowSecuritySettings(true)} style={{ padding: '15px', borderRadius: '12px', border: `1px solid ${borderColor}`, background: inputBg, color: textMain, cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}>🔒 {lang === "TR" ? "Güvenlik Ayarları" : "Security Settings"}</button>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', marginBottom: '25px', borderBottom: `1px solid ${borderColor}` }}>
+                        <button onClick={() => setProfileTab("posts")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "posts" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "posts" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>🖼️ {lang === "TR" ? "GÖNDERİLER" : "POSTS"}</button>
+                        {/* SADECE KENDİ PROFİLİNDEYSE AYARLAR BUTONUNU GÖSTER */}
+                        {isOwnProfile && (
+                            <button onClick={() => setProfileTab("settings")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "settings" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "settings" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>⚙️ {lang === "TR" ? "AYARLAR" : "SETTINGS"}</button>
+                        )}
                     </div>
+                    
+                    {profileTab === "posts" ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                            {/* SADECE KENDİ PROFİLİNDEYSE YENİ GÖNDERİ PAYLAŞABİLİR */}
+                            {isOwnProfile && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+                                   <button onClick={() => document.getElementById('postImageInput')?.click()} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 5px 15px ${activeColor}40` }}>➕ {lang === "TR" ? "Yeni Gönderi" : "New Post"}</button>
+                                   <input type="file" id="postImageInput" accept="image/*" style={{ display: 'none' }} onChange={handlePostImageSelect} />
+                                </div>
+                            )}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                                {userPosts.length > 0 ? userPosts.map(post => (
+                                    <div key={post.id} onClick={() => setSelectedPost(post)} style={{ aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', background: '#000', cursor: 'pointer' }} className="hover-effect">
+                                        <img src={post.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Gönderi" />
+                                    </div>
+                                )) : <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: textLight }}>{lang === "TR" ? "Henüz hiç gönderi yok." : "No posts yet."}</p>}
+                            </div>
+                        </div>
+                    ) : (
+                        // AYARLAR SEKME İÇERİĞİ (Sadece kendi profilinde açılabilir)
+                        <div className="glass-panel" style={{ padding: '30px', borderRadius: '15px', textAlign: 'center' }}>
+                            <h3 style={{ color: activeColor, marginTop: 0 }}>{lang === "TR" ? "Profil Ayarları" : "Profile Settings"}</h3>
+                            <p style={{ color: textLight, marginBottom: '30px' }}>{lang === "TR" ? "Hesap bilgilerini ve tercihlerini buradan güncelleyebilirsin." : "Update your account details and preferences."}</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '400px', margin: '0 auto' }}>
+                                <button onClick={() => setShowProfileSettings(true)} style={{ padding: '15px', borderRadius: '12px', border: `1px solid ${borderColor}`, background: inputBg, color: textMain, cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}>👤 {lang === "TR" ? "Profili Düzenle" : "Edit Profile"}</button>
+                                <button onClick={() => setShowSecuritySettings(true)} style={{ padding: '15px', borderRadius: '12px', border: `1px solid ${borderColor}`, background: inputBg, color: textMain, cursor: 'pointer', textAlign: 'left', fontWeight: 'bold' }}>🔒 {lang === "TR" ? "Güvenlik Ayarları" : "Security Settings"}</button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
-        </div>
+            );
+        })()
       )}
 
       {/* --- ALT EKRANLAR (Geçmiş, Favori, Yorum vb) --- */}
@@ -1819,7 +1848,7 @@ return (
             {getMyComments().length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {getMyComments().map(c => (
-                        <div key={c.id} onClick={() => { setContentType(c.contentType); setSelectedItem(c.itemData); fetchExtraDetails(c.itemID, c.contentType); }} style={{ padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, cursor: 'pointer', transition: '0.3s' }} className="hover-effect glass-panel">
+                        <div key={c.id} onClick={() => { setContentType(c.contentType); setSelectedItem(c.itemData); fetchExtraDetails(c.itemID, c.contentType); }} style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: `4px solid ${activeColor}`, cursor: 'pointer', transition: '0.3s' }} className="hover-effect">
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}><h4 style={{ color: activeColor, margin: 0, fontSize: '16px' }}>{c.itemTitle}</h4><span style={{ color: textLight, fontSize: '12px' }}>{c.date}</span></div>
                             <p style={{ margin: '10px 0', color: textMain, lineHeight: '1.6' }}>{c.text}</p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px' }}><span style={{ fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>⭐ Verdiğin Puan: {c.rating}</span><span style={{ fontSize: '13px', color: '#ff4d4d', fontWeight: 'bold' }}>❤️ Beğeni: {c.likes || 0}</span></div>
@@ -1833,7 +1862,7 @@ return (
       {viewMode === "notifications" && (
         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
             <h2 className="section-title" style={{ marginBottom: '30px' }}>🔔 {lang === "TR" ? "BİLDİRİMLERİM" : "NOTIFICATIONS"}</h2>
-            <div className="glass-panel" style={{ borderRadius: '15px', overflow: 'hidden' }}>
+            <div style={{ background: bgCard, borderRadius: '15px', overflow: 'hidden' }}>
                 {displayNotifs.length > 0 ? displayNotifs.map(n => (
                     <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
                         <span style={{ fontSize: '28px' }}>{n.text.includes('Hoş Geldin') || n.text.includes('Welcome') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') || n.text.includes('replied') ? '💬' : '❤️'}</span>
@@ -1854,19 +1883,19 @@ return (
         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
             <h2 className="section-title" style={{ marginBottom: '30px' }}>📊 {lang === "TR" ? "İSTATİSTİKLERİM" : "MY STATS"}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-                 <div className="glass-panel" style={{ padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{favorites.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Favori İçerik</p></div>
-                 <div className="glass-panel" style={{ padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{currentUserTotalComments}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Yaptığın Yorum</p></div>
-                 <div className="glass-panel" style={{ padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👀</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{recentlyViewed.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Son İncelenen</p></div>
-                 <div className="glass-panel" style={{ padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div><h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Aldığın Beğeni</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{favorites.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Favori İçerik</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{currentUserTotalComments}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Yaptığın Yorum</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👀</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{recentlyViewed.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Son İncelenen</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div><h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Aldığın Beğeni</p></div>
             </div>
             <div style={{ marginTop: '60px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎖️ SİNE-RÜTBE & VIP AYRICALIKLAR REHBERİ</h3>
                 <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>SİNEPRO topluluğunda aktif ol, yorum yaptıkça sinema dünyasında seviye atla! Yüksek rütbeler, yorum alanında herkesin görebileceği <strong>Özel Tasarım Neon Çerçeveler</strong>, <strong>En Üste Sabitlenme</strong> ve <strong>VIP Rozetler</strong> kazanır.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                    <div className="glass-panel" style={{ padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888' }}><span style={{ fontSize: '28px' }}>🍿</span><br/><strong style={{ color: '#888', fontSize: '18px' }}>Set Çaylağı</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 9 Yorum</p></div>
-                    <div className="glass-panel" style={{ padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF' }}><span style={{ fontSize: '28px' }}>🔭</span><br/><strong style={{ color: '#00E5FF', fontSize: '18px' }}>Vizyoner</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>10 - 49 Yorum</p></div>
-                    <div className="glass-panel" style={{ padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF' }}><span style={{ fontSize: '28px' }}>👁️‍🗨️</span><br/><strong style={{ color: '#9D00FF', fontSize: '18px' }}>Baş Eleştirmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>50 - 149 Yorum</p></div>
-                    <div className="glass-panel" style={{ padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700' }}><span style={{ fontSize: '28px' }}>🎬</span><br/><strong style={{ color: '#FFD700', fontSize: '18px' }}>Kült Yönetmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>150 - 499 Yorum</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888' }}><span style={{ fontSize: '28px' }}>🍿</span><br/><strong style={{ color: '#888', fontSize: '18px' }}>Set Çaylağı</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 9 Yorum</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF' }}><span style={{ fontSize: '28px' }}>🔭</span><br/><strong style={{ color: '#00E5FF', fontSize: '18px' }}>Vizyoner</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>10 - 49 Yorum</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF' }}><span style={{ fontSize: '28px' }}>👁️‍🗨️</span><br/><strong style={{ color: '#9D00FF', fontSize: '18px' }}>Baş Eleştirmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>50 - 149 Yorum</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700' }}><span style={{ fontSize: '28px' }}>🎬</span><br/><strong style={{ color: '#FFD700', fontSize: '18px' }}>Kült Yönetmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>150 - 499 Yorum</p></div>
                     <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', border: '1px solid rgba(255,0,85,0.3)' }}><span style={{ fontSize: '28px' }}>👑</span><br/><strong style={{ color: '#FF0055', fontSize: '20px' }}>SİNE-LORD</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>500+ Yorum</p></div>
                 </div>
             </div>
@@ -1877,7 +1906,7 @@ return (
       {viewMode === "about" && (
           <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto' }}>
               <h2 className="section-title" style={{ marginBottom: '30px' }}>ℹ️ {lang === "TR" ? "HAKKIMIZDA" : "ABOUT US"}</h2>
-              <div className="glass-panel" style={{ padding: '30px', borderRadius: '20px', borderLeft: `5px solid ${activeColor}`, lineHeight: '1.8', color: textMain, fontSize: '15px', boxShadow: `0 10px 30px rgba(0,0,0,0.1)` }}>
+              <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderLeft: `5px solid ${activeColor}`, lineHeight: '1.8', color: textMain, fontSize: '15px', boxShadow: `0 10px 30px rgba(0,0,0,0.1)` }}>
                   <p><strong>SİNEPRO</strong>, bir film izleme sitesinden çok daha fazlası; sinema tutkunları için ilmek ilmek işlenmiş, vizyoner ve yepyeni bir sosyal deneyim platformudur.</p>
                   <p>Aylarca süren titiz bir geliştirme süreci, binlerce satır kod ve kullanıcı deneyimini (UX) kusursuzlaştırmak için harcanan uykusuz geceler sonucunda ortaya çıkan bu proje, klasik platformların eksiklerini kapatmak için tasarlandı. SİNE Aİ akıllı asistanımız, gerçek zamanlı bildirim sistemimiz ve gelişmiş topluluk özelliklerimizle sinema dünyasını tek bir merkeze topluyoruz.</p>
                   <p>Amacımız sadece ne izleyeceğini bulman değil, izlediğin yapımları seninle aynı zevkleri paylaşan insanlarla tartışabilmen ve SİNEPRO evreninin bir parçası olmandır. Bizi tercih ettiğiniz ve bu emeğe ortak olduğunuz için teşekkür ederiz!</p>
@@ -1900,7 +1929,7 @@ return (
                       <h3 style={{ color: activeColor, marginTop: 0, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>Sıkça Sorulan Sorular</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           {faqs.map((faq, index) => (
-                              <div key={index} className="glass-panel" style={{ borderRadius: '12px', border: `1px solid ${expandedFaq === index ? activeColor : borderColor}`, overflow: 'hidden', transition: '0.3s' }}>
+                              <div key={index} style={{ background: bgCard, borderRadius: '12px', border: `1px solid ${expandedFaq === index ? activeColor : borderColor}`, overflow: 'hidden', transition: '0.3s' }}>
                                   <div onClick={() => setExpandedFaq(expandedFaq === index ? null : index)} style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedFaq === index ? (isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)') : 'transparent' }}>
                                       <span style={{ fontWeight: 'bold', fontSize: '14px', color: textMain }}>{faq.q}</span>
                                       <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '18px', transition: 'transform 0.3s', transform: expandedFaq === index ? 'rotate(45deg)' : 'rotate(0deg)' }}>+</span>
@@ -1915,7 +1944,7 @@ return (
                       </div>
                   </div>
                   {/* DESTEK TALEBİ GÖNDERME FORMU */}
-                  <div className="glass-panel" style={{ padding: '30px', borderRadius: '20px', borderTop: `5px solid ${activeColor}`, boxShadow: `0 10px 30px rgba(0,0,0,0.1)`, height: 'fit-content' }}>
+                  <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderTop: `5px solid ${activeColor}`, boxShadow: `0 10px 30px rgba(0,0,0,0.1)`, height: 'fit-content' }}>
                       <h3 style={{ color: activeColor, marginTop: 0 }}>Hala yardıma mı ihtiyacın var?</h3>
                       <p style={{ fontSize: '13px', color: textLight, marginBottom: '25px', lineHeight: '1.5' }}>Sorunun cevabını yukarıda bulamadıysan veya bize bir hata bildirmek istiyorsan, hemen bir destek talebi (Ticket) oluştur. Ekibimiz en kısa sürede dönüş yapacaktır.</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -1960,8 +1989,8 @@ return (
 
       {/* --- FİLM DETAY VE YORUMLAR --- */}
       {selectedItem && (
-        <div className="movie-detail-overlay glass-panel">
-          <div style={{ position: 'sticky', top: 0, zIndex: 1100, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)', backdropFilter: 'blur(10px)' }}>
+        <div className="movie-detail-overlay" style={{ background: bgMain }}>
+          <div style={{ position: 'sticky', top: 0, zIndex: 1100, padding: '15px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${borderColor}`, background: navBg }}>
             <h2 style={{ color: activeColor, fontSize: '18px', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{selectedItem.title || selectedItem.name}</h2>
             <button onClick={() => { setSelectedItem(null); setTrailerKey(null); setActiveTrailerKey(null); }} style={{ background: activeColor, color: badgeText, padding: '8px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>{lang === "TR" ? "KAPAT" : "CLOSE"}</button>
           </div>
@@ -2008,7 +2037,8 @@ return (
                 <div className="horizontal-scroll" ref={modalScrollRef}>
                    {similar.map((s: any) => (
                      <div key={s.id} style={{ minWidth: '140px', textAlign: 'center', cursor: 'pointer' }}>
-                        <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); }} className="hover-effect" style={{ height: '210px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}><img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /><div onClick={(e) => toggleFavorite(e, s)} className="fav-heart-btn">{favorites.find(f => f.id === s.id) ? '❤️' : '🤍'}</div><div className="rating-badge-pro">★ {s.vote_average?.toFixed(1)}</div></div>
+                        {/* DÜZELTME 5: FİLME TIKLAYINCA EN ÜSTE (TOP 0) KAYDIRAN KOD EKLENDİ */}
+                        <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); document.querySelector('.movie-detail-overlay')?.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover-effect" style={{ height: '210px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}><img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /><div onClick={(e) => toggleFavorite(e, s)} className="fav-heart-btn">{favorites.find(f => f.id === s.id) ? '❤️' : '🤍'}</div><div className="rating-badge-pro">★ {s.vote_average?.toFixed(1)}</div></div>
                         <p style={{ marginTop: '10px', fontWeight: 'bold', fontSize: '13px', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
                      </div>
                    ))}
@@ -2017,7 +2047,7 @@ return (
             )}
             <div id="comments-section" style={{ marginTop: '80px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px' }}>{lang === "TR" ? "TOPLULUK YORUMLARI & PUANLARI" : "COMMUNITY COMMENTS & RATINGS"}</h3>
-                <div className="glass-panel" style={{ margin: '30px 0', padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
+                <div style={{ background: bgCard, margin: '30px 0', padding: '20px', borderRadius: '15px', border: `1px solid ${theme.secondary}` }}>
                    <div className="comments-inputs" style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                      <div style={{ display: 'flex', gap: '10px', flex: 1 }}><UserAvatar user={currentUser} size="45px" activeColor={activeColor} theme={theme} badgeText={badgeText} /><input type="text" placeholder={currentUser ? (lang === "TR" ? "Bu yapım hakkında ne düşünüyorsun?" : "What do you think about this?") : (lang === "TR" ? "Yorum yapmak için giriş yapın..." : "Login to comment...")} value={newComment} onChange={(e) => setNewComment(e.target.value)} onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); } }} readOnly={!currentUser} onKeyDown={(e) => handleEnterKey(e, addComment)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 20px', borderRadius: '10px', color: textMain, outline: 'none' }} /></div>
                      <select value={commentRating} onChange={(e) => setCommentRating(Number(e.target.value))} disabled={!currentUser} style={{ background: inputBg, color: activeColor, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '10px', outline: 'none', cursor: 'pointer', fontWeight: 'bold' }}>{[10,9,8,7,6,5,4,3,2,1].map(r => <option key={r} value={r}>{r} {lang === "TR" ? "Puan" : "Pts"}</option>)}</select>
@@ -2033,10 +2063,9 @@ return (
                         sortedComments.map((c: any) => {
                            const cRank = getUserRank(c.authorCommentCount !== undefined ? c.authorCommentCount : 0);
                            return (
-                             <div key={c.id} className="glass-panel" style={{ borderRadius: '10px', padding: '15px', position: 'relative', ...cRank.perkStyle }}>
+                             <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', position: 'relative', ...cRank.perkStyle }}>
                                 {c.isVIP && <div style={{ position: 'absolute', top: '-10px', right: '20px', background: cRank.color, color: '#000', padding: '2px 10px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', boxShadow: `0 4px 10px ${cRank.color}80` }}>📌 VIP</div>}
                                 
-                                {/* ÇÖP KUTUSU (SİLİCİ) */}
                                 {(currentUser?.username === c.user || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
                                   <button onClick={(e) => { e.stopPropagation(); deleteItem("comments", c.id, c.user); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(255,0,0,0.1)', border: 'none', borderRadius: '50%', width: '25px', height: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d4d', cursor: 'pointer', fontSize: '12px', zIndex: 5 }} title={lang === "TR" ? "Yorumu Sil" : "Delete Comment"}>🗑️</button>
                                 )}
@@ -2050,7 +2079,6 @@ return (
                                           <div style={{ display: 'flex', alignItems: 'center' }}>
                                               <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
                                               <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
-                                              {/* MOBİLDE TIKLANMAYAN TAKİP ET BUTONU DÜZELTİLDİ (zIndex) */}
                                               {currentUser && currentUser.username !== c.user && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50 }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
                                           </div>
                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
@@ -2115,7 +2143,7 @@ return (
       {/* --- SİNE Aİ PENCERESİ --- */}
       {showSineAI && (
         <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box ai-modal glass-panel" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
+          <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: bgCard, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
             <div style={{ background: aiHeaderBg, padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${activeColor}40` }}>
                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '24px' }}>🤖</span>
@@ -2224,7 +2252,7 @@ return (
       {/* --- PROFIL AYARLARI EKRANI (MODAL) --- */}
       {showProfileSettings && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box profile-modal glass-panel" style={{ overflowY: 'auto', maxHeight: '85vh', width: '100%', maxWidth: '450px', borderRadius: '25px', padding: '30px', border: `1px solid ${activeColor}` }}>
+          <div className="modal-box profile-modal" style={{ background: bgCard, overflowY: 'auto', maxHeight: '85vh', width: '100%', maxWidth: '450px', borderRadius: '25px', padding: '30px', border: `1px solid ${activeColor}` }}>
             <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0, marginBottom: '20px' }}>{lang === "TR" ? "Profil Ayarlarım" : "Profile Settings"}</h3>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}><UserAvatar user={currentUser} size="80px" fontSize="30px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
           
@@ -2291,6 +2319,10 @@ return (
                   <label style={{ fontSize: '12px', color: textMuted, fontWeight: 'bold', marginLeft: '5px' }}>{lang === "TR" ? "Biyografi (Maks 50 Karakter)" : "Bio (Max 50 Characters)"}</label>
                   <input type="text" maxLength={50} placeholder={lang === "TR" ? "Kendinden bahset..." : "Tell us about yourself..."} value={currentUser?.bio || ""} onChange={(e) => setCurrentUser({...currentUser, bio: e.target.value})} style={{ width: '100%', background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '12px', color: textMain, marginTop: '5px', boxSizing: 'border-box', outline: 'none' }} />
               </div>
+              <div style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: inputBg, padding: '12px 15px', borderRadius: '12px', border: `1px solid ${borderColor}`, boxSizing: 'border-box' }}>
+                  <label style={{ fontSize: '13px', color: textMain, fontWeight: 'bold', cursor: 'pointer' }}>🔒 {lang === "TR" ? "Profili Gizli Tut" : "Private Profile"}</label>
+                  <input type="checkbox" checked={currentUser?.isPrivate || false} onChange={(e) => setCurrentUser({...currentUser, isPrivate: e.target.checked})} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+              </div>
               <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none', fontSize: '15px', marginTop: '10px', boxShadow: `0 5px 15px ${activeColor}40` }}>{lang === "TR" ? "DEĞİŞİKLİKLERİ KAYDET" : "SAVE CHANGES"}</button>
             </div>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '15px', cursor: 'pointer', border: 'none', fontSize: '13px', fontWeight: 'bold' }}>{lang === "TR" ? "Vazgeç ve Kapat" : "Cancel & Close"}</button>
@@ -2328,15 +2360,35 @@ return (
                        <p style={{ margin: 0, fontSize: '14px', color: textMain, lineHeight: '1.5', maxWidth: '300px' }}>{zoomedAvatar.bio || (lang === "TR" ? "SİNEPRO dünyasında bir sinema tutkunu... 🍿" : "A cinema enthusiast in the SINEPRO world... 🍿")}</p>
                    </div>
 
-                   {/* BUTONLAR */}
+                 {/* BUTONLAR */}
                    <div style={{ display: 'flex', gap: '12px' }}>
                        {currentUser?.username !== zoomedAvatar.username ? (
-                           <>
-                               <button onClick={() => handleFollowUser(zoomedAvatar.username)} style={{ flex: 1, background: activeColor, color: badgeText, border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: `0 8px 20px ${activeColor}40`, transition: '0.3s' }}>{lang === "TR" ? "Takip Et" : "Follow"}</button>
-                               <button onClick={() => { setZoomedAvatar(null); setShowSocialPanel(true); }} style={{ flex: 1, background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>{lang === "TR" ? "Mesaj Gönder" : "Message"}</button>
-                           </>
+                           zoomedAvatar.isPrivate ? (
+                               /* GİZLİ HESAP DURUMU: İki buton da yok, sadece uyarı var */
+                               <button disabled style={{ width: '100%', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'not-allowed' }}>
+                                   🔒 {lang === "TR" ? "Bu hesap gizli" : "Private Account"}
+                               </button>
+                           ) : (
+                               /* AÇIK HESAP DURUMU: Takip Et ve Profili Görüntüle */
+                               <>
+                                   <button onClick={() => handleFollowUser(zoomedAvatar.username)} style={{ flex: 1, background: activeColor, color: badgeText, border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: `0 8px 20px ${activeColor}40`, transition: '0.3s' }}>
+                                       {lang === "TR" ? "Takip Et" : "Follow"}
+                                   </button>
+                                   <button onClick={() => { 
+                                       setTargetProfile(zoomedAvatar); // Hedef profili ayarla
+                                       setZoomedAvatar(null); // Kutuyu kapat
+                                       setViewMode("profile"); // Profil sayfasını aç
+                                       setProfileTab("posts"); // Direkt gönderiler sekmesini aç
+                                   }} style={{ flex: 1, background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+                                       {lang === "TR" ? "Profili Görüntüle" : "View Profile"}
+                                   </button>
+                               </>
+                           )
                        ) : (
-                           <button onClick={() => { setZoomedAvatar(null); setViewMode("profile"); }} style={{ width: '100%', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>{lang === "TR" ? "Profilimi Görüntüle" : "View My Profile"}</button>
+                           /* KENDİ PROFİLİNE TIKLARSA */
+                           <button onClick={() => { setZoomedAvatar(null); setViewMode("profile"); }} style={{ width: '100%', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>
+                               {lang === "TR" ? "Profilimi Görüntüle" : "View My Profile"}
+                           </button>
                        )}
                    </div>
                </div>
@@ -2344,46 +2396,52 @@ return (
         </div>
       )}
 
-      {/* --- EKSİK OLAN GİRİŞ/KAYIT (AUTH) MODALI --- */}
+      {/* DÜZELTME 4: GİRİŞ YAP / KAYIT OL MODALI ÇOK DAHA ŞIK BİR HALE GETİRİLDİ */}
       {showLogin && (
         <div onClick={() => setShowLogin(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal glass-panel" style={{ border: `1px solid ${activeColor}`, position: 'relative' }}>
-            <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            <h2 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>
-              {authMode === 'login' ? (lang === "TR" ? 'Giriş Yap' : 'Login') : authMode === 'register' ? (lang === "TR" ? 'Kayıt Ol' : 'Register') : (lang === "TR" ? 'Doğrulama' : 'Verification')}
+          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `none`, position: 'relative', borderRadius: '24px', boxShadow: `0 20px 50px rgba(0,0,0,0.5)`, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', background: `linear-gradient(90deg, ${activeColor}, ${theme.secondary})` }}></div>
+            <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', border: 'none', color: textMain, fontSize: '18px', cursor: 'pointer', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s' }}>✕</button>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 30px 0' }}>
+               <SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="32px" proSize="24px" />
+            </div>
+
+            <h2 style={{ color: textMain, textAlign: 'center', marginTop: 0, fontSize: '22px', fontWeight: '900', marginBottom: '25px' }}>
+              {authMode === 'login' ? (lang === "TR" ? 'Hesabınıza Giriş Yapın' : 'Login to Your Account') : authMode === 'register' ? (lang === "TR" ? 'Yeni Hesap Oluştur' : 'Create New Account') : (lang === "TR" ? 'Güvenlik Doğrulaması' : 'Security Verification')}
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {(authMode === 'register' || authMode === 'login' || authMode === 'forgot_password') && (
-                 <input type="email" placeholder={lang === "TR" ? "E-posta" : "Email"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ padding: '12px', borderRadius: '10px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none' }} />
+                 <input type="email" placeholder={lang === "TR" ? "E-posta Adresiniz" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
               )}
               {authMode === 'register' && (
-                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ padding: '12px', borderRadius: '10px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none' }} />
+                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
               )}
               {(authMode === 'register' || authMode === 'login' || authMode === 'new_password') && (
-                 <input type="password" placeholder={lang === "TR" ? "Şifre" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ padding: '12px', borderRadius: '10px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none' }} />
+                 <input type="password" placeholder={lang === "TR" ? "Şifreniz" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
               )}
               {(authMode === 'verify' || authMode === 'verify_forgot' || authMode === 'security_verify') && (
-                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Kod" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ padding: '12px', borderRadius: '10px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none' }} />
+                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Doğrulama Kodu" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s', textAlign: 'center', letterSpacing: '2px', fontWeight: 'bold' }} />
               )}
 
-              {authMode === 'login' && <button onClick={handleLogin} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Giriş Yap" : "Login"}</button>}
-              {authMode === 'register' && <button onClick={handleRegisterStart} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Kayıt Ol" : "Register"}</button>}
-              {authMode === 'verify' && <button onClick={handleVerifyAndFinish} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Kodu Doğrula" : "Verify Code"}</button>}
-              {authMode === 'forgot_password' && <button onClick={handleForgotPasswordStart} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Şifre Sıfırlama Kodu Gönder" : "Send Reset Code"}</button>}
-              {authMode === 'verify_forgot' && <button onClick={handleVerifyForgot} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Kodu Doğrula" : "Verify Code"}</button>}
-              {authMode === 'new_password' && <button onClick={handleSaveNewPassword} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Şifreyi Güncelle" : "Update Password"}</button>}
-              {authMode === 'security_verify' && <button onClick={handleSecurityUpdate} style={{ background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>{lang === "TR" ? "Kodu Doğrula" : "Verify Code"}</button>}
+              {authMode === 'login' && <button onClick={handleLogin} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}
+              {authMode === 'register' && <button onClick={handleRegisterStart} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KAYIT OL" : "REGISTER"}</button>}
+              {authMode === 'verify' && <button onClick={handleVerifyAndFinish} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
+              {authMode === 'forgot_password' && <button onClick={handleForgotPasswordStart} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KOD GÖNDER" : "SEND RESET CODE"}</button>}
+              {authMode === 'verify_forgot' && <button onClick={handleVerifyForgot} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
+              {authMode === 'new_password' && <button onClick={handleSaveNewPassword} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "ŞİFREYİ GÜNCELLE" : "UPDATE PASSWORD"}</button>}
+              {authMode === 'security_verify' && <button onClick={handleSecurityUpdate} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
               
             </div>
-            <div style={{ marginTop: '15px', textAlign: 'center', fontSize: '13px' }}>
+            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
                {authMode === 'login' && (
                    <>
-                     <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('register')}>{lang === "TR" ? "Hesabın yok mu? Kayıt Ol" : "No account? Register"}</p>
+                     <p style={{ color: textLight, cursor: 'pointer', marginBottom: '10px' }} onClick={() => setAuthMode('register')}>{lang === "TR" ? "Hesabın yok mu? " : "No account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Kayıt Ol" : "Register"}</strong></p>
                      <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('forgot_password')}>{lang === "TR" ? "Şifremi Unuttum" : "Forgot Password"}</p>
                    </>
                )}
-               {authMode === 'register' && <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('login')}>{lang === "TR" ? "Zaten hesabın var mı? Giriş Yap" : "Already have an account? Login"}</p>}
-               {authMode === 'forgot_password' && <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('login')}>{lang === "TR" ? "Giriş ekranına dön" : "Back to Login"}</p>}
+               {authMode === 'register' && <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('login')}>{lang === "TR" ? "Zaten hesabın var mı? " : "Already have an account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Giriş Yap" : "Login"}</strong></p>}
+               {authMode === 'forgot_password' && <p style={{ color: activeColor, cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setAuthMode('login')}>← {lang === "TR" ? "Giriş ekranına dön" : "Back to Login"}</p>}
             </div>
           </div>
         </div>
@@ -2392,7 +2450,7 @@ return (
       {/* --- GÜVENLİK AYARLARI MODALI --- */}
       {showSecuritySettings && (
         <div onClick={() => setShowSecuritySettings(false)} style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal glass-panel" style={{ border: `1px solid ${activeColor}` }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `1px solid ${activeColor}` }}>
               <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0 }}>{lang === "TR" ? "Güvenlik Ayarları" : "Security Settings"}</h3>
               <input type="password" placeholder={lang === "TR" ? "Yeni Şifre" : "New Password"} value={profilePassword} onChange={(e) => setProfilePassword(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', marginTop: '15px' }} />
               <button onClick={startSecurityVerify} style={{ width: '100%', background: activeColor, color: badgeText, padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer', marginTop: '15px' }}>{lang === "TR" ? "Şifremi Değiştir" : "Change Password"}</button>
@@ -2403,7 +2461,7 @@ return (
       {/* --- TEMA DEĞİŞTİRME MODALI --- */}
       {showThemeSettings && (
         <div onClick={() => setShowThemeSettings(false)} style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div onClick={(e) => e.stopPropagation()} className="modal-box theme-modal glass-panel" style={{ border: `1px solid ${activeColor}` }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-box theme-modal" style={{ background: bgCard, border: `1px solid ${activeColor}` }}>
               <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0, marginBottom: '20px' }}>{lang === "TR" ? "Tema Seçimi" : "Select Theme"}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                  {themes.map(t => (
@@ -2416,10 +2474,13 @@ return (
         </div>
       )}
 
-      {/* --- FRAGMAN PENCERESİ --- */}
+      {/* --- FRAGMAN PENCERESİ (YENİ NEON ÇERÇEVELİ) --- */}
       {activeTrailerKey && (
         <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <iframe style={{ width: '90vw', height: '50vw', maxWidth: '1000px', maxHeight: '560px', borderRadius: '15px' }} src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allowFullScreen></iframe>
+           {/* DÜZELTME 6: FRAGMAN ETRAFINA AKTİF RENKTE GLOW EFEKTİ EKLENDİ */}
+           <div style={{ position: 'relative', width: '90vw', height: '50vw', maxWidth: '1000px', maxHeight: '560px', borderRadius: '15px', boxShadow: `0 0 50px ${activeColor}80`, border: `2px solid ${activeColor}` }}>
+               <iframe style={{ width: '100%', height: '100%', borderRadius: '13px' }} src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allowFullScreen></iframe>
+           </div>
            <button onClick={() => setActiveTrailerKey(null)} style={{ position: 'absolute', top: '30px', right: '30px', background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', width: '50px', height: '50px', borderRadius: '50%', fontSize: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       )}
@@ -2459,40 +2520,41 @@ return (
                         </div>
                     )}
                     
-{selectedPost.comments && selectedPost.comments.length > 0 ? (
-    selectedPost.comments.map((comment: any, index: number) => (
-        <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'flex-start' }}>
-            <div style={{ width: '25px', height: '25px', borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
-                {comment.username?.charAt(0).toUpperCase()}
-            </div>
-            <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                        <span style={{ fontWeight: 'bold', color: textMain, marginRight: '8px', fontSize: '13px' }}>@{comment.username}</span>
-                        <span style={{ color: textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
-                    </div>
+                    {selectedPost.comments && selectedPost.comments.length > 0 ? (
+                        selectedPost.comments.map((comment: any, index: number) => (
+                            <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'flex-start' }}>
+                                <div style={{ width: '25px', height: '25px', borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
+                                    {comment.username?.charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div>
+                                            <span style={{ fontWeight: 'bold', color: textMain, marginRight: '8px', fontSize: '13px' }}>@{comment.username}</span>
+                                            <span style={{ color: textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
+                                        </div>
 
-                    {/* SADECE YORUM SAHİBİNE GÖRÜNEN SİL BUTONU */}
-                    {(comment.username === currentUser?.username || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
-                        <button 
-                            onClick={() => {
-                                if(window.confirm(lang === "TR" ? "Bu yorumu kalıcı olarak silmek istiyor musun?" : "Delete this comment?")) {
-                                    handleDeleteComment(selectedPost.id, comment);
-                                }
-                            }}
-                            style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '0 5px' }}
-                        >
-                            {lang === "TR" ? "Sil" : "Delete"}
-                        </button>
+                                        {/* SADECE YORUM SAHİBİNE GÖRÜNEN SİL BUTONU */}
+                                        {(comment.username === currentUser?.username || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
+                                            <button 
+                                                onClick={() => {
+                                                    if(window.confirm(lang === "TR" ? "Bu yorumu kalıcı olarak silmek istiyor musun?" : "Delete this comment?")) {
+                                                        handleDeleteComment(selectedPost.id, comment);
+                                                    }
+                                                }}
+                                                style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '0 5px' }}
+                                            >
+                                                {lang === "TR" ? "Sil" : "Delete"}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div style={{ color: textLight, fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>{lang === "TR" ? "Henüz yorum yok. İlk yorumu sen yap!" : "No comments yet."}</div>
                     )}
-                </div>
-            </div>
-        </div>
-    ))
-) : (
-    <div style={{ color: textLight, fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>{lang === "TR" ? "Henüz yorum yok. İlk yorumu sen yap!" : "No comments yet."}</div>
-)}
                  </div>
+                 
                  <div style={{ padding: '15px', borderTop: `1px solid ${borderColor}` }}>
                     <div style={{ display: 'flex', gap: '15px', marginBottom: '10px' }}>
                        <button 
@@ -2514,7 +2576,6 @@ return (
                                e.preventDefault();
                                setShowCommentBox(!showCommentBox); // Kutuyu aç/kapat
                                
-                               // Eğer kutu açılıyorsa içine odaklan
                                if (!showCommentBox) {
                                    setTimeout(() => {
                                        const inputField = document.getElementById('modalCommentInput');
@@ -2534,7 +2595,7 @@ return (
                     <span style={{ fontWeight: 'bold', color: textMain, fontSize: '14px' }}>{selectedPost.likes?.length || 0} {lang === "TR" ? "beğenme" : "likes"}</span>
                     <span style={{ display: 'block', color: textLight, fontSize: '11px', marginTop: '5px' }}>{selectedPost.date}</span>
                     
-                   {/* YORUM YAPMA KUTUSU */}
+                    {/* YORUM YAPMA KUTUSU */}
                     {showCommentBox && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderTop: `1px solid ${borderColor}`, paddingTop: '15px', marginTop: '15px' }}>
                             <input 
@@ -2548,11 +2609,9 @@ return (
                                         const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
                                         const updatedComments = [...(selectedPost.comments || []), newComment];
                                         
-                                        // 1. Ekranda anında göster (Bekletmeden)
                                         setSelectedPost({ ...selectedPost, comments: updatedComments });
                                         e.currentTarget.value = ''; 
                                         
-                                        // 2. KALICI HAFIZAYA (VERİTABANINA) KAYDET
                                         if (selectedPost.id) {
                                             try {
                                                 await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
@@ -2569,11 +2628,9 @@ return (
                                         const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
                                         const updatedComments = [...(selectedPost.comments || []), newComment];
                                         
-                                        // 1. Ekranda anında göster
                                         setSelectedPost({ ...selectedPost, comments: updatedComments });
                                         input.value = '';
                                         
-                                        // 2. KALICI HAFIZAYA (VERİTABANINA) KAYDET
                                         if (selectedPost.id) {
                                             try {
                                                 await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
@@ -2596,7 +2653,7 @@ return (
       {/* --- YENİ EKLENEN: GÖNDERİ PAYLAŞMA KÜÇÜK PENCERESİ --- */}
       {newPostImage && (
         <div style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 16000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-           <div className="glass-panel" style={{ padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', border: `1px solid ${activeColor}` }}>
+           <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', width: '100%', maxWidth: '500px', border: `1px solid ${activeColor}` }}>
                <h4 style={{ margin: '0 0 15px 0', color: textMain, fontSize: '18px' }}>{lang === "TR" ? "Yeni Gönderi Paylaş" : "Share New Post"}</h4>
                <div style={{ position: 'relative', marginBottom: '15px', textAlign: 'center', background: '#000', borderRadius: '12px', overflow: 'hidden' }}>
                    <img src={newPostImage} style={{ maxWidth: '100%', maxHeight: '350px', objectFit: 'contain' }} alt="Önizleme" />
@@ -2610,17 +2667,18 @@ return (
         </div>
       )}
 
-      {/* --- SİNE SOSYAL PANEL --- */}
-      {showSocialPanel && currentUser && (
-          <SocialPanel 
-              currentUser={currentUser} 
-              onClose={() => setShowSocialPanel(false)} 
-              theme={theme} 
-              isDarkMode={isDarkMode} 
-              activeColor={activeColor} 
-          />
-      )}
-
+      {/* Home.tsx içindeki SocialPanel çağrısını bul ve şu satırı ekle: */}
+{showSocialPanel && currentUser && (
+    <SocialPanel 
+        currentUser={currentUser} 
+        onClose={() => setShowSocialPanel(false)} 
+        theme={theme} 
+        isDarkMode={isDarkMode} 
+        activeColor={activeColor} 
+        lang={lang}
+        onOpenProfile={openProfileCard} // İŞTE BU SATIRI EKLE
+    />
+)}
       {/* --- KÜRESEL SOHBET RESMİ BÜYÜTME EKRANI (POP-UP) --- */}
       {zoomedChatImage && (
         <div 
