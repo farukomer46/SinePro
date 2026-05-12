@@ -146,7 +146,7 @@ export default function Home() {
 
   // --- YENİ: INSTAGRAM TARZI PROFİL VE GÖNDERİ MOTORLARI ---
   const [profileTab, setProfileTab] = useState<"posts" | "settings">("posts");
-  const [targetProfile, setTargetProfile] = useState<any>(null); // YENİ: Başkasının profiline girdiğimizi anlayan hafıza
+  const [targetProfile, setTargetProfile] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const [newPostCaption, setNewPostCaption] = useState("");
@@ -166,10 +166,10 @@ export default function Home() {
     }
   }, [viewMode, currentUsername, targetProfile]);
 
-  // Profil ekranından başka bir yere (Anasayfa vs.) geçilirse başkasının profilinden çık:
   useEffect(() => {
       if (viewMode !== "profile") setTargetProfile(null);
   }, [viewMode]);
+
   const handlePostImageSelect = (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -221,11 +221,24 @@ export default function Home() {
   const handlePostLike = async (postId: string, currentLikes: string[] = []) => {
       if (!currentUser) return alert(lang === "TR" ? "Beğenmek için giriş yapın!" : "Login to like!");
       const postRef = doc(db, "user_posts", postId);
-      if (currentLikes.includes(currentUser.username)) {
-          await updateDoc(postRef, { likes: arrayRemove(currentUser.username) });
-      } else {
-          await updateDoc(postRef, { likes: arrayUnion(currentUser.username) });
-      }
+      const isLiked = currentLikes.includes(currentUser.username);
+      
+      try {
+          if (isLiked) {
+              await updateDoc(postRef, { likes: arrayRemove(currentUser.username) });
+          } else {
+              await updateDoc(postRef, { likes: arrayUnion(currentUser.username) });
+              // BİLDİRİM GÖNDERME
+              const msgOwner = userPosts.find(p => p.id === postId)?.username;
+              if (msgOwner && msgOwner !== currentUser.username) {
+                  await addDoc(collection(db, "notifications"), {
+                      recipient: msgOwner, sender: currentUser.username, type: "like_post",
+                      text: `@${currentUser.username} gönderini beğendi! ❤️`,
+                      isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+                  });
+              }
+          }
+      } catch(e) {}
   };
 
   const handleDeleteComment = async (postId: string, commentToDelete: any) => {
@@ -238,13 +251,18 @@ export default function Home() {
     
     setSelectedPost({ ...selectedPost, comments: updatedComments });
 
-    // 2. Veritabanında (Firestore) kalıcı olarak güncelle
+    // 2. Veritabanında kalıcı olarak güncelle ve canlı düşüş uygula
     try {
-      const postRef = doc(db, "posts", postId);
+      const postRef = doc(db, "user_posts", postId);
       await setDoc(postRef, { comments: updatedComments }, { merge: true });
+      
+      // Canlı düşüş motoru (Kendi yorumunu silerse puanı azalır)
+      if (currentUser && currentUser.username === commentToDelete.username) {
+          const newCount = Math.max(0, (currentUser.messageCount || 0) - 1);
+          await setDoc(doc(db, "users", currentUser.uid), { messageCount: newCount }, { merge: true });
+      }
     } catch (error) {
       console.error("Yorum silinirken hata oluştu:", error);
-      alert(lang === "TR" ? "Yorum silinemedi, lütfen tekrar deneyin." : "Failed to delete comment, please try again.");
     }
   };
 
@@ -269,7 +287,8 @@ export default function Home() {
     return myComments;
   };
 
-  const currentUserTotalComments = getMyComments().length;
+  // YENİ: Firebase tabanlı gerçek ve tekil mesaj/yorum sayısı
+  const currentUserTotalComments = currentUser?.messageCount || 0;
 
   const genres = useMemo(() => {
     if (contentType === "tv") {
@@ -314,7 +333,6 @@ export default function Home() {
   const activeColor = getAdjustedColor(theme.name, theme.color);
   const badgeText = isDarkMode ? '#0B0C10' : '#FFFFFF';
   
-  // DÜZELTME 1: ŞEFFAF EFEKTLER İPTAL EDİLDİ (ESKİ KATILIK GELDİ)
   const bgMain = isDarkMode ? '#0B0C10' : '#F5F7FA';
   const bgCard = isDarkMode ? '#1F2833' : '#FFFFFF'; 
   const inputBg = isDarkMode ? '#0B0C10' : '#E8ECEF';
@@ -405,7 +423,6 @@ export default function Home() {
     }
   }, [selectedItem, autoScrollToComments]);
 
-  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (ARAMA)
   useEffect(() => {
     if (searchInput.trim().length > 0) {
       const fetchLiveResults = async () => {
@@ -427,23 +444,22 @@ export default function Home() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [aiChatHistory, isAITyping, showAILeaderboard]);
 
+  // BİLDİRİM DİNLEME MOTORU (%100 Firebase Canlı Dinleme)
   useEffect(() => {
-    setGuestNotifSeen(sessionStorage.getItem("sinepro_guest_notif") === "true");
-    if(currentUser) {
-        const savedNotifs = JSON.parse(localStorage.getItem(`sinepro_notifications_${currentUser.username}`) || "[]");
-        if (savedNotifs.length === 0) {
-            const welcomeMsg = { id: Date.now(), text: lang === "TR" ? "SİNEPRO dünyasına hoş geldin! 🎉 Harika içerikler ve sınırsız özellikler seni bekliyor." : "Welcome to SINEPRO! 🎉 Great content awaits you.", isRead: false, date: new Date().toLocaleDateString('tr-TR') };
-            setNotifications([welcomeMsg]);
-            localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify([welcomeMsg]));
-        } else {
-            setNotifications(savedNotifs);
-        }
+    if (currentUser?.username) {
+        const q = query(collection(db, "notifications"), where("recipient", "==", currentUser.username), orderBy("createdAt", "desc"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const loadedNotifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setNotifications(loadedNotifs);
+        });
+        return () => unsubscribe();
     } else {
         setNotifications([]);
     }
-  }, [currentUser, lang]);
+  }, [currentUser?.username]);
 
   useEffect(() => {
+    setGuestNotifSeen(sessionStorage.getItem("sinepro_guest_notif") === "true");
     setMounted(true);
     const savedMode = localStorage.getItem("sinepro_dark_mode");
     if (savedMode !== null) setIsDarkMode(JSON.parse(savedMode));
@@ -462,6 +478,7 @@ export default function Home() {
           let cloudBio = "";
           let cloudFollowers = [];
           let cloudFollowing = [];
+          let cloudMessageCount = 0; // VIP Sistemi için dinamik sayı
 
           if (docSnap.exists()) {
               const data = docSnap.data();
@@ -472,6 +489,7 @@ export default function Home() {
               if (data.bio) cloudBio = data.bio;
               if (data.followers) cloudFollowers = data.followers;
               if (data.following) cloudFollowing = data.following;
+              if (data.messageCount) cloudMessageCount = data.messageCount;
           }
 
           if (cloudFavs.length > 0) {
@@ -488,6 +506,7 @@ export default function Home() {
             bio: cloudBio,
             followers: cloudFollowers,
             following: cloudFollowing,
+            messageCount: cloudMessageCount,
             uploadedAvatar: cloudAvatar !== "default" ? cloudAvatar : null
           });
         });
@@ -533,7 +552,6 @@ export default function Home() {
     return () => unsubscribe(); 
   }, [selectedItem?.id]);
 
-  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (ANA SAYFA LİSTELERİ)
   useEffect(() => { 
     const fetchData = async () => {
       if (viewMode !== "home") return;
@@ -602,7 +620,8 @@ export default function Home() {
     const mesajMetni = newGlobalMessage.trim(); 
 
     try {
-      const rankInfo = getUserRank(currentUserTotalComments);
+      const currentCommentCount = (currentUser.messageCount || 0) + 1;
+      const rankInfo = getUserRank(currentCommentCount);
 
       await addDoc(collection(db, "global_chat"), {
         user: currentUser.username,
@@ -617,6 +636,9 @@ export default function Home() {
         isVIP: rankInfo.isVIP || false,
         rankIcon: rankInfo.icon || ""
       });
+
+      // Canlı VIP Yükseliş Motoru
+      await setDoc(doc(db, "users", currentUser.uid), { messageCount: currentCommentCount }, { merge: true });
 
       const mentionRegex = /@(\w+)/g;
       let match;
@@ -634,13 +656,11 @@ export default function Home() {
                       sender: currentUser.username, 
                       type: "mention",
                       text: mesajMetni, 
-                      read: false,
+                      isRead: false,
                       date: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-                      timestamp: new Date().getTime()
+                      createdAt: serverTimestamp()
                   });
-              } catch (error) {
-                  console.error("Bildirim atılamadı:", error);
-              }
+              } catch (error) { console.error("Bildirim atılamadı:", error); }
           }
       });
 
@@ -686,7 +706,6 @@ export default function Home() {
     e.target.value = ''; 
   };
   
-
   const handleGlobalLike = async (msgId: string, currentLikes: string[] = []) => {
      if (!currentUser) return alert(lang === "TR" ? "Beğenmek için giriş yapmalısın!" : "Login to like!");
      const msgRef = doc(db, "global_chat", msgId);
@@ -695,6 +714,15 @@ export default function Home() {
              await updateDoc(msgRef, { likes: arrayRemove(currentUser.username) });
          } else {
              await updateDoc(msgRef, { likes: arrayUnion(currentUser.username) });
+             // BİLDİRİM ATMA EKLENDİ
+             const msgOwner = globalMessages.find(m => m.id === msgId)?.user;
+             if (msgOwner && msgOwner !== currentUser.username) {
+                 await addDoc(collection(db, "notifications"), {
+                     recipient: msgOwner, sender: currentUser.username, type: "like_global",
+                     text: `@${currentUser.username} küresel sohbetteki mesajını beğendi! ❤️`,
+                     isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+                 });
+             }
          }
      } catch (e) { console.error("Beğeni hatası", e); }
   };
@@ -704,20 +732,35 @@ export default function Home() {
      document.getElementById("globalChatInput")?.focus();
   };
 
+  // Yeni Firebase Odaklı Bildirim Okuma
   const markNotifsAsRead = () => {
-      const updated = notifications.map(n => ({...n, isRead: true}));
-      setNotifications(updated);
-      localStorage.setItem(`sinepro_notifications_${currentUser.username}`, JSON.stringify(updated));
+      notifications.forEach(async (n) => {
+          if (!n.isRead && n.id !== 'guest') {
+              try { await updateDoc(doc(db, "notifications", n.id), { isRead: true }); } catch(e){}
+          }
+      });
   };
 
   const handleNotificationClick = (notif: any) => {
     if (!currentUser) { setShowNotifications(false); setAuthMode("login"); setShowLogin(true); return; }
-    if (notif.itemID) {
+    
+    // Bildirime tıklayınca doğru yere yönlendir
+    if (notif.type === "mention" || notif.type === "like_global") {
+        setViewMode("global_chat");
+        setShowNotifications(false);
+    } else if (notif.type === "follow") {
+        openProfileCard(notif.sender, "default");
+        setShowNotifications(false);
+    } else if (notif.itemID) {
         setContentType(notif.contentType || "movie");
         setSelectedItem({ id: notif.itemID, title: notif.itemTitle, name: notif.itemTitle });
         fetchExtraDetails(notif.itemID, notif.contentType || "movie");
         setShowNotifications(false);
         setAutoScrollToComments(true); 
+    }
+    
+    if(notif.id && notif.id !== 'guest') {
+        updateDoc(doc(db, "notifications", notif.id), { isRead: true }).catch(()=>{});
     }
   };
 
@@ -938,7 +981,6 @@ const startAITrivia = async () => {
     } else { alert("Kod yanlış!"); }
   };
 
-  // DÜZELTME 7: DİNAMİK DİL ÇEKİMİ (DETAYLAR)
   const fetchExtraDetails = async (id: any, cType?: string) => {
     const typeToUse = cType || contentType;
     const apiLang = lang === "TR" ? "tr-TR" : "en-US";
@@ -960,7 +1002,6 @@ const startAITrivia = async () => {
     }
   };
 
-  // DÜZELTME 7: DİL DEĞİŞTİĞİNDE AÇIK OLAN FİLMİN DİLİNİ DE GÜNCELLE
   useEffect(() => {
       if (selectedItem) {
           fetchExtraDetails(selectedItem.id, contentType);
@@ -985,6 +1026,13 @@ const startAITrivia = async () => {
 
     try {
       await deleteDoc(doc(db, koleksiyonAdi, itemId));
+      
+      // Canlı Düşüş Motoru: Kullanıcının puanını canlı olarak geri çek
+      if (currentUser && currentUser.username === itemSahibi) {
+          const newCount = Math.max(0, (currentUser.messageCount || 0) - 1);
+          await setDoc(doc(db, "users", currentUser.uid), { messageCount: newCount }, { merge: true });
+      }
+
       triggerHaptic();
     } catch (error) {
       console.error("Silme hatası:", error);
@@ -996,7 +1044,7 @@ const startAITrivia = async () => {
     if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!newComment.trim()) return;
 
-    const currentCommentCount = currentUserTotalComments + 1; 
+    const currentCommentCount = (currentUser.messageCount || 0) + 1; 
     const rankInfo = getUserRank(currentCommentCount);
     
     const commentData = {
@@ -1008,6 +1056,10 @@ const startAITrivia = async () => {
 
     try {
       await addDoc(collection(db, "comments"), commentData);
+      
+      // Canlı VIP Yükseliş Motoru
+      await setDoc(doc(db, "users", currentUser.uid), { messageCount: currentCommentCount }, { merge: true });
+
       setNewComment(""); setCommentRating(10); setIsSpoiler(false); triggerHaptic(); 
     } catch (error) { alert(lang === "TR" ? "Yorum gönderilemedi!" : "Failed to post comment!"); }
   };
@@ -1025,7 +1077,7 @@ const startAITrivia = async () => {
                   email: updatedUser.email, 
                   banner: updatedUser.banner || null, 
                   bio: updatedUser.bio || "",
-                  isPrivate: updatedUser.isPrivate || false // YENİ: Gizlilik ayarı
+                  isPrivate: updatedUser.isPrivate || false 
               }, { merge: true });
 
     try {
@@ -1068,7 +1120,7 @@ const startAITrivia = async () => {
              setZoomedAvatar({ 
                   username, avatar: data.avatar || fallbackAvatar, banner: data.banner || fallbackBanner, bio: data.bio || "",
                   stats: { posts: postCount, followers: data.followers?.length || 0, following: data.following?.length || 0 },
-                  isPrivate: data.isPrivate || false // YENİ: Gizlilik bilgisini çektik
+                  isPrivate: data.isPrivate || false 
               });
           }
       } catch(e) {}
@@ -1083,10 +1135,11 @@ const startAITrivia = async () => {
     try {
         await updateDoc(doc(db, "comments", String(commentID)), { replies: arrayUnion(newReply) });
         if (originalUser !== currentUser.username) {
-            const authorNotifKey = `sinepro_notifications_${originalUser}`;
-            const authorNotifs = JSON.parse(localStorage.getItem(authorNotifKey) || "[]");
-            authorNotifs.unshift({ id: Date.now(), text: `@${currentUser.username}, "${itemTitle}" ${lang === "TR" ? "yorumuna cevap yazdı! 💬" : "replied to your comment! 💬"}`, isRead: false, date: new Date().toLocaleDateString('tr-TR'), itemID: itemID, contentType: contentType, itemTitle: itemTitle });
-            localStorage.setItem(authorNotifKey, JSON.stringify(authorNotifs));
+            await addDoc(collection(db, "notifications"), {
+                recipient: originalUser, sender: currentUser.username, type: "reply",
+                text: `@${currentUser.username}, "${itemTitle}" yorumuna cevap yazdı! 💬`, itemID: itemID, contentType: contentType, itemTitle: itemTitle,
+                isRead: false, date: new Date().toLocaleDateString('tr-TR'), createdAt: serverTimestamp()
+            });
         }
         setReplyText(""); setReplyingToId(null); triggerHaptic();
     } catch (error) {}
@@ -1149,23 +1202,22 @@ const handleFollowUser = async (targetUsername: string) => {
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
       
       try {
-          // 1. Hedef kişiyi buluyoruz
           const q = query(collection(db, "users"), where("username", "==", targetUsername));
           const querySnapshot = await getDocs(q);
 
           if (!querySnapshot.empty) {
-              // 2. Kişinin profiline gidip (users tablosu) "friendRequests" çantasına senin adını atıyoruz
               const targetUserDoc = querySnapshot.docs[0];
               await updateDoc(doc(db, "users", targetUserDoc.id), {
                   friendRequests: arrayUnion(currentUser.username)
               });
           }
 
-          // Karşı tarafa anında bildirim gönder
-          const targetNotifKey = `sinepro_notifications_${targetUsername}`;
-          const targetNotifs = JSON.parse(localStorage.getItem(targetNotifKey) || "[]");
-          targetNotifs.unshift({ id: Date.now(), text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı / istek gönderdi! 👤" : "started following you / sent a request! 👤"}`, isRead: false, date: new Date().toLocaleDateString('tr-TR') });
-          localStorage.setItem(targetNotifKey, JSON.stringify(targetNotifs));
+          // Karşı tarafa anında BİLDİRİM gönder
+          await addDoc(collection(db, "notifications"), {
+              recipient: targetUsername, sender: currentUser.username, type: "follow",
+              text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı / istek gönderdi! 👤" : "started following you / sent a request! 👤"}`,
+              isRead: false, date: new Date().toLocaleDateString('tr-TR'), createdAt: serverTimestamp()
+          });
           
           alert(lang === "TR" ? `${targetUsername} adlı kullanıcıya istek gönderildi!` : `Request sent to ${targetUsername}!`);
       } catch (error) { 
@@ -1173,9 +1225,37 @@ const handleFollowUser = async (targetUsername: string) => {
           alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); 
       }
   };
-  const toggleLikeComment = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
+
+  const toggleLikeComment = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
       e.stopPropagation();
       if (!currentUser) return alert(lang === "TR" ? "Giriş yapmalısın!" : "Login required!");
+
+      const itemComments = comments[itemID] || [];
+      const targetComment = itemComments.find((c: any) => c.id == commentID);
+      if (!targetComment) return;
+
+      const isLiked = targetComment.likedBy?.includes(currentUser.username);
+      const newLikedBy = isLiked
+          ? targetComment.likedBy.filter((u: string) => u !== currentUser.username)
+          : [...(targetComment.likedBy || []), currentUser.username];
+          
+      const newLikes = isLiked ? Math.max(0, (targetComment.likes || 0) - 1) : (targetComment.likes || 0) + 1;
+
+      try {
+          await updateDoc(doc(db, "comments", String(commentID)), {
+              likes: newLikes,
+              likedBy: newLikedBy
+          });
+
+          // Sadece BEĞENİYORSA Bildirim Gönder (Geri çekiyorsa gönderme)
+          if (!isLiked && targetComment.user !== currentUser.username) {
+              await addDoc(collection(db, "notifications"), {
+                  recipient: targetComment.user, sender: currentUser.username, type: "like_comment",
+                  text: `@${currentUser.username} yorumunu beğendi! ❤️`, itemID: itemID, contentType: contentType, itemTitle: selectedItem?.title || selectedItem?.name,
+                  isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+              });
+          }
+      } catch (error) { console.error(error); }
   };
 
   const displayNotifs = currentUser ? notifications : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
@@ -1282,6 +1362,17 @@ const handleFollowUser = async (targetUsername: string) => {
         .vip-lord-avatar img, .vip-lord-avatar div {
            animation: vipLordGlow 2s infinite alternate !important;
            border: 3px solid #FF0055 !important;
+        }
+        .vip-avatar-ring {
+           position: relative; border-radius: 50%; z-index: 1;
+        }
+        .vip-avatar-ring::before {
+           content: ''; position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px; border-radius: 50%;
+           background: linear-gradient(90deg, #FFD700, #ff5e62, #00ffff, #FFD700); background-size: 300% 300%;
+           z-index: -1; animation: vip-spin 2s linear infinite; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        @keyframes vip-spin {
+           0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
         }
         @keyframes shimmer {
           0% { background-position: -200px 0; }
@@ -1451,7 +1542,7 @@ const handleFollowUser = async (targetUsername: string) => {
                                 <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
                                     <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
-                                    {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve yoruma git" : "Click to view"}</span>}
+                                    {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve git" : "Click to view"}</span>}
                                 </div>
                              </div>
                           </div>
@@ -1650,7 +1741,7 @@ const handleFollowUser = async (targetUsername: string) => {
         </>
       )}
 
-      {/* --- KÜRESEL SOHBET --- */}
+    {/* --- KÜRESEL SOHBET --- */}
       {viewMode === "global_chat" && (
         <div style={{ padding: '20px 2%', height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px', paddingBottom: '15px', borderBottom: `1px solid ${borderColor}` }}>
@@ -1663,17 +1754,63 @@ const handleFollowUser = async (targetUsername: string) => {
             <div ref={globalChatScrollRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '15px', paddingRight: '10px', paddingBottom: '20px' }}>
                 {globalMessages.length > 0 ? globalMessages.map((msg) => {
                     const isMe = currentUser?.username === msg.user;
+                    
+                    // VIP KONTROL SİSTEMİ (CANLI DÜŞÜŞLÜ & PATRON ÖNCELİKLİ)
+                    const isVip = (isMe && (currentUserTotalComments >= 500 || currentUser?.email === "yukselomerfaruk292@gmail.com")) || (!isMe && (msg.isVIP || msg.badge?.includes("VIP")));
+
+                    // YENİ EKLENEN: VIP RENKLİ YAZI MOTORU (MADDE 6)
+                    let displayMessage = msg.text || "";
+                    let customColor = "inherit";
+                    let customShadow = "none";
+
+                    if (isVip && displayMessage.startsWith("/")) {
+                        const lowerMsg = displayMessage.toLowerCase();
+                        if (lowerMsg.startsWith("/kirmizi ")) { customColor = "#ff4d4d"; displayMessage = displayMessage.substring(9); }
+                        else if (lowerMsg.startsWith("/mavi ")) { customColor = "#4da6ff"; displayMessage = displayMessage.substring(6); }
+                        else if (lowerMsg.startsWith("/yesil ")) { customColor = "#00ff88"; displayMessage = displayMessage.substring(7); }
+                        else if (lowerMsg.startsWith("/sari ")) { customColor = "#FFD700"; displayMessage = displayMessage.substring(6); }
+                        else if (lowerMsg.startsWith("/neon ")) { customColor = "#00ffff"; customShadow = "0 0 10px #00ffff, 0 0 20px #00ffff"; displayMessage = displayMessage.substring(6); }
+                        else if (lowerMsg.startsWith("/neonmor ")) { customColor = "#ff00ff"; customShadow = "0 0 10px #ff00ff, 0 0 20px #ff00ff"; displayMessage = displayMessage.substring(9); }
+                    }
+
                     return (
                         <div key={msg.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '75%', display: 'flex', gap: '10px', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            <div style={{ flexShrink: 0, cursor: 'pointer' }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
-                                <UserAvatar user={{ username: msg.user, avatar: msg.avatar }} size="45px" fontSize="16px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
+                            <div style={{ flexShrink: 0, cursor: 'pointer', zIndex: 2 }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
+                                {/* YENİ EKLENEN: VIP DÖNEN AVATAR HALKASI (MADDE 1) */}
+                                <div className={isVip ? "vip-avatar-ring" : ""} style={{ borderRadius: '50%' }}>
+                                    <UserAvatar user={{ username: msg.user, avatar: msg.avatar }} size="45px" fontSize="16px" activeColor={isVip ? '#FFD700' : activeColor} theme={theme} badgeText={badgeText} />
+                                </div>
                             </div>
-                            <div style={{ background: isMe ? activeColor : bgCard, color: isMe ? badgeText : textMain, padding: '12px 18px', borderRadius: isMe ? '20px 8px 20px 20px' : '8px 20px 20px 20px', border: isMe ? 'none' : `1px solid ${borderColor}`, position: 'relative', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', minWidth: '150px' }}>
+                            
+                            {/* VIP İSE ALTIN KUTU OLUR DEĞİLSE NORMAL KUTU */}
+                            <div style={{ 
+                                background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : (isMe ? activeColor : bgCard), 
+                                color: isVip ? '#fff' : (isMe ? badgeText : textMain), 
+                                padding: '12px 18px', 
+                                borderRadius: isMe ? '20px 8px 20px 20px' : '8px 20px 20px 20px', 
+                                border: isVip ? '1px solid rgba(255, 215, 0, 0.5)' : (isMe ? 'none' : `1px solid ${borderColor}`), 
+                                position: 'relative', 
+                                boxShadow: isVip ? '0 4px 15px rgba(255, 215, 0, 0.2)' : '0 4px 15px rgba(0,0,0,0.1)', 
+                                minWidth: '150px',
+                                overflow: 'hidden' 
+                            }}>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px', paddingRight: '10px' }}>
-                                    <span style={{ fontWeight: '900', fontSize: '14px', color: isMe ? badgeText : activeColor, cursor: 'pointer' }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
-                                        @{msg.user}
-                                        {msg.isVIP && <span style={{ marginLeft: '6px', padding: '2px 5px', background: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(255,215,0,0.2)', color: isMe ? badgeText : '#FFD700', borderRadius: '6px', fontSize: '10px', border: `1px solid ${isMe ? 'white' : '#FFD700'}` }} title="VIP">{msg.rankIcon || "👑"} VIP</span>}
+                                {/* VIP KUTUSUNUN ARKASINDAKİ SİLİK TAÇ */}
+                                {isVip && (
+                                    <div style={{ position: 'absolute', right: '0px', bottom: '-20px', fontSize: '70px', opacity: 0.05, transform: 'rotate(-15deg)', pointerEvents: 'none', zIndex: 0 }}>
+                                        👑
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '15px', paddingRight: '10px', position: 'relative', zIndex: 1 }}>
+                                    <span style={{ 
+                                        fontWeight: '900', 
+                                        fontSize: '14px', 
+                                        color: isVip ? '#FFD700' : (isMe ? badgeText : activeColor), 
+                                        textShadow: isVip ? '0 0 8px rgba(255, 215, 0, 0.6)' : 'none',
+                                        cursor: 'pointer' 
+                                    }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
+                                        {isVip && "👑 "}@{msg.user}
                                     </span>
                                     <span style={{ fontSize: '11px', opacity: 0.8 }}>{msg.date}</span>
                                 </div>
@@ -1681,17 +1818,19 @@ const handleFollowUser = async (targetUsername: string) => {
                                     <img 
                                         src={msg.image} 
                                         onClick={() => setZoomedChatImage(msg.image)} 
-                                        style={{ cursor: 'zoom-in', maxWidth: '250px', width: '100%', borderRadius: '10px', marginBottom: msg.text ? '10px' : '0', maxHeight: '200px', objectFit: 'cover', background: 'rgba(0,0,0,0.1)', border: `1px solid ${isMe ? 'rgba(255,255,255,0.2)' : borderColor}` }} 
+                                        style={{ position: 'relative', zIndex: 1, cursor: 'zoom-in', maxWidth: '250px', width: '100%', borderRadius: '10px', marginBottom: displayMessage ? '10px' : '0', maxHeight: '200px', objectFit: 'cover', background: 'rgba(0,0,0,0.1)', border: `1px solid ${isVip ? 'rgba(255,215,0,0.3)' : (isMe ? 'rgba(255,255,255,0.2)' : borderColor)}` }} 
                                         alt="Gönderilen Fotoğraf" 
                                     />
                                 )}
-                                {msg.text && <p style={{ margin: 0, fontSize: '15px', lineHeight: '1.5', wordBreak: 'break-word' }}>{msg.text}</p>}
-                                <div style={{ display: 'flex', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isMe ? 'rgba(255,255,255,0.2)' : borderColor}`, fontSize: '12px', fontWeight: 'bold' }}>
+                                
+                                {/* YENİ EKLENEN: RENKLİ YAZI SİSTEMİ ÇIKTISI */}
+                                {displayMessage && <p style={{ position: 'relative', zIndex: 1, margin: 0, fontSize: '15px', lineHeight: '1.5', wordBreak: 'break-word', color: customColor, textShadow: customShadow }}>{displayMessage}</p>}
+                                
+                                <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isVip ? 'rgba(255,215,0,0.2)' : (isMe ? 'rgba(255,255,255,0.2)' : borderColor)}`, fontSize: '12px', fontWeight: 'bold' }}>
                                     <span onClick={() => handleGlobalLike(msg.id, msg.likes)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>{msg.likes?.includes(currentUser?.username) ? '❤️' : '🤍'} {msg.likes?.length || 0}</span>
                                     <span onClick={() => handleTagUser(msg.user)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>🏷️ {lang === "TR" ? "Etiketle" : "Tag"}</span>
-                                    {/* DÜZELTME 3: ÇÖP KUTUSU (SİLİCİ) AŞAĞIYA ALINDI VE RENKLENDİRİLDİ */}
                                     {(currentUser?.username === msg.user || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
-                                      <span onClick={() => deleteItem("global_chat", msg.id, msg.user)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', color: isMe ? '#fff' : '#ff4d4d', marginLeft: 'auto', background: isMe ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)', padding: '4px 10px', borderRadius: '12px' }}>
+                                      <span onClick={() => deleteItem("global_chat", msg.id, msg.user)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', color: isVip ? '#ff4d4d' : (isMe ? '#fff' : '#ff4d4d'), marginLeft: 'auto', background: isVip ? 'rgba(255,0,0,0.2)' : (isMe ? 'rgba(0,0,0,0.2)' : 'rgba(255,0,0,0.1)'), padding: '4px 10px', borderRadius: '12px', textShadow: 'none' }}>
                                           🗑️ {lang === "TR" ? "Sil" : "Delete"}
                                       </span>
                                     )}
@@ -1703,6 +1842,7 @@ const handleFollowUser = async (targetUsername: string) => {
                     <div style={{ margin: 'auto', textAlign: 'center', color: textLight }}><span style={{ fontSize: '50px', opacity: 0.5 }}>💬</span><p style={{ fontSize: '18px', marginTop: '10px' }}>{lang === "TR" ? "Buralar sessiz... İlk mesajı sen gönder!" : "It's quiet here... Send the first message!"}</p></div>
                 )}
             </div>
+            
             <div style={{ background: bgCard, marginTop: 'auto', padding: '20px', borderRadius: '25px', boxShadow: `0 -10px 30px rgba(0,0,0,0.3)` }}>
                 {globalMessageImage && (
                     <div style={{ position: 'relative', display: 'inline-block', marginBottom: '15px' }}>
@@ -1711,7 +1851,6 @@ const handleFollowUser = async (targetUsername: string) => {
                     </div>
                 )}
                 <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                   {/* DÜZELTME 2: FOTO EKLME BUTONU GERİ GELDİ */}
                    <button 
                        onClick={() => document.getElementById('globalImageInputV2')?.click()} 
                        style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} 
@@ -1741,7 +1880,6 @@ const handleFollowUser = async (targetUsername: string) => {
                         <div style={{ flex: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '15px' }}>
                                 <h2 style={{ margin: 0, fontSize: '28px', color: textMain }}>@{profileData.username}</h2>
-                                {/* BAŞKASININ PROFİLİNDEYKEN ÇIKMAK İÇİN GERİ BUTONU */}
                                 {!isOwnProfile && (
                                     <button onClick={() => setTargetProfile(null)} style={{ background: inputBg, border: `1px solid ${borderColor}`, color: textMain, padding: '5px 15px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
                                         ← {lang === "TR" ? "Geri Dön" : "Go Back"}
@@ -1759,7 +1897,6 @@ const handleFollowUser = async (targetUsername: string) => {
                     
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', marginBottom: '25px', borderBottom: `1px solid ${borderColor}` }}>
                         <button onClick={() => setProfileTab("posts")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "posts" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "posts" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>🖼️ {lang === "TR" ? "GÖNDERİLER" : "POSTS"}</button>
-                        {/* SADECE KENDİ PROFİLİNDEYSE AYARLAR BUTONUNU GÖSTER */}
                         {isOwnProfile && (
                             <button onClick={() => setProfileTab("settings")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "settings" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "settings" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>⚙️ {lang === "TR" ? "AYARLAR" : "SETTINGS"}</button>
                         )}
@@ -1767,7 +1904,6 @@ const handleFollowUser = async (targetUsername: string) => {
                     
                     {profileTab === "posts" ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                            {/* SADECE KENDİ PROFİLİNDEYSE YENİ GÖNDERİ PAYLAŞABİLİR */}
                             {isOwnProfile && (
                                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
                                    <button onClick={() => document.getElementById('postImageInput')?.click()} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 5px 15px ${activeColor}40` }}>➕ {lang === "TR" ? "Yeni Gönderi" : "New Post"}</button>
@@ -1783,7 +1919,6 @@ const handleFollowUser = async (targetUsername: string) => {
                             </div>
                         </div>
                     ) : (
-                        // AYARLAR SEKME İÇERİĞİ (Sadece kendi profilinde açılabilir)
                         <div className="glass-panel" style={{ padding: '30px', borderRadius: '15px', textAlign: 'center' }}>
                             <h3 style={{ color: activeColor, marginTop: 0 }}>{lang === "TR" ? "Profil Ayarları" : "Profile Settings"}</h3>
                             <p style={{ color: textLight, marginBottom: '30px' }}>{lang === "TR" ? "Hesap bilgilerini ve tercihlerini buradan güncelleyebilirsin." : "Update your account details and preferences."}</p>
@@ -1890,13 +2025,13 @@ const handleFollowUser = async (targetUsername: string) => {
             </div>
             <div style={{ marginTop: '60px' }}>
                 <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎖️ SİNE-RÜTBE & VIP AYRICALIKLAR REHBERİ</h3>
-                <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>SİNEPRO topluluğunda aktif ol, yorum yaptıkça sinema dünyasında seviye atla! Yüksek rütbeler, yorum alanında herkesin görebileceği <strong>Özel Tasarım Neon Çerçeveler</strong>, <strong>En Üste Sabitlenme</strong> ve <strong>VIP Rozetler</strong> kazanır.</p>
+                <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>SİNEPRO topluluğunda aktif ol, yorum yaptıkça sinema dünyasında seviye atla! 500 yoruma ulaştığında otomatik olarak <strong>SİNE-LORD (VIP)</strong> olursun, avatarının etrafında <strong>altın bir hare döner</strong> ve sohbette <strong>renkli yazılar (/kirmizi, /neon)</strong> yazabilirsin.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
                     <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888' }}><span style={{ fontSize: '28px' }}>🍿</span><br/><strong style={{ color: '#888', fontSize: '18px' }}>Set Çaylağı</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 9 Yorum</p></div>
                     <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF' }}><span style={{ fontSize: '28px' }}>🔭</span><br/><strong style={{ color: '#00E5FF', fontSize: '18px' }}>Vizyoner</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>10 - 49 Yorum</p></div>
                     <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF' }}><span style={{ fontSize: '28px' }}>👁️‍🗨️</span><br/><strong style={{ color: '#9D00FF', fontSize: '18px' }}>Baş Eleştirmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>50 - 149 Yorum</p></div>
                     <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700' }}><span style={{ fontSize: '28px' }}>🎬</span><br/><strong style={{ color: '#FFD700', fontSize: '18px' }}>Kült Yönetmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>150 - 499 Yorum</p></div>
-                    <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', border: '1px solid rgba(255,0,85,0.3)' }}><span style={{ fontSize: '28px' }}>👑</span><br/><strong style={{ color: '#FF0055', fontSize: '20px' }}>SİNE-LORD</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>500+ Yorum</p></div>
+                    <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', border: '1px solid rgba(255,0,85,0.3)' }}><span style={{ fontSize: '28px' }}>👑</span><br/><strong style={{ color: '#FF0055', fontSize: '20px' }}>SİNE-LORD (VIP)</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>500+ Yorum</p></div>
                 </div>
             </div>
         </div>
@@ -1924,7 +2059,6 @@ const handleFollowUser = async (targetUsername: string) => {
           <div style={{ padding: '40px 5%', minHeight: '70vh', position: 'relative', zIndex: 1, maxWidth: '1000px', margin: '0 auto' }}>
               <h2 className="section-title" style={{ marginBottom: '30px' }}>❓ {lang === "TR" ? "YARDIM VE DESTEK" : "HELP & SUPPORT"}</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
-                  {/* AKORDİYON SSS KISMI */}
                   <div>
                       <h3 style={{ color: activeColor, marginTop: 0, borderBottom: `1px solid ${borderColor}`, paddingBottom: '10px', marginBottom: '20px' }}>Sıkça Sorulan Sorular</h3>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1943,7 +2077,6 @@ const handleFollowUser = async (targetUsername: string) => {
                           ))}
                       </div>
                   </div>
-                  {/* DESTEK TALEBİ GÖNDERME FORMU */}
                   <div style={{ background: bgCard, padding: '30px', borderRadius: '20px', borderTop: `5px solid ${activeColor}`, boxShadow: `0 10px 30px rgba(0,0,0,0.1)`, height: 'fit-content' }}>
                       <h3 style={{ color: activeColor, marginTop: 0 }}>Hala yardıma mı ihtiyacın var?</h3>
                       <p style={{ fontSize: '13px', color: textLight, marginBottom: '25px', lineHeight: '1.5' }}>Sorunun cevabını yukarıda bulamadıysan veya bize bir hata bildirmek istiyorsan, hemen bir destek talebi (Ticket) oluştur. Ekibimiz en kısa sürede dönüş yapacaktır.</p>
@@ -1973,12 +2106,9 @@ const handleFollowUser = async (targetUsername: string) => {
       {/* --- DESTEK OL VE INSTAGRAM (SAYFA SONU) --- */}
       {(viewMode === "support" || viewMode === "about") && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '40px 0', marginTop: 'auto', position: 'relative', zIndex: 10 }}>
-              {/* INSTAGRAM BUTONU */}
               <a href="https://instagram.com/farukomer.46" target="_blank" rel="noreferrer" className="hover-effect" style={{ width: '45px', height: '45px', borderRadius: '12px', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', textDecoration: 'none', boxShadow: '0 4px 15px rgba(220, 39, 67, 0.3)', flexShrink: 0, transition: '0.3s' }} title="Instagram">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
               </a>
-
-              {/* DESTEK OL BUTONU */}
               <a href="https://donate.bynogame.com/sinepro" target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
                   <div className="hover-effect" style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', boxShadow: `0 4px 15px ${activeColor}40`, cursor: 'pointer', transition: '0.3s' }}>
                       <span style={{ fontSize: '20px' }}>💎</span> DESTEK OL
@@ -2037,7 +2167,6 @@ const handleFollowUser = async (targetUsername: string) => {
                 <div className="horizontal-scroll" ref={modalScrollRef}>
                    {similar.map((s: any) => (
                      <div key={s.id} style={{ minWidth: '140px', textAlign: 'center', cursor: 'pointer' }}>
-                        {/* DÜZELTME 5: FİLME TIKLAYINCA EN ÜSTE (TOP 0) KAYDIRAN KOD EKLENDİ */}
                         <div onClick={() => { setSelectedItem(s); fetchExtraDetails(s.id); addToRecentlyViewed(s); document.querySelector('.movie-detail-overlay')?.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover-effect" style={{ height: '210px', overflow: 'hidden', borderRadius: '12px', position: 'relative' }}><img src={getImgUrl(s.poster_path)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /><div onClick={(e) => toggleFavorite(e, s)} className="fav-heart-btn">{favorites.find(f => f.id === s.id) ? '❤️' : '🤍'}</div><div className="rating-badge-pro">★ {s.vote_average?.toFixed(1)}</div></div>
                         <p style={{ marginTop: '10px', fontWeight: 'bold', fontSize: '13px', color: textMain, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title || s.name}</p>
                      </div>
@@ -2061,69 +2190,88 @@ const handleFollowUser = async (targetUsername: string) => {
                       const sortedComments = [...currentComments].sort((a, b) => { if (a.isVIP && !b.isVIP) return -1; if (!a.isVIP && b.isVIP) return 1; return b.id - a.id; });
                       return sortedComments.length > 0 ? (
                         sortedComments.map((c: any) => {
+                           const isMe = currentUser?.username === c.user;
+                           // YENİ VIP SİSTEMİ (DİNAMİK)
+                           const isVip = (isMe && (currentUserTotalComments >= 500 || currentUser?.email === "yukselomerfaruk292@gmail.com")) || (!isMe && (c.isVIP || c.badge?.includes("VIP")));
                            const cRank = getUserRank(c.authorCommentCount !== undefined ? c.authorCommentCount : 0);
+                           
                            return (
-                             <div key={c.id} style={{ background: bgCard, borderRadius: '10px', padding: '15px', position: 'relative', ...cRank.perkStyle }}>
-                                {c.isVIP && <div style={{ position: 'absolute', top: '-10px', right: '20px', background: cRank.color, color: '#000', padding: '2px 10px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', boxShadow: `0 4px 10px ${cRank.color}80` }}>📌 VIP</div>}
+                             <div key={c.id} style={{ 
+                                 background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : bgCard, 
+                                 borderRadius: '10px', padding: '15px', position: 'relative', 
+                                 borderLeft: isVip ? `4px solid #FFD700` : `4px solid ${cRank.color}`,
+                                 border: isVip ? '1px solid rgba(255, 215, 0, 0.5)' : 'none',
+                                 boxShadow: isVip ? '0 4px 15px rgba(255, 215, 0, 0.15)' : (cRank.perkStyle.boxShadow || 'none'),
+                                 overflow: 'hidden'
+                             }}>
+                                {isVip && <div style={{ position: 'absolute', right: '5px', bottom: '-20px', fontSize: '60px', opacity: 0.04, transform: 'rotate(-20deg)', pointerEvents: 'none' }}>👑</div>}
                                 
-                                {(currentUser?.username === c.user || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
+                                {c.isVIP && !isVip && <div style={{ position: 'absolute', top: '-10px', right: '20px', background: cRank.color, color: '#000', padding: '2px 10px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', boxShadow: `0 4px 10px ${cRank.color}80` }}>📌 VIP</div>}
+                                
+                                {(isMe || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
                                   <button onClick={(e) => { e.stopPropagation(); deleteItem("comments", c.id, c.user); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(255,0,0,0.1)', border: 'none', borderRadius: '50%', width: '25px', height: '25px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d4d', cursor: 'pointer', fontSize: '12px', zIndex: 5 }} title={lang === "TR" ? "Yorumu Sil" : "Delete Comment"}>🗑️</button>
                                 )}
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '25px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', paddingRight: '25px', position: 'relative', zIndex: 1 }}>
                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                      <div className={cRank.isLord ? "vip-lord-avatar" : ""} onClick={(e) => { e.stopPropagation(); openProfileCard(c.user, c.avatar, c.authorBanner, c.authorCommentCount || 0); }} style={{ cursor: 'pointer', borderRadius: '50%', padding: cRank.isLord ? '3px' : '0' }}>
+                                      <div className={cRank.isLord ? "vip-lord-avatar" : isVip ? "vip-avatar-ring" : ""} onClick={(e) => { e.stopPropagation(); openProfileCard(c.user, c.avatar, c.authorBanner, c.authorCommentCount || 0); }} style={{ cursor: 'pointer', borderRadius: '50%', padding: cRank.isLord ? '3px' : '0' }}>
                                          <UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                                       </div>
                                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                                           <div style={{ display: 'flex', alignItems: 'center' }}>
-                                              <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                              <span style={{ 
+                                                  color: isVip ? '#FFD700' : activeColor, 
+                                                  fontWeight: 'bold', fontSize: '14px',
+                                                  textShadow: isVip ? '0 0 8px rgba(255, 215, 0, 0.6)' : 'none'
+                                              }}>
+                                                  {isVip && "👑 "}@{c.user}
+                                              </span>
                                               <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
-                                              {currentUser && currentUser.username !== c.user && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50 }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
+                                              {currentUser && !isMe && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50 }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
                                           </div>
                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                       </div>
                                    </div>
                                    <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', height: 'fit-content' }}>{lang === "TR" ? "Puan" : "Score"}: {c.rating}</span>
                                 </div>
-                                <div style={{ position: 'relative', marginBottom: '10px' }}>
+                                <div style={{ position: 'relative', marginBottom: '10px', zIndex: 1 }}>
                                     <p style={{ margin: 0, color: textMain, lineHeight: '1.6', fontSize: '14px', filter: c.isSpoiler ? 'blur(8px)' : 'none', transition: '0.4s ease', cursor: c.isSpoiler ? 'pointer' : 'text' }} onClick={(e) => { if(c.isSpoiler) { e.currentTarget.style.filter = 'none'; e.currentTarget.style.cursor = 'text'; const badge = e.currentTarget.nextElementSibling as HTMLElement; if(badge) badge.style.display = 'none'; } }}>{c.text}</p>
                                     {c.isSpoiler && <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.6)', color: '#ff4d4d', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', pointerEvents: 'none', border: '1px solid #ff4d4d', backdropFilter: 'blur(2px)' }}>⚠️ {lang === "TR" ? "SPOILER - GÖRMEK İÇİN TIKLA" : "SPOILER - CLICK TO VIEW"}</span>}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderTop: `1px solid ${borderColor}`, paddingTop: '10px', marginTop: '10px', position: 'relative', zIndex: 1 }}>
                                     <button onClick={(e) => toggleLikeComment(e, selectedItem.id, c.id)} style={{ background: c.likedBy?.includes(currentUser?.username) ? 'rgba(255,0,0,0.1)' : 'transparent', border: `1px solid ${c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : borderColor}`, borderRadius: '20px', padding: '4px 10px', color: c.likedBy?.includes(currentUser?.username) ? '#ff4d4d' : textLight, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', transition: '0.3s', fontWeight: 'bold' }}>{c.likedBy?.includes(currentUser?.username) ? '❤️' : '🤍'} {c.likes || 0}</button>
                                     <button onClick={() => { if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; } if (replyingToId === c.id) { setReplyingToId(null); } else { setReplyingToId(c.id); setReplyText(""); } }} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>💬 {lang === "TR" ? "Cevapla" : "Reply"}</button>
                                 </div>
                                 {c.replies && c.replies.length > 0 && (
-                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px', position: 'relative', zIndex: 1 }}>
                                       {!expandedReplies[c.id] ? <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: true })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {c.replies.length} {lang === "TR" ? "yanıtı gör" : "replies"}</button>
                                       : (
-                                          <>
-                                              {c.replies.map((r: any) => (
-                                                 <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
-                                                    {currentUser && currentUser.username === r.user && <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px', zIndex: 5 }}>❌</button>}
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                       <div className={cRank.isLord ? "vip-lord-avatar" : ""} onClick={(e) => { e.stopPropagation(); openProfileCard(c.user, c.avatar, c.authorBanner); }} style={{ cursor: 'pointer', borderRadius: '50%', padding: cRank.isLord ? '3px' : '0' }} title="Profili Görüntüle"><UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
-                                                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                           <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                               <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
-                                                               <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
-                                                               {currentUser && currentUser.username !== c.user && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px' }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
-                                                           </div>
-                                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
-                                                       </div>
-                                                    </div>
-                                                    <p style={{ margin: '8px 0 0 0', color: textMain, fontSize: '13px', lineHeight: '1.5' }}>{r.text}</p>
-                                                    <button onClick={() => { if (!currentUser) return setShowLogin(true); setReplyingToId(c.id); setReplyText(`@${r.user} `); }} style={{ background: 'transparent', border: 'none', color: activeColor, fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 'bold', opacity: 0.8, marginTop: '8px' }}>↩ {lang === "TR" ? "Yanıtla" : "Reply"}</button>
-                                                 </div>
-                                              ))}
-                                              <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: false })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}><span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {lang === "TR" ? "Yanıtları gizle" : "Hide replies"}</button>
-                                          </>
+                                         <>
+                                             {c.replies.map((r: any) => (
+                                                <div key={r.id} style={{ position: 'relative', background: isDarkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', padding: '10px 15px', borderRadius: '10px', borderLeft: `2px solid ${theme.secondary}` }}>
+                                                   {currentUser && currentUser.username === r.user && <button onClick={(e) => { e.stopPropagation(); deleteReply(selectedItem.id, c.id, r.id); }} style={{ position: 'absolute', top: '10px', right: '10px', background: 'transparent', border: 'none', color: textLight, cursor: 'pointer', fontSize: '12px', zIndex: 5 }}>❌</button>}
+                                                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                      <div className={cRank.isLord ? "vip-lord-avatar" : ""} onClick={(e) => { e.stopPropagation(); openProfileCard(c.user, c.avatar, c.authorBanner); }} style={{ cursor: 'pointer', borderRadius: '50%', padding: cRank.isLord ? '3px' : '0' }} title="Profili Görüntüle"><UserAvatar user={{ username: c.user, avatar: c.avatar }} size="32px" fontSize="12px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div>
+                                                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
+                                                            <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
+                                                            {currentUser && currentUser.username !== c.user && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px' }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
+                                                         </div>
+                                                         <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
+                                                      </div>
+                                                   </div>
+                                                   <p style={{ margin: '8px 0 0 0', color: textMain, fontSize: '13px', lineHeight: '1.5' }}>{r.text}</p>
+                                                   <button onClick={() => { if (!currentUser) return setShowLogin(true); setReplyingToId(c.id); setReplyText(`@${r.user} `); }} style={{ background: 'transparent', border: 'none', color: activeColor, fontSize: '11px', cursor: 'pointer', padding: 0, fontWeight: 'bold', opacity: 0.8, marginTop: '8px' }}>↩ {lang === "TR" ? "Yanıtla" : "Reply"}</button>
+                                                </div>
+                                             ))}
+                                             <button onClick={() => setExpandedReplies({ ...expandedReplies, [c.id]: false })} style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '5px' }}><span style={{ width: '25px', height: '1px', background: textLight, display: 'inline-block' }}></span> {lang === "TR" ? "Yanıtları gizle" : "Hide replies"}</button>
+                                         </>
                                       )}
                                    </div>
                                 )}
                                 {replyingToId === c.id && (
-                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px' }}>
+                                   <div style={{ marginLeft: '40px', marginTop: '15px', display: 'flex', gap: '10px', position: 'relative', zIndex: 1 }}>
                                        <input type="text" placeholder={`@${c.user} ${lang === "TR" ? "adlı kullanıcıya yanıt ver..." : "replying to..."}`} value={replyText} onChange={(e) => setReplyText(e.target.value)} style={{ flex: 1, background: inputBg, border: `1px solid ${borderColor}`, padding: '10px 15px', borderRadius: '8px', color: textMain, fontSize: '13px', outline: 'none' }} onKeyDown={(e) => { if(e.key === 'Enter') handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name); }} />
                                        <button onClick={() => handleReplySubmit(selectedItem.id, c.id, c.user, selectedItem.title || selectedItem.name)} style={{ background: activeColor, color: badgeText, border: 'none', padding: '0 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>{lang === "TR" ? "Gönder" : "Send"}</button>
                                    </div>
@@ -2334,58 +2482,50 @@ const handleFollowUser = async (targetUsername: string) => {
       {zoomedAvatar && (
         <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', zIndex: 15000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
            <div style={{ position: 'relative', width: '100%', maxWidth: '400px', background: bgCard, borderRadius: '25px', overflow: 'hidden', border: `1px solid ${activeColor}30`, boxShadow: `0 20px 60px rgba(0,0,0,0.6)`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onClick={(e) => e.stopPropagation()}>
-               {/* KAPAK FOTOĞRAFI (BANNER) */}
                <div style={{ width: '100%', height: '150px', backgroundColor: inputBg, backgroundImage: zoomedAvatar.banner ? `url(${zoomedAvatar.banner})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative', borderBottom: `1px solid ${activeColor}20` }}>
                    <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(5px)' }}>✕</button>
                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.9) 100%)' }}></div>
                </div>
 
                <div style={{ padding: '0 25px 25px 25px', marginTop: '-55px', position: 'relative', textAlign: 'center' }}>
-                   {/* AVATAR */}
                    <div style={{ display: 'inline-block', borderRadius: '50%', padding: '5px', background: bgCard, boxShadow: '0 5px 15px rgba(0,0,0,0.3)' }}>
                        <UserAvatar user={{ username: zoomedAvatar.username, avatar: zoomedAvatar.avatar }} size="100px" fontSize="40px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                    </div>
                    
                    <h3 style={{ color: textMain, margin: '10px 0 5px 0', fontSize: '20px', fontWeight: '900' }}>@{zoomedAvatar.username}</h3>
 
-                   {/* INSTAGRAM STİLİ İSTATİSTİKLER */}
                    <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', margin: '20px 0', borderTop: `1px solid ${borderColor}`, borderBottom: `1px solid ${borderColor}`, padding: '15px 0' }}>
                        <div style={{ textAlign: 'center' }}><span style={{ display: 'block', fontWeight: '900', color: textMain, fontSize: '18px' }}>{zoomedAvatar.stats?.posts || 0}</span><span style={{ color: textLight, fontSize: '12px', fontWeight: 'bold' }}>{lang === "TR" ? "Gönderi" : "Posts"}</span></div>
                        <div style={{ textAlign: 'center' }}><span style={{ display: 'block', fontWeight: '900', color: textMain, fontSize: '18px' }}>{zoomedAvatar.stats?.followers || 0}</span><span style={{ color: textLight, fontSize: '12px', fontWeight: 'bold' }}>{lang === "TR" ? "Takipçi" : "Followers"}</span></div>
                        <div style={{ textAlign: 'center' }}><span style={{ display: 'block', fontWeight: '900', color: textMain, fontSize: '18px' }}>{zoomedAvatar.stats?.following || 0}</span><span style={{ color: textLight, fontSize: '12px', fontWeight: 'bold' }}>{lang === "TR" ? "Takip" : "Following"}</span></div>
                    </div>
                    
-                   {/* BİYOGRAFİ KUTUSU */}
                    <div style={{ minHeight: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                        <p style={{ margin: 0, fontSize: '14px', color: textMain, lineHeight: '1.5', maxWidth: '300px' }}>{zoomedAvatar.bio || (lang === "TR" ? "SİNEPRO dünyasında bir sinema tutkunu... 🍿" : "A cinema enthusiast in the SINEPRO world... 🍿")}</p>
                    </div>
 
-                 {/* BUTONLAR */}
                    <div style={{ display: 'flex', gap: '12px' }}>
                        {currentUser?.username !== zoomedAvatar.username ? (
                            zoomedAvatar.isPrivate ? (
-                               /* GİZLİ HESAP DURUMU: İki buton da yok, sadece uyarı var */
                                <button disabled style={{ width: '100%', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid #ff4d4d', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'not-allowed' }}>
                                    🔒 {lang === "TR" ? "Bu hesap gizli" : "Private Account"}
                                </button>
                            ) : (
-                               /* AÇIK HESAP DURUMU: Takip Et ve Profili Görüntüle */
                                <>
                                    <button onClick={() => handleFollowUser(zoomedAvatar.username)} style={{ flex: 1, background: activeColor, color: badgeText, border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: `0 8px 20px ${activeColor}40`, transition: '0.3s' }}>
                                        {lang === "TR" ? "Takip Et" : "Follow"}
                                    </button>
                                    <button onClick={() => { 
-                                       setTargetProfile(zoomedAvatar); // Hedef profili ayarla
-                                       setZoomedAvatar(null); // Kutuyu kapat
-                                       setViewMode("profile"); // Profil sayfasını aç
-                                       setProfileTab("posts"); // Direkt gönderiler sekmesini aç
+                                       setTargetProfile(zoomedAvatar); 
+                                       setZoomedAvatar(null); 
+                                       setViewMode("profile"); 
+                                       setProfileTab("posts"); 
                                    }} style={{ flex: 1, background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
                                        {lang === "TR" ? "Profili Görüntüle" : "View Profile"}
                                    </button>
                                </>
                            )
                        ) : (
-                           /* KENDİ PROFİLİNE TIKLARSA */
                            <button onClick={() => { setZoomedAvatar(null); setViewMode("profile"); }} style={{ width: '100%', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '14px', cursor: 'pointer' }}>
                                {lang === "TR" ? "Profilimi Görüntüle" : "View My Profile"}
                            </button>
@@ -2396,7 +2536,6 @@ const handleFollowUser = async (targetUsername: string) => {
         </div>
       )}
 
-      {/* DÜZELTME 4: GİRİŞ YAP / KAYIT OL MODALI ÇOK DAHA ŞIK BİR HALE GETİRİLDİ */}
       {showLogin && (
         <div onClick={() => setShowLogin(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `none`, position: 'relative', borderRadius: '24px', boxShadow: `0 20px 50px rgba(0,0,0,0.5)`, overflow: 'hidden' }}>
@@ -2477,7 +2616,6 @@ const handleFollowUser = async (targetUsername: string) => {
       {/* --- FRAGMAN PENCERESİ (YENİ NEON ÇERÇEVELİ) --- */}
       {activeTrailerKey && (
         <div onClick={() => setActiveTrailerKey(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 20000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           {/* DÜZELTME 6: FRAGMAN ETRAFINA AKTİF RENKTE GLOW EFEKTİ EKLENDİ */}
            <div style={{ position: 'relative', width: '90vw', height: '50vw', maxWidth: '1000px', maxHeight: '560px', borderRadius: '15px', boxShadow: `0 0 50px ${activeColor}80`, border: `2px solid ${activeColor}` }}>
                <iframe style={{ width: '100%', height: '100%', borderRadius: '13px' }} src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1`} frameBorder="0" allowFullScreen></iframe>
            </div>
@@ -2520,36 +2658,68 @@ const handleFollowUser = async (targetUsername: string) => {
                         </div>
                     )}
                     
-                    {selectedPost.comments && selectedPost.comments.length > 0 ? (
-                        selectedPost.comments.map((comment: any, index: number) => (
-                            <div key={index} style={{ display: 'flex', gap: '10px', marginBottom: '15px', alignItems: 'flex-start' }}>
-                                <div style={{ width: '25px', height: '25px', borderRadius: '50%', background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
-                                    {comment.username?.charAt(0).toUpperCase()}
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <span style={{ fontWeight: 'bold', color: textMain, marginRight: '8px', fontSize: '13px' }}>@{comment.username}</span>
-                                            <span style={{ color: textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
-                                        </div>
+                   {selectedPost.comments && selectedPost.comments.length > 0 ? (
+                        selectedPost.comments.map((comment: any, index: number) => {
+                            // YENİ EKLENEN: YORUMLAR İÇİN VIP KONTROLÜ
+                            const isVip = comment.isVIP || comment.badge?.includes("VIP") || comment.role === "VIP" || comment.email === "yukselomerfaruk292@gmail.com" || (comment.username === currentUser?.username && currentUser?.email === "yukselomerfaruk292@gmail.com");
 
-                                        {/* SADECE YORUM SAHİBİNE GÖRÜNEN SİL BUTONU */}
-                                        {(comment.username === currentUser?.username || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
-                                            <button 
-                                                onClick={() => {
-                                                    if(window.confirm(lang === "TR" ? "Bu yorumu kalıcı olarak silmek istiyor musun?" : "Delete this comment?")) {
-                                                        handleDeleteComment(selectedPost.id, comment);
-                                                    }
-                                                }}
-                                                style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '0 5px' }}
-                                            >
-                                                {lang === "TR" ? "Sil" : "Delete"}
-                                            </button>
-                                        )}
+                            return (
+                                <div key={index} style={{ 
+                                    display: 'flex', 
+                                    gap: '10px', 
+                                    marginBottom: '15px', 
+                                    alignItems: 'flex-start',
+                                    background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : 'transparent',
+                                    padding: isVip ? '10px' : '0',
+                                    borderRadius: '12px',
+                                    border: isVip ? '1px solid rgba(255, 215, 0, 0.3)' : 'none',
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    boxShadow: isVip ? '0 4px 15px rgba(255, 215, 0, 0.1)' : 'none'
+                                }}>
+                                    
+                                    {isVip && (
+                                        <div style={{ position: 'absolute', right: '0px', bottom: '-15px', fontSize: '50px', opacity: 0.05, transform: 'rotate(-15deg)', pointerEvents: 'none', zIndex: 0 }}>
+                                            👑
+                                        </div>
+                                    )}
+
+                                    <div style={{ position: 'relative', zIndex: 1, width: '25px', height: '25px', borderRadius: '50%', background: isVip ? '#FFD700' : `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isVip ? '#000' : badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
+                                        {comment.username?.charAt(0).toUpperCase()}
+                                    </div>
+                                    
+                                    <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                                <span style={{ 
+                                                    fontWeight: 'bold', 
+                                                    color: isVip ? '#FFD700' : textMain, 
+                                                    marginRight: '8px', 
+                                                    fontSize: '13px',
+                                                    textShadow: isVip ? '0 0 5px rgba(255, 215, 0, 0.5)' : 'none'
+                                                }}>
+                                                    {isVip && "👑 "}@{comment.username}
+                                                </span>
+                                                <span style={{ color: isVip ? '#fff' : textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
+                                            </div>
+
+                                            {(comment.username === currentUser?.username || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
+                                                <button 
+                                                    onClick={() => {
+                                                        if(window.confirm(lang === "TR" ? "Bu yorumu kalıcı olarak silmek istiyor musun?" : "Delete this comment?")) {
+                                                            handleDeleteComment(selectedPost.id, comment);
+                                                        }
+                                                    }}
+                                                    style={{ background: isVip ? 'rgba(255,0,0,0.15)' : 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '3px 6px', borderRadius: '6px' }}
+                                                >
+                                                    {lang === "TR" ? "Sil" : "Delete"}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         <div style={{ color: textLight, fontSize: '13px', textAlign: 'center', marginTop: '20px' }}>{lang === "TR" ? "Henüz yorum yok. İlk yorumu sen yap!" : "No comments yet."}</div>
                     )}
@@ -2574,7 +2744,7 @@ const handleFollowUser = async (targetUsername: string) => {
                        <button 
                            onClick={(e) => {
                                e.preventDefault();
-                               setShowCommentBox(!showCommentBox); // Kutuyu aç/kapat
+                               setShowCommentBox(!showCommentBox);
                                
                                if (!showCommentBox) {
                                    setTimeout(() => {
@@ -2614,7 +2784,8 @@ const handleFollowUser = async (targetUsername: string) => {
                                         
                                         if (selectedPost.id) {
                                             try {
-                                                await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
+                                                // Doğru koleksiyon name: user_posts
+                                                await setDoc(doc(db, "user_posts", selectedPost.id), { comments: updatedComments }, { merge: true });
                                             } catch (error) { console.error("Yorum kaydedilemedi!", error); }
                                         }
                                     }
@@ -2633,7 +2804,7 @@ const handleFollowUser = async (targetUsername: string) => {
                                         
                                         if (selectedPost.id) {
                                             try {
-                                                await setDoc(doc(db, "posts", selectedPost.id), { comments: updatedComments }, { merge: true });
+                                                await setDoc(doc(db, "user_posts", selectedPost.id), { comments: updatedComments }, { merge: true });
                                             } catch (error) { console.error("Yorum kaydedilemedi!", error); }
                                         }
                                     }
@@ -2667,18 +2838,19 @@ const handleFollowUser = async (targetUsername: string) => {
         </div>
       )}
 
-      {/* Home.tsx içindeki SocialPanel çağrısını bul ve şu satırı ekle: */}
-{showSocialPanel && currentUser && (
-    <SocialPanel 
-        currentUser={currentUser} 
-        onClose={() => setShowSocialPanel(false)} 
-        theme={theme} 
-        isDarkMode={isDarkMode} 
-        activeColor={activeColor} 
-        lang={lang}
-        onOpenProfile={openProfileCard} // İŞTE BU SATIRI EKLE
-    />
-)}
+      {/* SOSYAL PANEL ÇAĞRISI */}
+      {showSocialPanel && currentUser && (
+        <SocialPanel 
+            currentUser={currentUser} 
+            onClose={() => setShowSocialPanel(false)} 
+            theme={theme} 
+            isDarkMode={isDarkMode} 
+            activeColor={activeColor} 
+            lang={lang}
+            onOpenProfile={openProfileCard}
+        />
+      )}
+
       {/* --- KÜRESEL SOHBET RESMİ BÜYÜTME EKRANI (POP-UP) --- */}
       {zoomedChatImage && (
         <div 
