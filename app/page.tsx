@@ -1205,6 +1205,33 @@ export default function Home() {
       { id: 'welcome-msg', text: lang === "TR" ? '🎉 SİNEPRO dünyasına hoş geldin!' : '🎉 Welcome to the SINEPRO world!', isRead: true, date: lang === "TR" ? 'Sistem Panosu' : 'System Board', type: 'system' }
   ] : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: lang === "TR" ? 'Sistem Panosu' : 'System Board' }];
 
+  // --- MOBİLDE SOL KENARDAN KAYDIRARAK GERİ GİTME (SWIPE TO BACK) ---
+  useEffect(() => {
+    let touchstartX = 0;
+    const handleTouchStart = (e: TouchEvent) => { touchstartX = e.changedTouches[0].screenX; };
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchendX = e.changedTouches[0].screenX;
+      // Eğer parmak ekranın en sol kenarından (ilk 40px) başlayıp sağa doğru 100px çekildiyse
+      if (touchstartX < 40 && touchendX - touchstartX > 100) {
+        if (activeTrailerKey) setActiveTrailerKey(null);
+        else if (selectedPost) setSelectedPost(null);
+        else if (zoomedAvatar) setZoomedAvatar(null);
+        else if (selectedItem) setSelectedItem(null);
+        else if (showLogin) setShowLogin(false);
+        else if (showProfileSettings) setShowProfileSettings(false);
+        else if (showSecuritySettings) setShowSecuritySettings(false);
+        else if (showThemeSettings) setShowThemeSettings(false);
+        else if (showMobileMenu) setShowMobileMenu(false);
+        else if (viewMode !== "home") setViewMode("home");
+      }
+    };
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [activeTrailerKey, selectedPost, zoomedAvatar, selectedItem, showLogin, showProfileSettings, showSecuritySettings, showThemeSettings, showMobileMenu, viewMode]);
   if (!mounted) return null;
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
