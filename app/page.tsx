@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef, ChangeEvent } from 'react';
+import './mobile.css';
 import axios from 'axios';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import emailjs from '@emailjs/browser';
@@ -152,9 +153,7 @@ export default function Home() {
   const [newPostCaption, setNewPostCaption] = useState("");
   const [selectedPost, setSelectedPost] = useState<any>(null);
 
-  const currentUsername = (currentUser as any)?.username || null;
-
-  // --- GÖNDERİ ÇEKME MOTORU (Kendin VEYA Başkası) ---
+  const currentUsername = (currentUser as any)?.username || null;// --- GÖNDERİ ÇEKME MOTORU (Kendin VEYA Başkası) ---
   useEffect(() => {
     const activeUserForProfile = targetProfile ? targetProfile.username : currentUsername;
     if (viewMode === "profile" && activeUserForProfile) {
@@ -228,7 +227,6 @@ export default function Home() {
               await updateDoc(postRef, { likes: arrayRemove(currentUser.username) });
           } else {
               await updateDoc(postRef, { likes: arrayUnion(currentUser.username) });
-              // BİLDİRİM GÖNDERME
               const msgOwner = userPosts.find(p => p.id === postId)?.username;
               if (msgOwner && msgOwner !== currentUser.username) {
                   await addDoc(collection(db, "notifications"), {
@@ -243,33 +241,23 @@ export default function Home() {
 
   const handleDeleteComment = async (postId: string, commentToDelete: any) => {
     if (!selectedPost) return;
-
-    // 1. Ekranı (Arayüzü) anında güncelle
     const updatedComments = selectedPost.comments.filter((c: any) => 
       !(c.username === commentToDelete.username && c.text === commentToDelete.text)
     );
-    
     setSelectedPost({ ...selectedPost, comments: updatedComments });
-
-    // 2. Veritabanında kalıcı olarak güncelle ve canlı düşüş uygula
     try {
       const postRef = doc(db, "user_posts", postId);
       await setDoc(postRef, { comments: updatedComments }, { merge: true });
-      
-      // Canlı düşüş motoru (Kendi yorumunu silerse puanı azalır)
       if (currentUser && currentUser.username === commentToDelete.username) {
           const newCount = Math.max(0, (currentUser.messageCount || 0) - 1);
           await setDoc(doc(db, "users", currentUser.uid), { messageCount: newCount }, { merge: true });
       }
-    } catch (error) {
-      console.error("Yorum silinirken hata oluştu:", error);
-    }
+    } catch (error) { console.error("Yorum silinirken hata oluştu:", error); }
   };
 
-
-  // --- BÜTÜN FONKSİYONLAR ---
-  const getUserRank = (commentCount: number) => {
-    if (commentCount >= 500) return { name: "SİNE-LORD", color: "#FF0055", icon: "👑", perkStyle: { borderLeft: `4px solid #FF0055`, boxShadow: `0 0 20px rgba(255,0,85,0.2)`, background: 'linear-gradient(to right, rgba(255,0,85,0.05), transparent)' }, isLord: true, isVIP: true };
+  const getUserRank = (commentCount: number, email?: string) => {
+    if (email === "yukselomerfaruk292@gmail.com") return { name: "KURUCU (VIP)", color: "#FFD700", icon: "👑", perkStyle: { borderLeft: `4px solid #FFD700`, boxShadow: `0 0 20px rgba(255,215,0,0.2)`, background: 'linear-gradient(to right, rgba(255,215,0,0.1), transparent)' }, isLord: true, isVIP: true };
+    if (commentCount >= 500) return { name: "SİNE-LORD (VIP)", color: "#FF0055", icon: "👑", perkStyle: { borderLeft: `4px solid #FF0055`, boxShadow: `0 0 20px rgba(255,0,85,0.2)`, background: 'linear-gradient(to right, rgba(255,0,85,0.05), transparent)' }, isLord: true, isVIP: true };
     if (commentCount >= 150) return { name: "Kült Yönetmen", color: "#FFD700", icon: "🎬", perkStyle: { borderLeft: `4px solid #FFD700`, boxShadow: `0 0 10px rgba(255,215,0,0.1)` }, isLord: false, isVIP: true };
     if (commentCount >= 50) return { name: "Baş Eleştirmen", color: "#9D00FF", icon: "👁️‍🗨️", perkStyle: { borderLeft: `4px solid #9D00FF` }, isLord: false, isVIP: false };
     if (commentCount >= 10) return { name: "Vizyoner", color: "#00E5FF", icon: "🔭", perkStyle: { borderLeft: `4px solid #00E5FF` }, isLord: false, isVIP: false };
@@ -287,7 +275,6 @@ export default function Home() {
     return myComments;
   };
 
-  // YENİ: Firebase tabanlı gerçek ve tekil mesaj/yorum sayısı
   const currentUserTotalComments = currentUser?.messageCount || 0;
 
   const genres = useMemo(() => {
@@ -364,7 +351,6 @@ export default function Home() {
     metaThemeColor.setAttribute("content", activeColor);
   }, [activeColor]);
 
-  // Canlı Dinleme (Küresel Sohbet)
   useEffect(() => {
     if (viewMode === "global_chat") {
       const q = query(collection(db, "global_chat"), orderBy("createdAt", "asc"));
@@ -444,7 +430,6 @@ export default function Home() {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [aiChatHistory, isAITyping, showAILeaderboard]);
 
-  // BİLDİRİM DİNLEME MOTORU (%100 Firebase Canlı Dinleme)
   useEffect(() => {
     if (currentUser?.username) {
         const q = query(collection(db, "notifications"), where("recipient", "==", currentUser.username), orderBy("createdAt", "desc"));
@@ -478,7 +463,7 @@ export default function Home() {
           let cloudBio = "";
           let cloudFollowers = [];
           let cloudFollowing = [];
-          let cloudMessageCount = 0; // VIP Sistemi için dinamik sayı
+          let cloudMessageCount = 0;
 
           if (docSnap.exists()) {
               const data = docSnap.data();
@@ -578,7 +563,7 @@ export default function Home() {
         setVisibleCount(40); 
         setCurrentPage(2);
 
-        if (!searchQuery && newReleases.length === 0) {
+        if (!searchQuery) {
           const resC = await axios.get(`https://api.themoviedb.org/3/discover/${contentType}?sort_by=popularity.desc&include_adult=false&language=${apiLang}&page=1`, { headers: { Authorization: API_TOKEN } });
           setNewReleases(resC.data.results);
         }
@@ -612,7 +597,6 @@ export default function Home() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeTrailerKey, zoomedAvatar, showThemeSettings, showSecuritySettings, showProfileSettings, showLogin, showSineAI, showMobileMenu, selectedItem, viewMode, showSocialPanel]);
 
-  // --- EYLEM (ACTION) FONKSİYONLARI ---
   const sendGlobalMessage = async () => {
     if (!currentUser) { setAuthMode("login"); return setShowLogin(true); }
     if (!newGlobalMessage.trim() && !globalMessageImage) return;
@@ -621,10 +605,11 @@ export default function Home() {
 
     try {
       const currentCommentCount = (currentUser.messageCount || 0) + 1;
-      const rankInfo = getUserRank(currentCommentCount);
+      const rankInfo = getUserRank(currentCommentCount, currentUser?.email);
 
       await addDoc(collection(db, "global_chat"), {
         user: currentUser.username,
+        email: currentUser.email,
         avatar: currentUser.avatar || "default",
         text: mesajMetni,
         image: globalMessageImage,
@@ -637,7 +622,6 @@ export default function Home() {
         rankIcon: rankInfo.icon || ""
       });
 
-      // Canlı VIP Yükseliş Motoru
       await setDoc(doc(db, "users", currentUser.uid), { messageCount: currentCommentCount }, { merge: true });
 
       const mentionRegex = /@(\w+)/g;
@@ -714,7 +698,6 @@ export default function Home() {
              await updateDoc(msgRef, { likes: arrayRemove(currentUser.username) });
          } else {
              await updateDoc(msgRef, { likes: arrayUnion(currentUser.username) });
-             // BİLDİRİM ATMA EKLENDİ
              const msgOwner = globalMessages.find(m => m.id === msgId)?.user;
              if (msgOwner && msgOwner !== currentUser.username) {
                  await addDoc(collection(db, "notifications"), {
@@ -732,7 +715,6 @@ export default function Home() {
      document.getElementById("globalChatInput")?.focus();
   };
 
-  // Yeni Firebase Odaklı Bildirim Okuma
   const markNotifsAsRead = () => {
       notifications.forEach(async (n) => {
           if (!n.isRead && n.id !== 'guest') {
@@ -744,7 +726,6 @@ export default function Home() {
   const handleNotificationClick = (notif: any) => {
     if (!currentUser) { setShowNotifications(false); setAuthMode("login"); setShowLogin(true); return; }
     
-    // Bildirime tıklayınca doğru yere yönlendir
     if (notif.type === "mention" || notif.type === "like_global") {
         setViewMode("global_chat");
         setShowNotifications(false);
@@ -759,7 +740,7 @@ export default function Home() {
         setAutoScrollToComments(true); 
     }
     
-    if(notif.id && notif.id !== 'guest') {
+    if(notif.id && notif.id !== 'guest' && notif.id !== 'welcome-msg') {
         updateDoc(doc(db, "notifications", notif.id), { isRead: true }).catch(()=>{});
     }
   };
@@ -774,7 +755,7 @@ export default function Home() {
       setIsAITyping(true);
 
       let systemInjectedPrompt = userText;
-      const userRankInfo = getUserRank(currentUserTotalComments);
+      const userRankInfo = getUserRank(currentUserTotalComments, currentUser?.email);
       
       if (userRankInfo.isLord) {
           systemInjectedPrompt = `ÖNEMLİ: Karşındaki kullanıcı ${userRankInfo.name} rütbesinde. Çok saygılı hitap et. Kullanıcının Sorusu: ${userText}`;
@@ -828,7 +809,8 @@ export default function Home() {
           if (typeof triggerHaptic === 'function') triggerHaptic(); setIsAITyping(false);
       }
   };
-const startAITrivia = async () => {
+
+  const startAITrivia = async () => {
       setShowAILeaderboard(false);
       const newHistory = [...aiChatHistory, { role: "user", text: lang === "TR" ? "🎮 Yarışma Başlat! Bana bir film tahmini sorusu sor." : "🎮 Start Trivia! Ask me a movie question." }];
       setAiChatHistory(newHistory);
@@ -856,15 +838,14 @@ const startAITrivia = async () => {
           setIsAITyping(false);
       }
   };
+
   const fetchLeaderboard = async () => {
       try {
           const q = query(collection(db, "users"), orderBy("aiScore", "desc"));
           const snap = await getDocs(q);
           const topUsers = snap.docs.map(doc => doc.data()).filter(u => u.aiScore && u.aiScore > 0).slice(0, 10);
           setLeaderboardData(topUsers);
-      } catch (error) {
-          console.error("Sıralama çekilemedi:", error);
-      }
+      } catch (error) { console.error("Sıralama çekilemedi:", error); }
   };
 
   const addAIScore = async (points: number) => {
@@ -879,6 +860,7 @@ const startAITrivia = async () => {
           }
       } catch(e) { console.error("Puan eklenemedi:", e); }
   };
+
   const addToRecentlyViewed = (item: any) => {
     let currentHistory = [...recentlyViewed];
     currentHistory = currentHistory.filter(i => i.id !== item.id);
@@ -997,16 +979,8 @@ const startAITrivia = async () => {
       const ytVideos = videosRes.data.results.filter((v: any) => v.site === "YouTube");
       const officialTrailer = ytVideos.find((v: any) => v.type === "Trailer");
       setTrailerKey(officialTrailer ? officialTrailer.key : (ytVideos.length > 0 ? ytVideos[0].key : null));
-    } catch (err) {
-      console.error("Detaylar çekilirken hata:", err);
-    }
+    } catch (err) { console.error("Detaylar çekilirken hata:", err); }
   };
-
-  useEffect(() => {
-      if (selectedItem) {
-          fetchExtraDetails(selectedItem.id, contentType);
-      }
-  }, [lang]);
 
   const shareMovie = async (item: any) => {
     triggerHaptic(); 
@@ -1021,23 +995,16 @@ const startAITrivia = async () => {
     if (!currentUser || (currentUser.username !== itemSahibi && !isPatron)) {
       return alert(lang === "TR" ? "Bu mesajı silmeye yetkiniz yok!" : "Unauthorized action!");
     }
-
     if (!window.confirm(lang === "TR" ? "Bunu kalıcı olarak silmek istediğine emin misin?" : "Are you sure you want to permanently delete this?")) return;
 
     try {
       await deleteDoc(doc(db, koleksiyonAdi, itemId));
-      
-      // Canlı Düşüş Motoru: Kullanıcının puanını canlı olarak geri çek
       if (currentUser && currentUser.username === itemSahibi) {
           const newCount = Math.max(0, (currentUser.messageCount || 0) - 1);
           await setDoc(doc(db, "users", currentUser.uid), { messageCount: newCount }, { merge: true });
       }
-
       triggerHaptic();
-    } catch (error) {
-      console.error("Silme hatası:", error);
-      alert(lang === "TR" ? "Silinirken bir hata oluştu." : "Error while deleting.");
-    }
+    } catch (error) { console.error("Silme hatası:", error); alert(lang === "TR" ? "Silinirken bir hata oluştu." : "Error while deleting."); }
   };
 
   const addComment = async () => {
@@ -1045,10 +1012,10 @@ const startAITrivia = async () => {
     if (!newComment.trim()) return;
 
     const currentCommentCount = (currentUser.messageCount || 0) + 1; 
-    const rankInfo = getUserRank(currentCommentCount);
+    const rankInfo = getUserRank(currentCommentCount, currentUser?.email);
     
     const commentData = {
-      user: currentUser.username, avatar: currentUser.avatar || "default", text: newComment.trim(), rating: commentRating, isSpoiler: isSpoiler, 
+      user: currentUser.username, email: currentUser.email, avatar: currentUser.avatar || "default", text: newComment.trim(), rating: commentRating, isSpoiler: isSpoiler, 
       date: new Date().toLocaleDateString('tr-TR'), createdAt: serverTimestamp(), itemTitle: selectedItem.title || selectedItem.name,
       itemID: selectedItem.id, contentType: contentType, likes: 0, likedBy: [], replies: [], authorCommentCount: currentCommentCount,
       authorBanner: currentUser.banner || null, isVIP: rankInfo.isVIP || false
@@ -1056,55 +1023,39 @@ const startAITrivia = async () => {
 
     try {
       await addDoc(collection(db, "comments"), commentData);
-      
-      // Canlı VIP Yükseliş Motoru
       await setDoc(doc(db, "users", currentUser.uid), { messageCount: currentCommentCount }, { merge: true });
-
       setNewComment(""); setCommentRating(10); setIsSpoiler(false); triggerHaptic(); 
     } catch (error) { alert(lang === "TR" ? "Yorum gönderilemedi!" : "Failed to post comment!"); }
   };
 
- const saveProfileSettings = async () => {
+  const saveProfileSettings = async () => {
       if (!currentUser?.username?.trim()) return alert(lang === "TR" ? "Kullanıcı adı boş olamaz!" : "Username cannot be empty!");
-      
       const updatedUser = { ...currentUser, username: currentUser.username.trim(), bio: currentUser.bio };
       
       if (updatedUser.uid) {
           try {
               await setDoc(doc(db, "users", updatedUser.uid), {
-                  username: updatedUser.username, 
-                  avatar: updatedUser.avatar || "default", 
-                  email: updatedUser.email, 
-                  banner: updatedUser.banner || null, 
-                  bio: updatedUser.bio || "",
-                  isPrivate: updatedUser.isPrivate || false 
+                  username: updatedUser.username, avatar: updatedUser.avatar || "default", email: updatedUser.email, 
+                  banner: updatedUser.banner || null, bio: updatedUser.bio || "", isPrivate: updatedUser.isPrivate || false 
               }, { merge: true });
 
-    try {
-        const chatRef = collection(db, "global_chat");
-        const q = query(chatRef, where("user", "==", currentUser.username));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.size > 0) {
-            const yeniAvatar = currentUser.uploadedAvatar || currentUser.avatar || "default";
-
-            const updatePromises = querySnapshot.docs.map((chatDocument) => {
-                return updateDoc(doc(db, "global_chat", chatDocument.id), {
-                    avatar: yeniAvatar
-                });
-            });
-            
-            await Promise.all(updatePromises);
-        }
-    } catch (error) {}
+              try {
+                  const chatRef = collection(db, "global_chat");
+                  const q = query(chatRef, where("user", "==", currentUser.username));
+                  const querySnapshot = await getDocs(q);
+                  
+                  if (querySnapshot.size > 0) {
+                      const yeniAvatar = currentUser.uploadedAvatar || currentUser.avatar || "default";
+                      const updatePromises = querySnapshot.docs.map((chatDocument) => {
+                          return updateDoc(doc(db, "global_chat", chatDocument.id), { avatar: yeniAvatar });
+                      });
+                      await Promise.all(updatePromises);
+                  }
+              } catch (error) {}
               
               alert(lang === "TR" ? "Profil ayarların başarıyla güncellendi!" : "Profile settings updated successfully!");
               setShowProfileSettings(false); 
-              
-          } catch (error) {
-              console.error("Kayıt hatası:", error);
-              alert(lang === "TR" ? "Kaydedilirken bir hata oluştu." : "Error while saving.");
-          }
+          } catch (error) { console.error("Kayıt hatası:", error); alert(lang === "TR" ? "Kaydedilirken bir hata oluştu." : "Error while saving."); }
       }
   };
 
@@ -1197,7 +1148,7 @@ const startAITrivia = async () => {
     try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert(lang === "TR" ? "Talebiniz alındı!" : "Request received!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert(lang === "TR" ? "Hata oluştu." : "An error occurred."); }
   };
 
-const handleFollowUser = async (targetUsername: string) => {
+  const handleFollowUser = async (targetUsername: string) => {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
       
@@ -1212,7 +1163,6 @@ const handleFollowUser = async (targetUsername: string) => {
               });
           }
 
-          // Karşı tarafa anında BİLDİRİM gönder
           await addDoc(collection(db, "notifications"), {
               recipient: targetUsername, sender: currentUser.username, type: "follow",
               text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı / istek gönderdi! 👤" : "started following you / sent a request! 👤"}`,
@@ -1220,10 +1170,7 @@ const handleFollowUser = async (targetUsername: string) => {
           });
           
           alert(lang === "TR" ? `${targetUsername} adlı kullanıcıya istek gönderildi!` : `Request sent to ${targetUsername}!`);
-      } catch (error) { 
-          console.error("Takip Hatası:", error);
-          alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); 
-      }
+      } catch (error) { console.error("Takip Hatası:", error); alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); }
   };
 
   const toggleLikeComment = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
@@ -1242,12 +1189,7 @@ const handleFollowUser = async (targetUsername: string) => {
       const newLikes = isLiked ? Math.max(0, (targetComment.likes || 0) - 1) : (targetComment.likes || 0) + 1;
 
       try {
-          await updateDoc(doc(db, "comments", String(commentID)), {
-              likes: newLikes,
-              likedBy: newLikedBy
-          });
-
-          // Sadece BEĞENİYORSA Bildirim Gönder (Geri çekiyorsa gönderme)
+          await updateDoc(doc(db, "comments", String(commentID)), { likes: newLikes, likedBy: newLikedBy });
           if (!isLiked && targetComment.user !== currentUser.username) {
               await addDoc(collection(db, "notifications"), {
                   recipient: targetComment.user, sender: currentUser.username, type: "like_comment",
@@ -1258,18 +1200,20 @@ const handleFollowUser = async (targetUsername: string) => {
       } catch (error) { console.error(error); }
   };
 
-  const displayNotifs = currentUser ? notifications : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: 'Sistem Panosu' }];
+  const displayNotifs = currentUser ? [
+      ...notifications,
+      { id: 'welcome-msg', text: lang === "TR" ? '🎉 SİNEPRO dünyasına hoş geldin!' : '🎉 Welcome to the SINEPRO world!', isRead: true, date: lang === "TR" ? 'Sistem Panosu' : 'System Board', type: 'system' }
+  ] : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: lang === "TR" ? 'Sistem Panosu' : 'System Board' }];
 
   if (!mounted) return null;
 
- const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
           e.target.value = ''; 
           return alert(lang === "TR" ? "Dosya çok büyük! Maksimum 10MB boyutunda bir resim seçin." : "File too large! Max 10MB.");
       }
-      
       const reader = new FileReader();
       reader.onload = (event: any) => {
         const img = new Image();
@@ -1279,14 +1223,10 @@ const handleFollowUser = async (targetUsername: string) => {
           const scaleSize = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scaleSize;
-          
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, avatar: dataUrl, uploadedAvatar: dataUrl });
-          }
+          if (currentUser) { setCurrentUser({ ...currentUser, avatar: dataUrl, uploadedAvatar: dataUrl }); }
         };
         img.src = event.target.result;
       };
@@ -1302,7 +1242,6 @@ const handleFollowUser = async (targetUsername: string) => {
           e.target.value = '';
           return alert(lang === "TR" ? "Dosya çok büyük! Maksimum 10MB boyutunda bir resim seçin." : "File too large! Max 10MB.");
       }
-      
       const reader = new FileReader();
       reader.onload = (event: any) => {
         const img = new Image();
@@ -1312,22 +1251,17 @@ const handleFollowUser = async (targetUsername: string) => {
           const scaleSize = MAX_WIDTH / img.width;
           canvas.width = MAX_WIDTH;
           canvas.height = img.height * scaleSize;
-          
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, banner: dataUrl });
-          }
+          if (currentUser) { setCurrentUser({ ...currentUser, banner: dataUrl }); }
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     }
     e.target.value = ''; 
-  };
-  return (
+  };return (
     <main style={{ backgroundColor: bgMain, minHeight: '100vh', color: textMain, fontFamily: 'sans-serif', position: 'relative', overflowX: 'hidden' }}>
       <style dangerouslySetInnerHTML={{ __html: `
       .modal-box::-webkit-scrollbar { display: none; }
@@ -1496,7 +1430,6 @@ const handleFollowUser = async (targetUsername: string) => {
               <button onClick={() => { setActiveBottomTab("tv"); setContentType("tv"); setViewMode("home"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); setIsSearchExpanded(false); window.scrollTo({top:0, behavior:'smooth'}); }} style={{ background: 'none', border: 'none', fontWeight: 'bold', cursor: 'pointer', color: activeBottomTab === "tv" ? activeColor : theme.secondary }}>
                 {lang === "TR" ? "DİZİLER" : "SERIES"}
               </button>
-              {/* DİL ŞALTERİ - DİZİLERİN YANINDA */}
               <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: '#333', color: '#fff', border: '1px solid #555', borderRadius: '6px', padding: '4px 10px', fontSize: '11px', cursor: 'pointer', marginLeft: '5px', fontWeight: 'bold' }}>
                   {lang === "TR" ? "🇬🇧 EN" : "🇹🇷 TR"}
               </button>
@@ -1552,6 +1485,9 @@ const handleFollowUser = async (targetUsername: string) => {
                  </div>
              )}
           </div>
+          <button className="mobile-only-lang" onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title="Dil Değiştir">
+    {lang === "TR" ? "🇬🇧" : "🇹🇷"}
+</button>
           <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? (lang==="TR"?"Açık Moda Geç":"Light Mode") : (lang==="TR"?"Koyu Moda Geç":"Dark Mode")}>{isDarkMode ? "☀️" : "🌙"}</button>
 
           <div className="search-container" ref={searchRef}>
@@ -1601,7 +1537,7 @@ const handleFollowUser = async (targetUsername: string) => {
                   </div>
                 )}
               </div>
-            ) : <button onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '25px', fontWeight: 'bold', border: 'none', cursor: 'pointer', fontSize: '13px' }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}
+           ) : <button className="hover-effect" onClick={() => {setAuthMode("login"); setShowLogin(true);}} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '10px 24px', borderRadius: '20px', fontWeight: '900', border: 'none', cursor: 'pointer', fontSize: '13px', boxShadow: `0 5px 15px ${activeColor}50` }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}
           </div>
 
         </div>
@@ -1637,11 +1573,11 @@ const handleFollowUser = async (targetUsername: string) => {
              <div style={{ position: 'relative', zIndex: 1 }}>
                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '15px' }}><div style={{ width: '40px', height: '5px', background: borderColor, borderRadius: '10px' }}></div></div>
                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '20px' }}>
-                    <div className={getUserRank(currentUserTotalComments).isLord ? "vip-lord-avatar" : ""} style={{ borderRadius: '50%', padding: getUserRank(currentUserTotalComments).isLord ? '3px' : '0' }}>
+                    <div className={getUserRank(currentUserTotalComments, currentUser?.email).isLord ? "vip-lord-avatar" : ""} style={{ borderRadius: '50%', padding: getUserRank(currentUserTotalComments, currentUser?.email).isLord ? '3px' : '0' }}>
                         <UserAvatar user={currentUser} size="60px" fontSize="24px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                     </div>
                     <div>
-                        <h3 style={{ margin: 0, color: activeColor, fontSize: '20px', textShadow: getUserRank(currentUserTotalComments).isLord ? '0 0 10px #FF0055' : 'none' }}>@{currentUser.username}</h3>
+                        <h3 style={{ margin: 0, color: activeColor, fontSize: '20px', textShadow: getUserRank(currentUserTotalComments, currentUser?.email).isLord ? '0 0 10px #FF0055' : 'none' }}>@{currentUser.username}</h3>
                         <p style={{ margin: 0, fontSize: '13px', color: textLight }}>{currentUser.email}</p>
                     </div>
                  </div>
@@ -1755,10 +1691,10 @@ const handleFollowUser = async (targetUsername: string) => {
                 {globalMessages.length > 0 ? globalMessages.map((msg) => {
                     const isMe = currentUser?.username === msg.user;
                     
-                    // VIP KONTROL SİSTEMİ (CANLI DÜŞÜŞLÜ & PATRON ÖNCELİKLİ)
+                    // VIP KONTROL SİSTEMİ
                     const isVip = (isMe && (currentUserTotalComments >= 500 || currentUser?.email === "yukselomerfaruk292@gmail.com")) || (!isMe && (msg.isVIP || msg.badge?.includes("VIP")));
 
-                    // YENİ EKLENEN: VIP RENKLİ YAZI MOTORU (MADDE 6)
+                    // RENKLİ YAZI MOTORU
                     let displayMessage = msg.text || "";
                     let customColor = "inherit";
                     let customShadow = "none";
@@ -1776,13 +1712,11 @@ const handleFollowUser = async (targetUsername: string) => {
                     return (
                         <div key={msg.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '75%', display: 'flex', gap: '10px', flexDirection: isMe ? 'row-reverse' : 'row' }}>
                             <div style={{ flexShrink: 0, cursor: 'pointer', zIndex: 2 }} onClick={() => openProfileCard(msg.user, msg.avatar, msg.authorBanner, 0)}>
-                                {/* YENİ EKLENEN: VIP DÖNEN AVATAR HALKASI (MADDE 1) */}
                                 <div className={isVip ? "vip-avatar-ring" : ""} style={{ borderRadius: '50%' }}>
                                     <UserAvatar user={{ username: msg.user, avatar: msg.avatar }} size="45px" fontSize="16px" activeColor={isVip ? '#FFD700' : activeColor} theme={theme} badgeText={badgeText} />
                                 </div>
                             </div>
                             
-                            {/* VIP İSE ALTIN KUTU OLUR DEĞİLSE NORMAL KUTU */}
                             <div style={{ 
                                 background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : (isMe ? activeColor : bgCard), 
                                 color: isVip ? '#fff' : (isMe ? badgeText : textMain), 
@@ -1795,7 +1729,6 @@ const handleFollowUser = async (targetUsername: string) => {
                                 overflow: 'hidden' 
                             }}>
 
-                                {/* VIP KUTUSUNUN ARKASINDAKİ SİLİK TAÇ */}
                                 {isVip && (
                                     <div style={{ position: 'absolute', right: '0px', bottom: '-20px', fontSize: '70px', opacity: 0.05, transform: 'rotate(-15deg)', pointerEvents: 'none', zIndex: 0 }}>
                                         👑
@@ -1823,7 +1756,6 @@ const handleFollowUser = async (targetUsername: string) => {
                                     />
                                 )}
                                 
-                                {/* YENİ EKLENEN: RENKLİ YAZI SİSTEMİ ÇIKTISI */}
                                 {displayMessage && <p style={{ position: 'relative', zIndex: 1, margin: 0, fontSize: '15px', lineHeight: '1.5', wordBreak: 'break-word', color: customColor, textShadow: customShadow }}>{displayMessage}</p>}
                                 
                                 <div style={{ position: 'relative', zIndex: 1, display: 'flex', gap: '15px', marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${isVip ? 'rgba(255,215,0,0.2)' : (isMe ? 'rgba(255,255,255,0.2)' : borderColor)}`, fontSize: '12px', fontWeight: 'bold' }}>
@@ -1867,7 +1799,7 @@ const handleFollowUser = async (targetUsername: string) => {
         </div>
       )}
 
-     {/* --- KİŞİSEL PROFİL VE GÖNDERİLER (KENDİN VEYA BAŞKASI) --- */}
+      {/* --- KİŞİSEL PROFİL VE GÖNDERİLER --- */}
       {viewMode === "profile" && currentUser && (
         (() => {
             const profileData = targetProfile || currentUser;
@@ -2103,6 +2035,7 @@ const handleFollowUser = async (targetUsername: string) => {
               </div>
           </div>
       )}
+      
       {/* --- DESTEK OL VE INSTAGRAM (SAYFA SONU) --- */}
       {(viewMode === "support" || viewMode === "about") && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '40px 0', marginTop: 'auto', position: 'relative', zIndex: 10 }}>
@@ -2193,7 +2126,7 @@ const handleFollowUser = async (targetUsername: string) => {
                            const isMe = currentUser?.username === c.user;
                            // YENİ VIP SİSTEMİ (DİNAMİK)
                            const isVip = (isMe && (currentUserTotalComments >= 500 || currentUser?.email === "yukselomerfaruk292@gmail.com")) || (!isMe && (c.isVIP || c.badge?.includes("VIP")));
-                           const cRank = getUserRank(c.authorCommentCount !== undefined ? c.authorCommentCount : 0);
+                           const cRank = getUserRank(c.authorCommentCount !== undefined ? c.authorCommentCount : 0, c.email);
                            
                            return (
                              <div key={c.id} style={{ 
@@ -2536,51 +2469,54 @@ const handleFollowUser = async (targetUsername: string) => {
         </div>
       )}
 
+      {/* --- GİRİŞ YAP / KAYIT OL MODALI --- */}
       {showLogin && (
-        <div onClick={() => setShowLogin(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `none`, position: 'relative', borderRadius: '24px', boxShadow: `0 20px 50px rgba(0,0,0,0.5)`, overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '6px', background: `linear-gradient(90deg, ${activeColor}, ${theme.secondary})` }}></div>
-            <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', border: 'none', color: textMain, fontSize: '18px', cursor: 'pointer', width: '35px', height: '35px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s' }}>✕</button>
+        <div onClick={() => setShowLogin(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `1px solid ${borderColor}`, position: 'relative', borderRadius: '20px', boxShadow: `0 20px 60px rgba(0,0,0,0.8)`, overflow: 'hidden', padding: '40px 30px', width: '100%', maxWidth: '380px' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '20px 0 30px 0' }}>
-               <SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="32px" proSize="24px" />
+            <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: 'none', color: textMain, fontSize: '14px', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s' }} className="hover-effect">✕</button>
+            
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
+               <SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="32px" proSize="22px" hidePro={false} />
             </div>
 
-            <h2 style={{ color: textMain, textAlign: 'center', marginTop: 0, fontSize: '22px', fontWeight: '900', marginBottom: '25px' }}>
-              {authMode === 'login' ? (lang === "TR" ? 'Hesabınıza Giriş Yapın' : 'Login to Your Account') : authMode === 'register' ? (lang === "TR" ? 'Yeni Hesap Oluştur' : 'Create New Account') : (lang === "TR" ? 'Güvenlik Doğrulaması' : 'Security Verification')}
-            </h2>
+            <p style={{ color: textLight, textAlign: 'center', marginTop: '-15px', fontSize: '14px', marginBottom: '25px', opacity: 0.8 }}>
+              {lang === "TR" ? "Hoşgeldiniz." : "Welcome to the SINEPRO universe."}
+            </p>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {(authMode === 'register' || authMode === 'login' || authMode === 'forgot_password') && (
-                 <input type="email" placeholder={lang === "TR" ? "E-posta Adresiniz" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
+                 <input type="email" placeholder={lang === "TR" ? "E-posta Adresi" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {authMode === 'register' && (
-                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
+                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {(authMode === 'register' || authMode === 'login' || authMode === 'new_password') && (
-                 <input type="password" placeholder={lang === "TR" ? "Şifreniz" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s' }} />
+                 <input type="password" placeholder={lang === "TR" ? "Şifre" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {(authMode === 'verify' || authMode === 'verify_forgot' || authMode === 'security_verify') && (
-                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Doğrulama Kodu" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ padding: '16px', borderRadius: '14px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '15px', transition: '0.3s', textAlign: 'center', letterSpacing: '2px', fontWeight: 'bold' }} />
+                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Kod" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `2px dashed ${activeColor}`, outline: 'none', fontSize: '20px', transition: '0.3s', textAlign: 'center', letterSpacing: '4px', fontWeight: 'bold' }} />
               )}
 
-              {authMode === 'login' && <button onClick={handleLogin} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}
-              {authMode === 'register' && <button onClick={handleRegisterStart} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KAYIT OL" : "REGISTER"}</button>}
-              {authMode === 'verify' && <button onClick={handleVerifyAndFinish} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
-              {authMode === 'forgot_password' && <button onClick={handleForgotPasswordStart} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KOD GÖNDER" : "SEND RESET CODE"}</button>}
-              {authMode === 'verify_forgot' && <button onClick={handleVerifyForgot} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
-              {authMode === 'new_password' && <button onClick={handleSaveNewPassword} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "ŞİFREYİ GÜNCELLE" : "UPDATE PASSWORD"}</button>}
-              {authMode === 'security_verify' && <button onClick={handleSecurityUpdate} style={{ background: `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, color: badgeText, padding: '16px', borderRadius: '14px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '16px', marginTop: '10px', boxShadow: `0 8px 25px ${activeColor}50` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
+              {authMode === 'login' && <button onClick={handleLogin} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}
+              {authMode === 'register' && <button onClick={handleRegisterStart} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "KAYIT OL" : "REGISTER"}</button>}
+              {authMode === 'verify' && <button onClick={handleVerifyAndFinish} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
+              {authMode === 'forgot_password' && <button onClick={handleForgotPasswordStart} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "KOD GÖNDER" : "SEND CODE"}</button>}
+              {authMode === 'verify_forgot' && <button onClick={handleVerifyForgot} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY CODE"}</button>}
+              {authMode === 'new_password' && <button onClick={handleSaveNewPassword} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "ŞİFREYİ KAYDET" : "UPDATE"}</button>}
+              {authMode === 'security_verify' && <button onClick={handleSecurityUpdate} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "KODU DOĞRULA" : "VERIFY"}</button>}
               
             </div>
-            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '14px' }}>
+            
+            <div style={{ marginTop: '25px', textAlign: 'center', fontSize: '13px' }}>
                {authMode === 'login' && (
-                   <>
-                     <p style={{ color: textLight, cursor: 'pointer', marginBottom: '10px' }} onClick={() => setAuthMode('register')}>{lang === "TR" ? "Hesabın yok mu? " : "No account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Kayıt Ol" : "Register"}</strong></p>
-                     <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('forgot_password')}>{lang === "TR" ? "Şifremi Unuttum" : "Forgot Password"}</p>
-                   </>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                     <span style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('register')}>{lang === "TR" ? "Hesabın yok mu? " : "No account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Kayıt Ol" : "Register"}</strong></span>
+                     <span style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('forgot_password')}>{lang === "TR" ? "Şifremi Unuttum" : "Forgot Password"}</span>
+                   </div>
                )}
-               {authMode === 'register' && <p style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('login')}>{lang === "TR" ? "Zaten hesabın var mı? " : "Already have an account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Giriş Yap" : "Login"}</strong></p>}
-               {authMode === 'forgot_password' && <p style={{ color: activeColor, cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setAuthMode('login')}>← {lang === "TR" ? "Giriş ekranına dön" : "Back to Login"}</p>}
+               {authMode === 'register' && <span style={{ color: textLight, cursor: 'pointer' }} onClick={() => setAuthMode('login')}>{lang === "TR" ? "Zaten hesabın var mı? " : "Already have an account? "}<strong style={{ color: activeColor }}>{lang === "TR" ? "Giriş Yap" : "Login"}</strong></span>}
+               {authMode === 'forgot_password' && <span style={{ color: activeColor, cursor: 'pointer', fontWeight: 'bold' }} onClick={() => setAuthMode('login')}>← {lang === "TR" ? "Girişe dön" : "Back to Login"}</span>}
             </div>
           </div>
         </div>
@@ -2784,7 +2720,6 @@ const handleFollowUser = async (targetUsername: string) => {
                                         
                                         if (selectedPost.id) {
                                             try {
-                                                // Doğru koleksiyon name: user_posts
                                                 await setDoc(doc(db, "user_posts", selectedPost.id), { comments: updatedComments }, { merge: true });
                                             } catch (error) { console.error("Yorum kaydedilemedi!", error); }
                                         }

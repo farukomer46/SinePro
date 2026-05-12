@@ -1,0 +1,106 @@
+/* PC'de bu yeni butonu gizle, sadece mobilde göster */
+.mobile-only-lang { display: none !important; }
+
+@media (max-width: 768px) {
+    .mobile-only-lang { display: flex !important; align-items: center; justify-content: center; }
+}
+
+
+
+/* --- SİNEPRO KUSURSUZ MOBİL OPTİMİZASYON (iOS & Android) --- */
+
+@media (max-width: 768px) {
+    
+    /* 1. KUSURSUZ YATAY KAYDIRMA (CAROUSEL) */
+    .horizontal-scroll {
+        /* Android'de takılmayı önlemek için overscroll behavior ekliyoruz */
+        overscroll-behavior-x: contain; 
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 20px;
+        scroll-padding-left: 5%;
+        /* Dokunmatik hassasiyeti için donanım ivmelenmesini zorlar */
+        transform: translateZ(0); 
+    }
+    .horizontal-scroll > div {
+        scroll-snap-align: center; 
+        /* Android Chrome'daki sekme hatasını önler */
+        scroll-snap-stop: always; 
+    }
+
+    /* 2. APPLE/INSTAGRAM TARZI BOTTOM NAV BAR (ALT MENÜ) */
+    .bottom-bar {
+        background: rgba(11, 12, 16, 0.85) !important;
+        /* Android'de kasmasını önlemek için blur oranını 15'ten 10'a çektim */
+        backdrop-filter: blur(10px); 
+        -webkit-backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-bottom: env(safe-area-inset-bottom, 15px) !important; 
+        box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
+    }
+    
+    .bottom-bar-item .bottom-icon {
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    }
+    
+    .bottom-bar-item.active .bottom-icon {
+        transform: translateY(-8px) scale(1.15) !important; 
+        border-radius: 14px !important;
+    }
+    
+    .bottom-bar-item.active .bottom-text {
+        transform: translateY(-2px);
+        font-size: 11px !important;
+        font-weight: 900;
+    }
+
+    /* 3. MOBİL KLAVYE AÇILDIĞINDA EKRAN YIRTILMASINI ÖNLEME */
+    .movie-detail-overlay {
+        /* Android ve iOS adres çubuğu hatalarını çözen 'dvh' kullanımı */
+        height: 100dvh !important; 
+        /* Klavye açıldığında Android'de içeriği sıkıştırmak yerine kaydırılabilir yapar */
+        overflow-y: auto !important; 
+        overscroll-behavior-y: contain;
+    }
+
+    /* 4. MODAL/POP-UP EKRANLARINI TELEFON ALTINA YAPIŞTIRMA (BOTTOM SHEET) */
+    .ai-modal, .auth-modal, .profile-modal {
+        /* Modallar çok uzamasın ve klavye altında ezilmesin diye yüksekliği ayarlıyoruz */
+        max-height: 85dvh !important;
+        border-radius: 25px 25px 0 0 !important; 
+        margin-top: auto !important; 
+        border-bottom: none !important;
+        animation: slideUpBottomSheet 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        /* Android'de donanım ivmesini zorlamak (performans için) */
+        will-change: transform, opacity; 
+    }
+
+    @keyframes slideUpBottomSheet {
+        from { transform: translateY(100%); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* 5. ARAMA ÇUBUĞU (SEARCH) MOBİLDE DAHA ZARİF AÇILIR */
+    .search-input-box:focus {
+        width: calc(100vw - 120px) !important; 
+        max-width: 300px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(8px);
+    }
+
+    /* 6. GÖNDERİ PAYLAŞIM VE SOHBET BUTONLARI (TOUCH ALANI BÜYÜTME) */
+    button {
+        /* Minimum dokunma hedefi boyutu (Android ve iOS standartlarına göre) */
+        min-height: 48px; 
+        /* Tıklama tepkisini hızlandırır */
+        touch-action: manipulation; 
+    }
+    
+    .mobile-menu-btn {
+        background: rgba(255,255,255,0.05) !important;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+}
