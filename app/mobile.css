@@ -148,3 +148,52 @@
     .profile-modal { padding-bottom: 60px !important; }
     .auth-modal { padding-bottom: 40px !important; }
 }
+/* --- HATA DÜZELTMELERİ (V3) --- */
+
+/* 5. Yandan Çekince Google'a Atmasını (Tarayıcı Geri Gitmesini) Engeller */
+html, body {
+    overscroll-behavior-x: none !important;
+}
+
+@media (max-width: 768px) {
+    /* 1 ve 3. Arama İkonu Yuvarlaklığı ve Güneş/Ay Butonunun Geri Gelmesi */
+    .nav-wrapper { position: relative; }
+    .search-container { position: relative !important; }
+    
+    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
+        width: calc(100vw - 160px) !important; /* Logonun üstüne binmez */
+        max-width: 250px !important;
+        position: absolute;
+        right: 40px; /* Genişlerken diğer ikonların üstünden sola doğru uzar */
+        background: rgba(11, 12, 16, 0.95) !important;
+        z-index: 1000;
+    }
+
+    .search-icon-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+        flex-shrink: 0 !important;
+        border-radius: 50% !important; /* İkonu tam yuvarlak yapar */
+        padding: 0 !important;
+    }
+
+    /* 4. Profil Ayarları Sayfasının Aşağı İnmemesi ve Butona Basılamaması */
+    .profile-modal {
+        padding-bottom: 80px !important; /* Alt kısma geniş boşluk ekler */
+        height: auto !important;
+        max-height: 85dvh !important;
+        overflow-y: scroll !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 6. SİNE Aİ Yarışma ve Sohbet Butonlarının Üst Üste Binmesi */
+    .ai-modal > div:first-child > div:last-child {
+        flex-wrap: nowrap !important; /* Alt alta inmeyi yasaklar, yan yana zorlar */
+        gap: 5px !important;
+    }
+    .ai-modal > div:first-child > div:last-child button {
+        padding: 6px 8px !important;
+        font-size: 10px !important;
+        white-space: nowrap; /* Metinlerin daralıp aşağı inmesini önler */
+    }
+}

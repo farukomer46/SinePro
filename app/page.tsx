@@ -1618,9 +1618,7 @@ export default function Home() {
                     <button onClick={() => { setViewMode("support"); setShowMobileMenu(false); }} className="mobile-menu-btn">❓ {lang === "TR" ? "Yardım & Destek" : "Help & Support"}</button>
                     <button onClick={() => { setViewMode("global_chat"); setShowMobileMenu(false); }} className="mobile-menu-btn">🌍 {lang === "TR" ? "Küresel Sohbet" : "Global Chat"}</button>
                  </div>
-                 <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ width: '100%', padding: '15px', background: activeColor, color: badgeText, border: 'none', borderRadius: '15px', fontWeight: 'bold', marginTop: '15px', cursor: 'pointer', fontSize: '15px' }}>
-                     🌐 {lang === "TR" ? "🇬🇧 Switch to English" : "🇹🇷 Türkçe Yap"}
-                 </button>
+                 
 
                  <button onClick={() => { handleLogout(); setShowMobileMenu(false); }} style={{ width: '100%', padding: '15px', background: 'rgba(255,0,0,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,0,0,0.3)', borderRadius: '15px', fontWeight: 'bold', marginTop: '15px', cursor: 'pointer', fontSize: '15px' }}>🚪 {lang === "TR" ? "Çıkış Yap" : "Logout"}</button>
              </div>
@@ -2433,14 +2431,14 @@ export default function Home() {
               </div>
               <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none', fontSize: '15px', marginTop: '10px', boxShadow: `0 5px 15px ${activeColor}40` }}>{lang === "TR" ? "DEĞİŞİKLİKLERİ KAYDET" : "SAVE CHANGES"}</button>
             </div>
-            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '15px', cursor: 'pointer', border: 'none', fontSize: '13px', fontWeight: 'bold' }}>{lang === "TR" ? "Vazgeç ve Kapat" : "Cancel & Close"}</button>
+            <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '15px', marginBottom: '50px', paddingBottom: '20px', cursor: 'pointer', border: 'none', fontSize: '14px', fontWeight: 'bold' }}>{lang === "TR" ? "Vazgeç ve Kapat" : "Cancel & Close"}</button>
           </div>
         </div>
       )}
 
       {/* --- YENİ NESİL PROFİL KARTI (INSTAGRAM İSTATİSTİKLİ POP-UP) --- */}
       {zoomedAvatar && (
-        <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', zIndex: 15000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div onClick={() => setZoomedAvatar(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', zIndex: 999999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
            <div style={{ position: 'relative', width: '100%', maxWidth: '400px', background: bgCard, borderRadius: '25px', overflow: 'hidden', border: `1px solid ${activeColor}30`, boxShadow: `0 20px 60px rgba(0,0,0,0.6)`, animation: 'slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} onClick={(e) => e.stopPropagation()}>
                <div style={{ width: '100%', height: '150px', backgroundColor: inputBg, backgroundImage: zoomedAvatar.banner ? `url(${zoomedAvatar.banner})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative', borderBottom: `1px solid ${activeColor}20` }}>
                    <button onClick={() => setZoomedAvatar(null)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, backdropFilter: 'blur(5px)' }}>✕</button>
