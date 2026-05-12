@@ -81,14 +81,21 @@
         to { transform: translateY(0); opacity: 1; }
     }
 
-    /* 5. ARAMA ÇUBUĞU (SEARCH) MOBİLDE DAHA ZARİF AÇILIR */
-    .search-input-box:focus {
-        width: calc(100vw - 120px) !important; 
-        max-width: 300px;
-        z-index: 1000;
-        background: rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(8px);
+    /* KUSURSUZ ARAMA ÇUBUĞU */
+    .search-container { position: static !important; }
+    
+    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
+        position: absolute !important;
+        right: 45px !important; /* Çarpı ikonuna yer bırakır */
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        width: calc(100vw - 110px) !important; 
+        max-width: none !important;
+        background: rgba(11, 12, 16, 0.98) !important;
+        z-index: 9999 !important;
+        box-shadow: -10px 0 20px rgba(11, 12, 16, 0.9) !important;
     }
+}
 
     /* 6. GÖNDERİ PAYLAŞIM VE SOHBET BUTONLARI (TOUCH ALANI BÜYÜTME) */
     button {
@@ -103,7 +110,7 @@
         backdrop-filter: blur(5px);
         border: 1px solid rgba(255,255,255,0.1) !important;
     }
-}
+  
 /* --- HATA DÜZELTMELERİ (Arama, Çarpı İkonu, Modal Kaydırma) --- */
 
 /* 1. Arama motoru ikonunun yumurta gibi ezilmesini önler, tam yuvarlak yapar */

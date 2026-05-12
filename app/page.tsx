@@ -1224,20 +1224,20 @@ export default function Home() {
       { id: 'welcome-msg', text: lang === "TR" ? '🎉 SİNEPRO dünyasına hoş geldin!' : '🎉 Welcome to the SINEPRO world!', isRead: true, date: lang === "TR" ? 'Sistem Panosu' : 'System Board', type: 'system' }
   ] : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: lang === "TR" ? 'Sistem Panosu' : 'System Board' }];
 
-  // // --- MOBİLDE KAYDIRARAK GERİ GİTME (SWIPE TO BACK - KUSURSUZ VERSİYON) ---
+ // --- MOBİLDE KENARDAN KAYDIRARAK GERİ GİTME (NATIVE APPLE MANTIĞI) ---
   useEffect(() => {
     let touchstartX = 0;
     let touchstartY = 0;
     const handleTouchStart = (e: TouchEvent) => { 
-        touchstartX = e.changedTouches[0].screenX; 
-        touchstartY = e.changedTouches[0].screenY;
+        touchstartX = e.touches[0].clientX; 
+        touchstartY = e.touches[0].clientY;
     };
     const handleTouchEnd = (e: TouchEvent) => {
-      const touchendX = e.changedTouches[0].screenX;
-      const touchendY = e.changedTouches[0].screenY;
+      const touchendX = e.changedTouches[0].clientX;
+      const touchendY = e.changedTouches[0].clientY;
       
-      // Sağa doğru en az 80px kaydırma ve dikeyde fazla oynamama (Aşağı kaydırırken yanlışlıkla geri gitmeyi önler)
-      if (touchendX - touchstartX > 80 && Math.abs(touchendY - touchstartY) < 50) {
+      // ŞART: Parmağı ekranın TAM SOL KENARINDAN (0-30px arası) başlatıp sağa en az 60px kaydırmak.
+      if (touchstartX < 30 && (touchendX - touchstartX) > 60 && Math.abs(touchendY - touchstartY) < 50) {
         if (activeTrailerKey) setActiveTrailerKey(null);
         else if (selectedPost) setSelectedPost(null);
         else if (zoomedAvatar) setZoomedAvatar(null);
@@ -1250,8 +1250,8 @@ export default function Home() {
         else if (viewMode !== "home") setViewMode("home");
       }
     };
-    document.addEventListener('touchstart', handleTouchStart);
-    document.addEventListener('touchend', handleTouchEnd);
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchend', handleTouchEnd);
@@ -1877,18 +1877,18 @@ export default function Home() {
                         </div>
                     </div>
                     
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', marginBottom: '25px', borderBottom: `1px solid ${borderColor}` }}>
-                        <button onClick={() => setProfileTab("posts")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "posts" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "posts" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>🖼️ {lang === "TR" ? "GÖNDERİLER" : "POSTS"}</button>
+                   <div style={{ display: 'flex', justifyContent: 'center', gap: '50px', marginBottom: '15px', borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px' }}>
+                        <button onClick={() => setProfileTab("posts")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "posts" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "posts" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s', marginBottom: '-17px' }}>🖼️ {lang === "TR" ? "GÖNDERİLER" : "POSTS"}</button>
                         {isOwnProfile && (
-                            <button onClick={() => setProfileTab("settings")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "settings" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "settings" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s' }}>⚙️ {lang === "TR" ? "AYARLAR" : "SETTINGS"}</button>
+                            <button onClick={() => setProfileTab("settings")} style={{ background: 'none', border: 'none', borderBottom: profileTab === "settings" ? `2px solid ${activeColor}` : '2px solid transparent', padding: '10px 20px', color: profileTab === "settings" ? activeColor : textLight, fontWeight: 'bold', fontSize: '16px', cursor: 'pointer', transition: '0.3s', marginBottom: '-17px' }}>⚙️ {lang === "TR" ? "AYARLAR" : "SETTINGS"}</button>
                         )}
                     </div>
                     
                     {profileTab === "posts" ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             {isOwnProfile && (
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-                                   <button onClick={() => document.getElementById('postImageInput')?.click()} style={{ background: activeColor, color: badgeText, padding: '10px 20px', borderRadius: '20px', border: 'none', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: `0 5px 15px ${activeColor}40` }}>➕ {lang === "TR" ? "Yeni Gönderi" : "New Post"}</button>
+                                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                   <button onClick={() => document.getElementById('postImageInput')?.click()} style={{ background: 'transparent', color: activeColor, padding: '8px 25px', borderRadius: '20px', border: `1px solid ${activeColor}`, fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>➕ {lang === "TR" ? "Yeni Gönderi Paylaş" : "Share New Post"}</button>
                                    <input type="file" id="postImageInput" accept="image/*" style={{ display: 'none' }} onChange={handlePostImageSelect} />
                                 </div>
                             )}
@@ -2215,7 +2215,7 @@ export default function Home() {
                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                       </div>
                                    </div>
-                                  <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', height: 'fit-content', alignSelf: 'center', whiteSpace: 'nowrap' }}>⭐ {lang === "TR" ? "Puan" : "Score"}: {c.rating}</span>
+                                 <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', height: 'fit-content', alignSelf: 'center', whiteSpace: 'nowrap' }}>{lang === "TR" ? "Puan" : "Score"}: {c.rating}</span>
                                 </div>
                                 <div style={{ position: 'relative', marginBottom: '10px', zIndex: 1 }}>
                                     <p style={{ margin: 0, color: textMain, lineHeight: '1.6', fontSize: '14px', filter: c.isSpoiler ? 'blur(8px)' : 'none', transition: '0.4s ease', cursor: c.isSpoiler ? 'pointer' : 'text' }} onClick={(e) => { if(c.isSpoiler) { e.currentTarget.style.filter = 'none'; e.currentTarget.style.cursor = 'text'; const badge = e.currentTarget.nextElementSibling as HTMLElement; if(badge) badge.style.display = 'none'; } }}>{c.text}</p>
@@ -2286,7 +2286,7 @@ export default function Home() {
                   </div>
                </div>
                
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px',marginRight: 'auto' , flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button 
                     onClick={() => { setShowAILeaderboard(!showAILeaderboard); if(!showAILeaderboard) fetchLeaderboard(); }} 
                     style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }} 
