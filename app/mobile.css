@@ -196,4 +196,38 @@ html, body {
         font-size: 10px !important;
         white-space: nowrap; /* Metinlerin daralıp aşağı inmesini önler */
     }
+}@media (max-width: 768px) {
+    /* 1. Arama açılınca Güneş/Ay ve Dil butonunu gizle ki üst üste binmesinler! */
+    .nav-wrapper:has(.search-input-box:focus) .mobile-only-lang,
+    .nav-wrapper:has(.search-input-box:focus) button[title*="Moda Geç"],
+    .nav-wrapper:has(.search-input-box:focus) button[title*="Mode"],
+    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) .mobile-only-lang,
+    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) button[title*="Moda Geç"],
+    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) button[title*="Mode"] {
+        display: none !important;
+    }
+
+    .search-container { position: relative !important; }
+    
+    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
+        width: calc(100vw - 120px) !important; 
+        max-width: 300px !important;
+        background: rgba(11, 12, 16, 0.98) !important;
+        position: relative;
+    }
+
+    .search-icon-btn {
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+
+    /* 5. Sine Aİ Sıralama Ekranı Kayma Çözümü */
+    .ai-modal span[style*="font-weight: bold"] {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 110px; /* Uzun isimler taşıp puanı ezmesin */
+    }
 }

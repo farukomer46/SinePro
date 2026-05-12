@@ -1148,7 +1148,7 @@ export default function Home() {
     try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert(lang === "TR" ? "Talebiniz alındı!" : "Request received!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert(lang === "TR" ? "Hata oluştu." : "An error occurred."); }
   };
 
-  const handleFollowUser = async (targetUsername: string) => {
+ const handleFollowUser = async (targetUsername: string) => {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
       
@@ -1158,19 +1158,38 @@ export default function Home() {
 
           if (!querySnapshot.empty) {
               const targetUserDoc = querySnapshot.docs[0];
-              await updateDoc(doc(db, "users", targetUserDoc.id), {
-                  friendRequests: arrayUnion(currentUser.username)
-              });
-          }
+              const targetData = targetUserDoc.data();
 
-          await addDoc(collection(db, "notifications"), {
-              recipient: targetUsername, sender: currentUser.username, type: "follow",
-              text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı / istek gönderdi! 👤" : "started following you / sent a request! 👤"}`,
-              isRead: false, date: new Date().toLocaleDateString('tr-TR'), createdAt: serverTimestamp()
-          });
-          
-          alert(lang === "TR" ? `${targetUsername} adlı kullanıcıya istek gönderildi!` : `Request sent to ${targetUsername}!`);
-      } catch (error) { console.error("Takip Hatası:", error); alert(lang === "TR" ? "İstek gönderilirken bir hata oluştu." : "An error occurred while sending the request."); }
+              if (targetData.isPrivate) {
+                  // --- HESAP GİZLİYSE SADECE İSTEK GÖNDER ---
+                  await updateDoc(doc(db, "users", targetUserDoc.id), {
+                      friendRequests: arrayUnion(currentUser.username)
+                  });
+                  await addDoc(collection(db, "notifications"), {
+                      recipient: targetUsername, sender: currentUser.username, type: "follow_request",
+                      text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmek için istek gönderdi! 🔒" : "sent a follow request! 🔒"}`,
+                      isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+                  });
+                  alert(lang === "TR" ? `Bu hesap gizli. ${targetUsername} kullanıcısına takip isteği gönderildi!` : `Private account. Follow request sent!`);
+              } else {
+                  // --- HESAP AÇIKSA DİREKT TAKİP ET ---
+                  await updateDoc(doc(db, "users", targetUserDoc.id), {
+                      followers: arrayUnion(currentUser.username)
+                  });
+                  if (currentUser.uid) {
+                      await updateDoc(doc(db, "users", currentUser.uid), {
+                          following: arrayUnion(targetUsername)
+                      });
+                  }
+                  await addDoc(collection(db, "notifications"), {
+                      recipient: targetUsername, sender: currentUser.username, type: "follow",
+                      text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
+                      isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+                  });
+                  alert(lang === "TR" ? `${targetUsername} başarıyla takip edildi!` : `Successfully followed ${targetUsername}!`);
+              }
+          }
+      } catch (error) { console.error("Takip Hatası:", error); alert(lang === "TR" ? "İşlem sırasında bir hata oluştu." : "An error occurred."); }
   };
 
   const toggleLikeComment = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
@@ -1205,14 +1224,20 @@ export default function Home() {
       { id: 'welcome-msg', text: lang === "TR" ? '🎉 SİNEPRO dünyasına hoş geldin!' : '🎉 Welcome to the SINEPRO world!', isRead: true, date: lang === "TR" ? 'Sistem Panosu' : 'System Board', type: 'system' }
   ] : [{ id: 'guest', text: lang === "TR" ? 'SİNEPRO\'ya Hoş Geldin! 🎉\nŞu an misafir modundasın.' : 'Welcome to SINEPRO! 🎉\nYou are in guest mode.', isRead: guestNotifSeen, date: lang === "TR" ? 'Sistem Panosu' : 'System Board' }];
 
-  // --- MOBİLDE SOL KENARDAN KAYDIRARAK GERİ GİTME (SWIPE TO BACK) ---
+  // // --- MOBİLDE KAYDIRARAK GERİ GİTME (SWIPE TO BACK - KUSURSUZ VERSİYON) ---
   useEffect(() => {
     let touchstartX = 0;
-    const handleTouchStart = (e: TouchEvent) => { touchstartX = e.changedTouches[0].screenX; };
+    let touchstartY = 0;
+    const handleTouchStart = (e: TouchEvent) => { 
+        touchstartX = e.changedTouches[0].screenX; 
+        touchstartY = e.changedTouches[0].screenY;
+    };
     const handleTouchEnd = (e: TouchEvent) => {
       const touchendX = e.changedTouches[0].screenX;
-      // Eğer parmak ekranın en sol kenarından (ilk 40px) başlayıp sağa doğru 100px çekildiyse
-      if (touchstartX < 40 && touchendX - touchstartX > 100) {
+      const touchendY = e.changedTouches[0].screenY;
+      
+      // Sağa doğru en az 80px kaydırma ve dikeyde fazla oynamama (Aşağı kaydırırken yanlışlıkla geri gitmeyi önler)
+      if (touchendX - touchstartX > 80 && Math.abs(touchendY - touchstartY) < 50) {
         if (activeTrailerKey) setActiveTrailerKey(null);
         else if (selectedPost) setSelectedPost(null);
         else if (zoomedAvatar) setZoomedAvatar(null);
@@ -2190,7 +2215,7 @@ export default function Home() {
                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                       </div>
                                    </div>
-                                   <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '2px 8px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', height: 'fit-content' }}>{lang === "TR" ? "Puan" : "Score"}: {c.rating}</span>
+                                  <span style={{ background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', color: activeColor, padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', height: 'fit-content', alignSelf: 'center', whiteSpace: 'nowrap' }}>⭐ {lang === "TR" ? "Puan" : "Score"}: {c.rating}</span>
                                 </div>
                                 <div style={{ position: 'relative', marginBottom: '10px', zIndex: 1 }}>
                                     <p style={{ margin: 0, color: textMain, lineHeight: '1.6', fontSize: '14px', filter: c.isSpoiler ? 'blur(8px)' : 'none', transition: '0.4s ease', cursor: c.isSpoiler ? 'pointer' : 'text' }} onClick={(e) => { if(c.isSpoiler) { e.currentTarget.style.filter = 'none'; e.currentTarget.style.cursor = 'text'; const badge = e.currentTarget.nextElementSibling as HTMLElement; if(badge) badge.style.display = 'none'; } }}>{c.text}</p>
