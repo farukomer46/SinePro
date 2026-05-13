@@ -1,240 +1,137 @@
-/* PC'de bu yeni butonu gizle, sadece mobilde göster */
-.mobile-only-lang { display: none !important; }
-
-@media (max-width: 768px) {
-    .mobile-only-lang { display: flex !important; align-items: center; justify-content: center; }
-}
-
-
-
+/* ==================================================================== */
 /* --- SİNEPRO KUSURSUZ MOBİL OPTİMİZASYON (iOS & Android) --- */
+/* ==================================================================== */
 
-@media (max-width: 768px) {
-    
-    /* 1. KUSURSUZ YATAY KAYDIRMA (CAROUSEL) */
-    .horizontal-scroll {
-        /* Android'de takılmayı önlemek için overscroll behavior ekliyoruz */
-        overscroll-behavior-x: contain; 
-        scroll-snap-type: x mandatory;
-        scroll-behavior: smooth;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 20px;
-        scroll-padding-left: 5%;
-        /* Dokunmatik hassasiyeti için donanım ivmelenmesini zorlar */
-        transform: translateZ(0); 
-    }
-    .horizontal-scroll > div {
-        scroll-snap-align: center; 
-        /* Android Chrome'daki sekme hatasını önler */
-        scroll-snap-stop: always; 
-    }
-
-    /* 2. APPLE/INSTAGRAM TARZI BOTTOM NAV BAR (ALT MENÜ) */
-    .bottom-bar {
-        background: rgba(11, 12, 16, 0.85) !important;
-        /* Android'de kasmasını önlemek için blur oranını 15'ten 10'a çektim */
-        backdrop-filter: blur(10px); 
-        -webkit-backdrop-filter: blur(10px);
-        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-        padding-bottom: env(safe-area-inset-bottom, 15px) !important; 
-        box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
-    }
-    
-    .bottom-bar-item .bottom-icon {
-        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    }
-    
-    .bottom-bar-item.active .bottom-icon {
-        transform: translateY(-8px) scale(1.15) !important; 
-        border-radius: 14px !important;
-    }
-    
-    .bottom-bar-item.active .bottom-text {
-        transform: translateY(-2px);
-        font-size: 11px !important;
-        font-weight: 900;
-    }
-
-    /* 3. MOBİL KLAVYE AÇILDIĞINDA EKRAN YIRTILMASINI ÖNLEME */
-    .movie-detail-overlay {
-        /* Android ve iOS adres çubuğu hatalarını çözen 'dvh' kullanımı */
-        height: 100dvh !important; 
-        /* Klavye açıldığında Android'de içeriği sıkıştırmak yerine kaydırılabilir yapar */
-        overflow-y: auto !important; 
-        overscroll-behavior-y: contain;
-    }
-
-    /* 4. MODAL/POP-UP EKRANLARINI TELEFON ALTINA YAPIŞTIRMA (BOTTOM SHEET) */
-    .ai-modal, .auth-modal, .profile-modal {
-        /* Modallar çok uzamasın ve klavye altında ezilmesin diye yüksekliği ayarlıyoruz */
-        max-height: 85dvh !important;
-        border-radius: 25px 25px 0 0 !important; 
-        margin-top: auto !important; 
-        border-bottom: none !important;
-        animation: slideUpBottomSheet 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
-        /* Android'de donanım ivmesini zorlamak (performans için) */
-        will-change: transform, opacity; 
-    }
-
-    @keyframes slideUpBottomSheet {
-        from { transform: translateY(100%); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-    }
-
-    /* KUSURSUZ ARAMA ÇUBUĞU */
-    .search-container { position: static !important; }
-    
-    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
-        position: absolute !important;
-        right: 45px !important; /* Çarpı ikonuna yer bırakır */
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        width: calc(100vw - 110px) !important; 
-        max-width: none !important;
-        background: rgba(11, 12, 16, 0.98) !important;
-        z-index: 9999 !important;
-        box-shadow: -10px 0 20px rgba(11, 12, 16, 0.9) !important;
-    }
-}
-
-    /* 6. GÖNDERİ PAYLAŞIM VE SOHBET BUTONLARI (TOUCH ALANI BÜYÜTME) */
-    button {
-        /* Minimum dokunma hedefi boyutu (Android ve iOS standartlarına göre) */
-        min-height: 48px; 
-        /* Tıklama tepkisini hızlandırır */
-        touch-action: manipulation; 
-    }
-    
-    .mobile-menu-btn {
-        background: rgba(255,255,255,0.05) !important;
-        backdrop-filter: blur(5px);
-        border: 1px solid rgba(255,255,255,0.1) !important;
-    }
-  
-/* --- HATA DÜZELTMELERİ (Arama, Çarpı İkonu, Modal Kaydırma) --- */
-
-/* 1. Arama motoru ikonunun yumurta gibi ezilmesini önler, tam yuvarlak yapar */
-.search-icon-btn {
-    min-width: 40px !important;
-    min-height: 40px !important;
-    flex-shrink: 0 !important;
-    padding: 0 !important;
-}
-
-@media (max-width: 768px) {
-    /* 2. Arama açıldığında diğer ikonları itip taşırmasını engeller */
-    .nav-wrapper { position: relative; }
-    .search-container {
-        position: absolute !important;
-        right: 10px;
-        z-index: 2000;
-    }
-    /* Arama çubuğu açıldığında arka planı koyulaştırıp diğer ikonların üstüne çıkar */
-    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
-        width: calc(100vw - 80px) !important; 
-        max-width: 100vw !important;
-        background: rgba(11, 12, 16, 0.98) !important;
-    }
-
-    /* 3. Avatarın üstündeki "X" ikonunun ve pop-up kapatma ikonlarının devasa olmasını engeller */
-    .profile-modal button[style*="border-radius: 50%"],
-    .auth-modal button[style*="border-radius: 50%"] {
-        min-height: 20px !important;
-        height: 32px !important;
-        width: 32px !important;
-    }
-    .profile-modal button[style*="font-size: 10px"] {
-        min-height: 18px !important;
-        height: 18px !important;
-        width: 18px !important;
-        top: -5px !important;
-        right: -5px !important;
-    }
-
-    /* "Vazgeç ve Kapat" butonuna rahat basılsın diye en alta boşluk ekler */
-    .profile-modal { padding-bottom: 60px !important; }
-    .auth-modal { padding-bottom: 40px !important; }
-}
-/* --- HATA DÜZELTMELERİ (V3) --- */
-
-/* 5. Yandan Çekince Google'a Atmasını (Tarayıcı Geri Gitmesini) Engeller */
+/* Yandan Çekince Google'a Atmasını (Tarayıcı Geri Gitmesini) Engeller */
 html, body {
     overscroll-behavior-x: none !important;
 }
 
+@keyframes slideUpBottomSheet {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
 @media (max-width: 768px) {
-    /* 1 ve 3. Arama İkonu Yuvarlaklığı ve Güneş/Ay Butonunun Geri Gelmesi */
-    .nav-wrapper { position: relative; }
-    .search-container { position: relative !important; }
     
-    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
-        width: calc(100vw - 160px) !important; /* Logonun üstüne binmez */
-        max-width: 250px !important;
-        position: absolute;
-        right: 40px; /* Genişlerken diğer ikonların üstünden sola doğru uzar */
-        background: rgba(11, 12, 16, 0.95) !important;
-        z-index: 1000;
+    /* ==================================================================== */
+    /* 1. ÜST MENÜ & KUSURSUZ ARAMA ÇUBUĞU */
+    /* ==================================================================== */
+    
+    .hide-on-mobile { display: none !important; }
+
+    /* SİHİR BURADA: Arama açıkken diğer butonlar tamamen buharlaşır */
+    .hide-on-search-mobile {
+        display: none !important;
+    }
+
+    /* Arama kısmını sağa yasla */
+    .search-container {
+        position: relative !important;
+        margin-left: auto; 
     }
 
     .search-icon-btn {
         min-width: 40px !important;
         min-height: 40px !important;
         flex-shrink: 0 !important;
-        border-radius: 50% !important; /* İkonu tam yuvarlak yapar */
-        padding: 0 !important;
-    }
-
-    /* 4. Profil Ayarları Sayfasının Aşağı İnmemesi ve Butona Basılamaması */
-    .profile-modal {
-        padding-bottom: 80px !important; /* Alt kısma geniş boşluk ekler */
-        height: auto !important;
-        max-height: 85dvh !important;
-        overflow-y: scroll !important;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    /* 6. SİNE Aİ Yarışma ve Sohbet Butonlarının Üst Üste Binmesi */
-    .ai-modal > div:first-child > div:last-child {
-        flex-wrap: nowrap !important; /* Alt alta inmeyi yasaklar, yan yana zorlar */
-        gap: 5px !important;
-    }
-    .ai-modal > div:first-child > div:last-child button {
-        padding: 6px 8px !important;
-        font-size: 10px !important;
-        white-space: nowrap; /* Metinlerin daralıp aşağı inmesini önler */
-    }
-}@media (max-width: 768px) {
-    /* 1. Arama açılınca Güneş/Ay ve Dil butonunu gizle ki üst üste binmesinler! */
-    .nav-wrapper:has(.search-input-box:focus) .mobile-only-lang,
-    .nav-wrapper:has(.search-input-box:focus) button[title*="Moda Geç"],
-    .nav-wrapper:has(.search-input-box:focus) button[title*="Mode"],
-    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) .mobile-only-lang,
-    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) button[title*="Moda Geç"],
-    .nav-wrapper:has(.search-input-box:not(:placeholder-shown)) button[title*="Mode"] {
-        display: none !important;
-    }
-
-    .search-container { position: relative !important; }
-    
-    .search-input-box:focus, .search-input-box:not(:placeholder-shown) {
-        width: calc(100vw - 120px) !important; 
-        max-width: 300px !important;
-        background: rgba(11, 12, 16, 0.98) !important;
-        position: relative;
-    }
-
-    .search-icon-btn {
-        min-width: 40px !important;
-        min-height: 40px !important;
         border-radius: 50% !important;
         padding: 0 !important;
     }
 
-    /* 5. Sine Aİ Sıralama Ekranı Kayma Çözümü */
-    .ai-modal span[style*="font-weight: bold"] {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 110px; /* Uzun isimler taşıp puanı ezmesin */
+    /* Mobilde arama çubuğu başlangıçta sıfır genişlikte durur */
+    .search-input-box {
+        width: 0px !important; 
+        padding: 0 !important;
+        background: transparent !important;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease !important;
     }
+    
+    /* Arama açıkken artık yanda buton olmadığı için çubuk çok rahat uzar! */
+    .search-container.expanded .search-input-box,
+    .search-input-box:focus, 
+    .search-input-box:not(:placeholder-shown) {
+        width: calc(100vw - 120px) !important; /* Rahatça uzar */
+        padding: 5px 10px !important;
+    }
+    
+    /* Telefonda bildirim penceresinin ekrandan taşmasını engeller */
+    .notif-dropdown-mobile { right: -20px !important; }
+    /* ==================================================================== */
+    /* 2. DİĞER MOBİL DÜZELTMELER (Alt Menü, Kaydırma, Modallar) */
+    /* ==================================================================== */
+
+    /* KUSURSUZ YATAY KAYDIRMA (CAROUSEL) */
+    .horizontal-scroll {
+        overscroll-behavior-x: contain; 
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 20px;
+        scroll-padding-left: 5%;
+        transform: translateZ(0); 
+    }
+    .horizontal-scroll > div { scroll-snap-align: center; scroll-snap-stop: always; }
+
+    /* APPLE/INSTAGRAM TARZI BOTTOM NAV BAR (ALT MENÜ) */
+    .bottom-bar {
+        background: rgba(11, 12, 16, 0.85) !important;
+        backdrop-filter: blur(10px); 
+        -webkit-backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+        padding-bottom: env(safe-area-inset-bottom, 15px) !important; 
+        box-shadow: 0 -5px 25px rgba(0, 0, 0, 0.5);
+    }
+    .bottom-bar-item .bottom-icon { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important; }
+    .bottom-bar-item.active .bottom-icon { transform: translateY(-8px) scale(1.15) !important; border-radius: 14px !important; }
+    .bottom-bar-item.active .bottom-text { transform: translateY(-2px); font-size: 11px !important; font-weight: 900; }
+
+    /* MOBİL KLAVYE AÇILDIĞINDA EKRAN YIRTILMASINI ÖNLEME */
+    .movie-detail-overlay {
+        height: 100dvh !important; 
+        overflow-y: auto !important; 
+        overscroll-behavior-y: contain;
+    }
+
+    /* MODAL/POP-UP EKRANLARINI TELEFON ALTINA YAPIŞTIRMA (BOTTOM SHEET) */
+    .ai-modal, .auth-modal, .profile-modal {
+        max-height: 85dvh !important;
+        border-radius: 25px 25px 0 0 !important; 
+        margin-top: auto !important; 
+        border-bottom: none !important;
+        animation: slideUpBottomSheet 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        will-change: transform, opacity; 
+    }
+    
+    .profile-modal { 
+        padding-bottom: 80px !important; 
+        height: auto !important;
+        overflow-y: scroll !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .auth-modal { padding-bottom: 40px !important; }
+
+    /* Çarpı İkonu Düzeltmeleri */
+    .profile-modal button[style*="border-radius: 50%"],
+    .auth-modal button[style*="border-radius: 50%"] {
+        min-height: 20px !important; height: 32px !important; width: 32px !important;
+    }
+    .profile-modal button[style*="font-size: 10px"] {
+        min-height: 18px !important; height: 18px !important; width: 18px !important;
+        top: -5px !important; right: -5px !important;
+    }
+
+    /* DOKUNMA ALANLARI VE BUTONLAR */
+    button { min-height: 48px; touch-action: manipulation; }
+    
+    .mobile-menu-btn {
+        background: rgba(255,255,255,0.05) !important;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    /* SİNE Aİ PENCERESİ SIKIŞMA DÜZELTMESİ */
+    .ai-modal > div:first-child > div:last-child { flex-wrap: nowrap !important; gap: 5px !important; }
+    .ai-modal > div:first-child > div:last-child button { padding: 6px 8px !important; font-size: 10px !important; white-space: nowrap; }
+    .ai-modal span[style*="font-weight: bold"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
 }
