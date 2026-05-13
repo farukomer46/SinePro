@@ -1556,11 +1556,14 @@ export default function Home() {
              <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}80` }}>Aİ</span>
           </button>
           
-          <button className="hide-on-mobile" onClick={() => {
+         <button className="hide-on-mobile" onClick={() => {
               if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
               setShowSocialPanel(true);
-          }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px' }} title={lang === "TR" ? "Sosyal Panel" : "Social Panel"}>
-             💬
+          }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title={lang === "TR" ? "Sosyal Panel" : "Social Panel"}>
+              💬
+              {currentUser && ((currentUser.friendRequests && currentUser.friendRequests.length > 0) || displayNotifs.some(n => !n.isRead && (n.type === "message" || n.type === "chat" || n.type === "follow_request"))) && (
+                  <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '12px', height: '12px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
+              )}
           </button>
 
           {/* DİNAMİK BUTONLAR: Mobilde arama çubuğu kapalıyken görünür, açıldığında gizlenir! */}
@@ -1678,7 +1681,13 @@ export default function Home() {
              <div className="ai-center-btn">🤖</div><span style={{ color: activeColor, marginTop: '-15px', textShadow: `0 0 5px ${activeColor}80`, fontWeight: 'bold' }}>SİNE Aİ</span>
          </div>
          <div className={`bottom-bar-item ${showSocialPanel ? 'active' : ''}`} onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); return; } setShowSocialPanel(true); }}>
-             <span className="bottom-icon">💬</span><span className="bottom-text">{lang === "TR" ? "Sosyal" : "Social"}</span>
+             <span className="bottom-icon" style={{ position: 'relative' }}>
+                 💬
+                 {currentUser && ((currentUser.friendRequests && currentUser.friendRequests.length > 0) || displayNotifs.some(n => !n.isRead && (n.type === "message" || n.type === "chat" || n.type === "follow_request"))) && (
+                     <span style={{ position: 'absolute', top: '2px', right: '2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '12px', height: '12px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
+                 )}
+             </span>
+             <span className="bottom-text">{lang === "TR" ? "Sosyal" : "Social"}</span>
          </div>
          <div className={`bottom-bar-item ${activeBottomTab === 'profile' || (viewMode !== 'home' && viewMode !== 'about' && viewMode !== 'support') ? 'active' : ''}`} onClick={() => { setActiveBottomTab("profile"); currentUser ? setShowMobileMenu(true) : setShowLogin(true); }}>
              <span className="bottom-icon">{currentUser ? <div style={{ transition: '0.3s' }}><UserAvatar user={currentUser} size="24px" fontSize="10px" activeColor={activeColor} theme={theme} badgeText={badgeText} /></div> : "👤"}</span>
@@ -2282,7 +2291,11 @@ export default function Home() {
                                                   {isVip && "👑 "}@{c.user}
                                               </span>
                                               <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
-                                              {currentUser && !isMe && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50 }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
+                                             {currentUser && !isMe && (
+    <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: currentUser?.following?.includes(c.user) ? activeColor : 'transparent', border: `1px solid ${activeColor}`, color: currentUser?.following?.includes(c.user) ? badgeText : activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50, transition: '0.3s' }}>
+        {currentUser?.following?.includes(c.user) ? (lang === "TR" ? "✓ Takiptesin" : "✓ Following") : (lang === "TR" ? "+ Takip Et" : "+ Follow")}
+    </button>
+)}
                                           </div>
                                           <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                       </div>
@@ -2311,7 +2324,11 @@ export default function Home() {
                                                          <div style={{ display: 'flex', alignItems: 'center' }}>
                                                             <span style={{ color: activeColor, fontWeight: 'bold', fontSize: '14px' }}>@{c.user}</span>
                                                             <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40`, marginLeft: '8px' }}>{cRank.icon} {cRank.name}</span>
-                                                            {currentUser && currentUser.username !== c.user && <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: 'transparent', border: `1px solid ${activeColor}`, color: activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px' }}>+ {lang === "TR" ? "Takip Et" : "Follow"}</button>}
+                                                            {currentUser && currentUser.username !== c.user && (
+    <button onClick={(e) => { e.stopPropagation(); handleFollowUser(c.user); }} className="hover-effect" style={{ background: currentUser?.following?.includes(c.user) ? activeColor : 'transparent', border: `1px solid ${activeColor}`, color: currentUser?.following?.includes(c.user) ? badgeText : activeColor, fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', marginLeft: '10px', padding: '3px 8px', borderRadius: '15px', position: 'relative', zIndex: 50, transition: '0.3s' }}>
+        {currentUser?.following?.includes(c.user) ? (lang === "TR" ? "✓ Takiptesin" : "✓ Following") : (lang === "TR" ? "+ Takip Et" : "+ Follow")}
+    </button>
+)}
                                                          </div>
                                                          <span style={{ color: textLight, fontSize: '10px', marginTop: '2px' }}>{c.date}</span>
                                                       </div>
@@ -2589,9 +2606,9 @@ export default function Home() {
                                </button>
                            ) : (
                                <>
-                                   <button onClick={() => handleFollowUser(zoomedAvatar.username)} style={{ flex: 1, background: activeColor, color: badgeText, border: 'none', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: `0 8px 20px ${activeColor}40`, transition: '0.3s' }}>
-                                       {lang === "TR" ? "Takip Et" : "Follow"}
-                                   </button>
+                                  <button onClick={() => handleFollowUser(zoomedAvatar.username)} style={{ flex: 1, background: currentUser?.following?.includes(zoomedAvatar.username) ? 'transparent' : activeColor, color: currentUser?.following?.includes(zoomedAvatar.username) ? activeColor : badgeText, border: currentUser?.following?.includes(zoomedAvatar.username) ? `2px solid ${activeColor}` : 'none', padding: '12px', borderRadius: '12px', fontWeight: '900', fontSize: '13px', cursor: 'pointer', boxShadow: currentUser?.following?.includes(zoomedAvatar.username) ? 'none' : `0 8px 20px ${activeColor}40`, transition: '0.3s' }}>
+    {currentUser?.following?.includes(zoomedAvatar.username) ? (lang === "TR" ? "✓ Takiptesin" : "✓ Following") : (lang === "TR" ? "Takip Et" : "Follow")}
+</button>
                                    <button onClick={() => { 
                                        setTargetProfile(zoomedAvatar); 
                                        setZoomedAvatar(null); 
@@ -2740,22 +2757,24 @@ export default function Home() {
                     
                    {selectedPost.comments && selectedPost.comments.length > 0 ? (
                         selectedPost.comments.map((comment: any, index: number) => {
-                            // YENİ EKLENEN: YORUMLAR İÇİN VIP KONTROLÜ
-                            const isVip = comment.isVIP || comment.badge?.includes("VIP") || comment.role === "VIP" || comment.email === "yukselomerfaruk292@gmail.com" || (comment.username === currentUser?.username && currentUser?.email === "yukselomerfaruk292@gmail.com");
+                            const isMe = currentUser?.username === comment.username;
+                            const isVip = (isMe && (currentUser?.messageCount >= 500 || currentUser?.email === "yukselomerfaruk292@gmail.com")) || (!isMe && (comment.isVIP || comment.badge?.includes("VIP") || comment.email === "yukselomerfaruk292@gmail.com"));
+                            const cRank = getUserRank(comment.authorCommentCount !== undefined ? comment.authorCommentCount : 0, comment.email);
 
                             return (
                                 <div key={index} style={{ 
                                     display: 'flex', 
-                                    gap: '10px', 
+                                    gap: '12px', 
                                     marginBottom: '15px', 
                                     alignItems: 'flex-start',
-                                    background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : 'transparent',
-                                    padding: isVip ? '10px' : '0',
+                                    background: isVip ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 140, 0, 0.15))' : bgCard,
+                                    padding: '12px',
                                     borderRadius: '12px',
-                                    border: isVip ? '1px solid rgba(255, 215, 0, 0.3)' : 'none',
+                                    borderLeft: isVip ? '4px solid #FFD700' : `4px solid ${cRank.color}`,
+                                    border: isVip ? '1px solid rgba(255, 215, 0, 0.3)' : `1px solid ${borderColor}`,
                                     position: 'relative',
                                     overflow: 'hidden',
-                                    boxShadow: isVip ? '0 4px 15px rgba(255, 215, 0, 0.1)' : 'none'
+                                    boxShadow: isVip ? '0 4px 15px rgba(255, 215, 0, 0.15)' : 'none'
                                 }}>
                                     
                                     {isVip && (
@@ -2764,35 +2783,39 @@ export default function Home() {
                                         </div>
                                     )}
 
-                                    <div style={{ position: 'relative', zIndex: 1, width: '25px', height: '25px', borderRadius: '50%', background: isVip ? '#FFD700' : `linear-gradient(45deg, ${activeColor}, ${theme.secondary})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isVip ? '#000' : badgeText, fontSize: '10px', fontWeight: 'bold', flexShrink: 0 }}>
-                                        {comment.username?.charAt(0).toUpperCase()}
+                                    <div className={cRank.isLord ? "vip-lord-avatar" : isVip ? "vip-avatar-ring" : ""} style={{ borderRadius: '50%', padding: cRank.isLord ? '2px' : '0', flexShrink: 0 }}>
+                                        <UserAvatar user={{ username: comment.username, avatar: comment.avatar }} size="35px" fontSize="14px" activeColor={activeColor} theme={theme} badgeText={badgeText} />
                                     </div>
                                     
                                     <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                             <div>
-                                                <span style={{ 
-                                                    fontWeight: 'bold', 
-                                                    color: isVip ? '#FFD700' : textMain, 
-                                                    marginRight: '8px', 
-                                                    fontSize: '13px',
-                                                    textShadow: isVip ? '0 0 5px rgba(255, 215, 0, 0.5)' : 'none'
-                                                }}>
-                                                    {isVip && "👑 "}@{comment.username}
-                                                </span>
-                                                <span style={{ color: isVip ? '#fff' : textMain, fontSize: '13px', wordBreak: 'break-word' }}>{comment.text}</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px', marginBottom: '5px' }}>
+                                                    <span style={{ 
+                                                        fontWeight: 'bold', 
+                                                        color: isVip ? '#FFD700' : activeColor, 
+                                                        fontSize: '13px',
+                                                        textShadow: isVip ? '0 0 5px rgba(255, 215, 0, 0.5)' : 'none'
+                                                    }}>
+                                                        {isVip && "👑 "}@{comment.username}
+                                                    </span>
+                                                    <span style={{ fontSize: '9px', padding: '2px 5px', borderRadius: '4px', background: cRank.color + '20', color: cRank.color, border: `1px solid ${cRank.color}40` }}>
+                                                        {cRank.icon} {cRank.name}
+                                                    </span>
+                                                </div>
+                                                <span style={{ color: textMain, fontSize: '13px', wordBreak: 'break-word', lineHeight: '1.4' }}>{comment.text}</span>
                                             </div>
 
-                                            {(comment.username === currentUser?.username || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
+                                            {(isMe || currentUser?.email === "yukselomerfaruk292@gmail.com") && (
                                                 <button 
                                                     onClick={() => {
                                                         if(window.confirm(lang === "TR" ? "Bu yorumu kalıcı olarak silmek istiyor musun?" : "Delete this comment?")) {
                                                             handleDeleteComment(selectedPost.id, comment);
                                                         }
                                                     }}
-                                                    style={{ background: isVip ? 'rgba(255,0,0,0.15)' : 'none', border: 'none', color: '#ff4d4d', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', padding: '3px 6px', borderRadius: '6px' }}
+                                                    style={{ background: isVip ? 'rgba(255,0,0,0.15)' : 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4d4d', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold', padding: '5px 8px', borderRadius: '6px', marginLeft: '10px', flexShrink: 0 }}
                                                 >
-                                                    {lang === "TR" ? "Sil" : "Delete"}
+                                                    🗑️
                                                 </button>
                                             )}
                                         </div>
@@ -2856,7 +2879,16 @@ export default function Home() {
                                 onKeyDown={async (e) => {
                                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                                         const commentText = e.currentTarget.value.trim();
-                                        const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
+                                        const currentCount = currentUser?.messageCount || 0;
+const rankInfo = getUserRank(currentCount, currentUser?.email);
+const newComment = { 
+    username: currentUser?.username || "Kullanıcı", 
+    text: commentText,
+    avatar: currentUser?.avatar || "default",
+    email: currentUser?.email || "",
+    authorCommentCount: currentCount,
+    isVIP: rankInfo.isVIP || false
+};
                                         const updatedComments = [...(selectedPost.comments || []), newComment];
                                         
                                         setSelectedPost({ ...selectedPost, comments: updatedComments });
@@ -2875,7 +2907,16 @@ export default function Home() {
                                     const input = document.getElementById('modalCommentInput') as HTMLInputElement;
                                     if (input && input.value.trim()) {
                                         const commentText = input.value.trim();
-                                        const newComment = { username: currentUser?.username || "Kullanıcı", text: commentText };
+                                       const currentCount = currentUser?.messageCount || 0;
+const rankInfo = getUserRank(currentCount, currentUser?.email);
+const newComment = { 
+    username: currentUser?.username || "Kullanıcı", 
+    text: commentText,
+    avatar: currentUser?.avatar || "default",
+    email: currentUser?.email || "",
+    authorCommentCount: currentCount,
+    isVIP: rankInfo.isVIP || false
+};
                                         const updatedComments = [...(selectedPost.comments || []), newComment];
                                         
                                         setSelectedPost({ ...selectedPost, comments: updatedComments });
