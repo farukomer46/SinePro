@@ -1453,7 +1453,9 @@ export default function Home() {
         .mobile-menu-btn { background: ${inputBg}; color: ${textMain}; border: 1px solid ${borderColor}; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .mobile-menu-btn:active { background: ${activeColor}; color: ${badgeText}; }
         .movie-detail-overlay { position: fixed; inset: 0; background: ${bgMain}; z-index: 10000; overflow-y: auto; padding-bottom: 100px; }
-
+@media (min-width: 769px) {
+    .bilgisayarda-gizle { display: none !important; }
+  }
        @media (max-width: 768px) {
           .nav-wrapper { 
              padding: 12px 10px !important; 
@@ -1587,10 +1589,10 @@ export default function Home() {
                 )}
              </div>
 
-             {/* Dil Butonu (🇬🇧 / 🇹🇷) */}
-             <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title="Dil Değiştir">
-                {lang === "TR" ? "🇬🇧" : "🇹🇷"}
-             </button>
+             {/* SADECE MOBİLDE GÖRÜNEN Dil Butonu */}
+<button className="bilgisayarda-gizle" onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title="Dil Değiştir">
+    {lang === "TR" ? "🇬🇧" : "🇹🇷"}
+</button>
              
              {/* Tema Butonu (☀️ / 🌙) */}
              <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? (lang==="TR"?"Açık Moda Geç":"Light Mode") : (lang==="TR"?"Koyu Moda Geç":"Dark Mode")}>
