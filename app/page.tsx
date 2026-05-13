@@ -76,6 +76,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(2);
 
   const [comments, setComments] = useState<any>({}); 
+  const [myProfileComments, setMyProfileComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [lang, setLang] = useState("TR");
   const [commentRating, setCommentRating] = useState<number>(10);
@@ -152,7 +153,26 @@ export default function Home() {
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const [newPostCaption, setNewPostCaption] = useState("");
   const [selectedPost, setSelectedPost] = useState<any>(null);
-
+// --- KULLANICININ TÜM YORUMLARINI ÇEKME MOTORU ---
+  useEffect(() => {
+    if (currentUser?.username) {
+      // Veritabanından sadece bu kullanıcının yorumlarını bul
+      const q = query(collection(db, "comments"), where("user", "==", currentUser.username));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const loaded = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+          // Yorumları tarihe göre sırala (En yeni en üstte)
+          loaded.sort((a: any, b: any) => {
+             const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+             const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+             return timeB - timeA;
+          });
+          setMyProfileComments(loaded);
+      });
+      return () => unsubscribe();
+    } else {
+      setMyProfileComments([]);
+    }
+  }, [currentUser?.username]);
   const currentUsername = (currentUser as any)?.username || null;// --- GÖNDERİ ÇEKME MOTORU (Kendin VEYA Başkası) ---
   useEffect(() => {
     const activeUserForProfile = targetProfile ? targetProfile.username : currentUsername;
@@ -265,14 +285,7 @@ export default function Home() {
   };
 
   const getMyComments = () => {
-    let myComments: any[] = [];
-    if (currentUser) {
-        Object.values(comments).forEach((itemComments: any) => {
-            myComments = [...myComments, ...itemComments.filter((c: any) => c.user === currentUser.username)];
-        });
-        myComments.sort((a, b) => commentsSort === "newest" ? b.id - a.id : a.id - b.id);
-    }
-    return myComments;
+    return myProfileComments;
   };
 
   const currentUserTotalComments = currentUser?.messageCount || 0;
