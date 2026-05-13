@@ -374,9 +374,32 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
                                     </div>
                                     {searchResult && (
                                         <div style={{ background: inputBg, padding: '20px', borderRadius: '15px', textAlign: 'center', border: `1px solid ${activeColor}` }}>
-                                            <div onClick={() => onOpenProfile && onOpenProfile(searchResult.username, "default")} style={{ width: '60px', height: '60px', borderRadius: '50%', background: activeColor, margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '24px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                                {searchResult.username.charAt(0).toUpperCase()}
-                                            </div>
+                                            <div 
+    onClick={() => onOpenProfile && onOpenProfile(searchResult.username, searchResult.avatar || "default")} 
+    style={{ 
+        width: '70px', 
+        height: '70px', 
+        borderRadius: '50%', 
+        background: (searchResult.avatar && searchResult.avatar !== "default") ? 'transparent' : activeColor, 
+        margin: '0 auto 15px', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        color: '#000', 
+        fontSize: '28px', 
+        fontWeight: 'bold', 
+        cursor: 'pointer',
+        overflow: 'hidden',
+        border: `3px solid ${activeColor}`,
+        boxShadow: `0 0 15px ${activeColor}40`
+    }}
+>
+    {searchResult.avatar && searchResult.avatar !== "default" ? (
+        <img src={searchResult.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={searchResult.username} />
+    ) : (
+        searchResult.username.charAt(0).toUpperCase()
+    )}
+</div>
                                             <h3 onClick={() => onOpenProfile && onOpenProfile(searchResult.username, "default")} style={{ margin: '0 0 15px 0', color: textMain, cursor: 'pointer' }}>@{searchResult.username}</h3>
                                             
                                             {searchResult.isPrivate ? (
