@@ -2470,7 +2470,7 @@ export default function Home() {
           
            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '25px' }}>
                 {(() => {
-                    const baseAvatars = ["default", "/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg", "/7.jpg", "/8.jpg"];
+                    const baseAvatars = ["default", "/1.png", "/2.jpg", "/3.jpg", "/4.jpg", "/5.png", "/6.png", "/7.jpg", "/8.jpg"];
                     const displayAvatars = [...baseAvatars];
                     if (currentUser?.uploadedAvatar && !displayAvatars.includes(currentUser.uploadedAvatar)) displayAvatars.splice(1, 0, currentUser.uploadedAvatar);
                     
