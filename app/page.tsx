@@ -1152,6 +1152,40 @@ export default function Home() {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
       
+      // 1. Zaten takip ediyor mu? (Takip Et / Takipten Çık mantığı)
+      const isFollowing = currentUser.following?.includes(targetUsername);
+
+      // 2. İYİMSER GÜNCELLEME: Veritabanını beklemeden ekrandaki sayıları anında değiştir!
+      setCurrentUser((prev: any) => ({
+          ...prev,
+          following: isFollowing 
+              ? prev.following.filter((u: string) => u !== targetUsername) 
+              : [...(prev.following || []), targetUsername]
+      }));
+
+      // Profil sayfasındaysa anında sayıyı güncelle
+      if (targetProfile && targetProfile.username === targetUsername) {
+          setTargetProfile((prev: any) => ({
+              ...prev,
+              stats: {
+                  ...prev.stats,
+                  followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1
+              }
+          }));
+      }
+
+      // Pop-up profil kartındaysa anında sayıyı güncelle
+      if (zoomedAvatar && zoomedAvatar.username === targetUsername) {
+          setZoomedAvatar((prev: any) => ({
+              ...prev,
+              stats: {
+                  ...prev.stats,
+                  followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1
+              }
+          }));
+      }
+
+      // 3. VERİTABANI İŞLEMLERİ (Arka planda çalışır, ekranı bekletmez)
       try {
           const q = query(collection(db, "users"), where("username", "==", targetUsername));
           const querySnapshot = await getDocs(q);
@@ -1160,11 +1194,17 @@ export default function Home() {
               const targetUserDoc = querySnapshot.docs[0];
               const targetData = targetUserDoc.data();
 
-              if (targetData.isPrivate) {
-                  // --- HESAP GİZLİYSE SADECE İSTEK GÖNDER ---
+              if (targetData.isPrivate && !isFollowing) {
+                  // HESAP GİZLİYSE SADECE İSTEK GÖNDER VE İYİMSER GÜNCELLEYİ GERİ AL
                   await updateDoc(doc(db, "users", targetUserDoc.id), {
                       friendRequests: arrayUnion(currentUser.username)
                   });
+                  
+                  // Takip etmedi, sadece istek attı. Sayıyı eski haline getiriyoruz.
+                  setCurrentUser((prev: any) => ({ ...prev, following: prev.following.filter((u: string) => u !== targetUsername) }));
+                  if (targetProfile && targetProfile.username === targetUsername) setTargetProfile((prev: any) => ({ ...prev, stats: { ...prev.stats, followers: Math.max(0, (prev.stats?.followers || 0) - 1) } }));
+                  if (zoomedAvatar && zoomedAvatar.username === targetUsername) setZoomedAvatar((prev: any) => ({ ...prev, stats: { ...prev.stats, followers: Math.max(0, (prev.stats?.followers || 0) - 1) } }));
+
                   await addDoc(collection(db, "notifications"), {
                       recipient: targetUsername, sender: currentUser.username, type: "follow_request",
                       text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmek için istek gönderdi! 🔒" : "sent a follow request! 🔒"}`,
@@ -1172,24 +1212,27 @@ export default function Home() {
                   });
                   alert(lang === "TR" ? `Bu hesap gizli. ${targetUsername} kullanıcısına takip isteği gönderildi!` : `Private account. Follow request sent!`);
               } else {
-                  // --- HESAP AÇIKSA DİREKT TAKİP ET ---
-                  await updateDoc(doc(db, "users", targetUserDoc.id), {
-                      followers: arrayUnion(currentUser.username)
-                  });
-                  if (currentUser.uid) {
-                      await updateDoc(doc(db, "users", currentUser.uid), {
-                          following: arrayUnion(targetUsername)
+                  // HESAP AÇIKSA DİREKT TAKİP ET VEYA TAKİPTEN ÇIK
+                  if (isFollowing) {
+                      // Takipten çık
+                      await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayRemove(currentUser.username) });
+                      if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUsername) });
+                  } else {
+                      // Takip Et
+                      await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayUnion(currentUser.username) });
+                      if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUsername) });
+                      
+                      await addDoc(collection(db, "notifications"), {
+                          recipient: targetUsername, sender: currentUser.username, type: "follow",
+                          text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
+                          isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
                       });
                   }
-                  await addDoc(collection(db, "notifications"), {
-                      recipient: targetUsername, sender: currentUser.username, type: "follow",
-                      text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
-                      isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
-                  });
-                  alert(lang === "TR" ? `${targetUsername} başarıyla takip edildi!` : `Successfully followed ${targetUsername}!`);
               }
           }
-      } catch (error) { console.error("Takip Hatası:", error); alert(lang === "TR" ? "İşlem sırasında bir hata oluştu." : "An error occurred."); }
+      } catch (error) { 
+          console.error("Takip Hatası:", error); 
+      }
   };
 
   const toggleLikeComment = async (e: React.MouseEvent<HTMLButtonElement, MouseEvent>, itemID: any, commentID: any) => {
@@ -1470,6 +1513,7 @@ export default function Home() {
 
       <nav className="nav-wrapper" style={{ background: navBg, position: 'sticky', top: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
         
+        {/* SOL TARAF: SİNE PRO LOGOSU VE BİLGİSAYAR MENÜSÜ */}
         <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
           <div className="mobile-logo-adjust" onClick={() => { setActiveBottomTab("home"); setViewMode("home"); setContentType("movie"); setSelectedGenre(null); setSearchQuery(""); setSearchInput(""); window.scrollTo({top:0, behavior:'smooth'});}} style={{ cursor: 'pointer' }}>
               <SineProLogo activeColor={activeColor} badgeText={badgeText} hidePro={isSearchExpanded} />
@@ -1489,6 +1533,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* SAĞ TARAF: BUTONLAR, ARAMA VE PROFİL */}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, justifyItems: 'flex-end', justifyContent: 'flex-end' }}>
           
           <button className="hide-on-mobile" onClick={() => { if(!currentUser) { setAuthMode("login"); setShowLogin(true); return; } setShowSineAI(true); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '5px' }} title="SİNE Aİ Asistan">
@@ -1503,46 +1548,58 @@ export default function Home() {
              💬
           </button>
 
-          <div style={{ position: 'relative' }} ref={bellRef}>
-             <button onClick={() => {
-                 setShowNotifications(!showNotifications);
-                 if (!currentUser) { setGuestNotifSeen(true); sessionStorage.setItem("sinepro_guest_notif", "true"); }
-                 else if (!showNotifications) markNotifsAsRead();
-             }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title={lang === "TR" ? "Bildirimler" : "Notifications"}>
-                🔔
-                {((!currentUser && !guestNotifSeen) || (currentUser && displayNotifs.filter(n => !n.isRead).length > 0)) && (
-                    <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '14px', height: '14px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
-                )}
-             </button>
-             {showNotifications && (
-                 <div style={{ background: bgCard, position: 'absolute', top: '45px', right: '-60px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
-                    <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
-                       <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? (lang === "TR" ? "Bildirimleriniz" : "Your Notifications") : (lang === "TR" ? "Sistem Panosu" : "System Board")}</span>
-                    </div>
-                    <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
-                       {displayNotifs.length > 0 ? displayNotifs.map(n => (
-                          <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
-                             <span style={{ fontSize: '22px' }}>{n.text.includes('Hoş Geldin') || n.text.includes('Welcome') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') || n.text.includes('replied') ? '💬' : '❤️'}</span>
-                             <div style={{ flex: 1 }}>
-                                <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-                                    <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
-                                    {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve git" : "Click to view"}</span>}
+          {/* DİNAMİK BUTONLAR: Mobilde arama çubuğu kapalıyken görünür, açıldığında gizlenir! */}
+          <div className={isSearchExpanded ? "hide-on-search-mobile" : "show-on-mobile"} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+             
+             {/* Bildirim (🔔) */}
+             <div style={{ position: 'relative' }} ref={bellRef}>
+                <button onClick={() => {
+                    setShowNotifications(!showNotifications);
+                    if (!currentUser) { setGuestNotifSeen(true); sessionStorage.setItem("sinepro_guest_notif", "true"); }
+                    else if (!showNotifications) markNotifsAsRead();
+                }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', margin: '0 5px', position: 'relative' }} title={lang === "TR" ? "Bildirimler" : "Notifications"}>
+                   🔔
+                   {((!currentUser && !guestNotifSeen) || (currentUser && displayNotifs.filter(n => !n.isRead).length > 0)) && (
+                       <span style={{ position: 'absolute', top: '-2px', right: '-2px', background: '#ff0000', border: `2px solid ${navBg}`, width: '14px', height: '14px', borderRadius: '50%', animation: 'notifPulse 2s infinite' }}></span>
+                   )}
+                </button>
+                {showNotifications && (
+                    <div className="notif-dropdown-mobile" style={{ background: bgCard, position: 'absolute', top: '45px', right: '-60px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
+                       <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+                          <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? (lang === "TR" ? "Bildirimleriniz" : "Your Notifications") : (lang === "TR" ? "Sistem Panosu" : "System Board")}</span>
+                       </div>
+                       <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
+                          {displayNotifs.length > 0 ? displayNotifs.map(n => (
+                             <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
+                                <span style={{ fontSize: '22px' }}>{n.text.includes('Hoş Geldin') || n.text.includes('Welcome') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') || n.text.includes('replied') ? '💬' : '❤️'}</span>
+                                <div style={{ flex: 1 }}>
+                                   <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+                                       <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
+                                       {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve git" : "Click to view"}</span>}
+                                   </div>
                                 </div>
                              </div>
-                          </div>
-                       )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>{lang === "TR" ? "Henüz bildiriminiz yok." : "No notifications yet."}</div>}
+                          )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>{lang === "TR" ? "Henüz bildiriminiz yok." : "No notifications yet."}</div>}
+                       </div>
+                       {currentUser && <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', borderTop: `1px solid ${borderColor}` }}>{lang === "TR" ? "Tüm Bildirimleri Gör" : "See All"}</div>}
                     </div>
-                    {currentUser && <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', borderTop: `1px solid ${borderColor}` }}>{lang === "TR" ? "Tüm Bildirimleri Gör" : "See All"}</div>}
-                 </div>
-             )}
-          </div>
-          <button className="mobile-only-lang" onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title="Dil Değiştir">
-    {lang === "TR" ? "🇬🇧" : "🇹🇷"}
-</button>
-          <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? (lang==="TR"?"Açık Moda Geç":"Light Mode") : (lang==="TR"?"Koyu Moda Geç":"Dark Mode")}>{isDarkMode ? "☀️" : "🌙"}</button>
+                )}
+             </div>
 
-          <div className="search-container" ref={searchRef}>
+             {/* Dil Butonu (🇬🇧 / 🇹🇷) */}
+             <button onClick={() => setLang(lang === "TR" ? "EN" : "TR")} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title="Dil Değiştir">
+                {lang === "TR" ? "🇬🇧" : "🇹🇷"}
+             </button>
+             
+             {/* Tema Butonu (☀️ / 🌙) */}
+             <button onClick={() => { const newMode = !isDarkMode; setIsDarkMode(newMode); localStorage.setItem("sinepro_dark_mode", JSON.stringify(newMode)); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', display: 'flex', alignItems: 'center', margin: '0 5px' }} title={isDarkMode ? (lang==="TR"?"Açık Moda Geç":"Light Mode") : (lang==="TR"?"Koyu Moda Geç":"Dark Mode")}>
+                 {isDarkMode ? "☀️" : "🌙"}
+             </button>
+          </div>
+
+          {/* HER İKİ EKRANDA DA GÖRÜNEN ARAMA ÇUBUĞU */}
+          <div className={`search-container ${isSearchExpanded ? 'expanded' : ''}`} ref={searchRef}>
             <input type="text" className="search-input-box" ref={searchInputRef} placeholder={lang === "TR" ? "Film/Dizi Ara..." : "Search..."} value={searchInput} onChange={(e) => setSearchInput(e.target.value)} onFocus={() => setIsSearchFocused(true)} onKeyDown={(e) => { if (e.key === 'Enter') { setSearchQuery(searchInput); setIsSearchFocused(false); setIsSearchExpanded(false); setViewMode("home"); } }} />
             <button className="search-icon-btn" onClick={() => { if (isSearchExpanded) { setIsSearchExpanded(false); setSearchInput(""); setIsSearchFocused(false); } else { setIsSearchExpanded(true); setTimeout(() => searchInputRef.current?.focus(), 100); } }}>
                 {isSearchExpanded ? "✕" : "🔍"}
@@ -2274,22 +2331,25 @@ export default function Home() {
       {/* --- SİNE Aİ PENCERESİ --- */}
       {showSineAI && (
         <div onClick={() => setShowSineAI(false)} style={{ position: 'fixed', inset: 0, background: modalBg, backdropFilter: 'blur(5px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
-          <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: bgCard, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40` }}>
-            <div style={{ background: aiHeaderBg, padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${activeColor}40` }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '24px' }}>🤖</span>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ color: activeColor, fontSize: '18px', fontWeight: '900' }}>SİNE</span>
-                      <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: '900', marginLeft: '4px', boxShadow: `0 0 10px ${activeColor}66` }}>Aİ</span>
-                    </div>
+          <div className="modal-box ai-modal" onClick={(e) => e.stopPropagation()} style={{ background: bgCard, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: `0 0 40px ${activeColor}40`, width: '100%' }}>
+            
+            {/* ÜST BAŞLIK KISMI - BOŞLUKLAR DARALTILDI */}
+            <div style={{ background: aiHeaderBg, padding: '12px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${activeColor}40`, gap: '5px' }}>
+               
+               {/* SOL TARAF - SİNE Aİ LOGOSU (Daha sola çekildi) */}
+               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginRight: 'auto', flexShrink: 0, marginLeft: '2px' }}>
+                  <span style={{ fontSize: '20px' }}>🤖</span>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ color: activeColor, fontSize: '16px', fontWeight: '900' }}>SİNE</span>
+                    <span style={{ backgroundColor: activeColor, color: badgeText, padding: '2px 6px', borderRadius: '4px', fontSize: '12px', fontWeight: '900', marginLeft: '2px', boxShadow: `0 0 10px ${activeColor}66` }}>Aİ</span>
                   </div>
                </div>
                
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px',marginRight: 'auto' , flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+               {/* SAĞ TARAF - BUTONLAR (Çarpı işareti içeri alındı) */}
+               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap', justifyContent: 'flex-end', marginRight: '5px' }}>
                   <button 
                     onClick={() => { setShowAILeaderboard(!showAILeaderboard); if(!showAILeaderboard) fetchLeaderboard(); }} 
-                    style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }} 
+                    style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '5px 6px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s', flexShrink: 0, whiteSpace: 'nowrap' }} 
                     className="hover-effect"
                   >
                       {showAILeaderboard ? (lang === "TR" ? "💬 Sohbet" : "💬 Chat") : (lang === "TR" ? "🏆 Sıralama" : "🏆 Ranks")}
@@ -2297,7 +2357,7 @@ export default function Home() {
                   
                   <button 
                     onClick={startAITrivia} 
-                    style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }} 
+                    style={{ background: 'transparent', border: `1px solid ${theme.secondary}`, color: activeColor, padding: '5px 6px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s', flexShrink: 0, whiteSpace: 'nowrap' }} 
                     className="hover-effect"
                   >
                       🎮 {lang === "TR" ? "Yarışma" : "Trivia"}
@@ -2305,7 +2365,7 @@ export default function Home() {
                   
                   <button 
                     onClick={() => setAiChatHistory([initialAIMessage])} 
-                    style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '6px 10px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' }} 
+                    style={{ background: 'rgba(255,0,0,0.1)', border: '1px solid rgba(255,0,0,0.3)', color: '#ff4d4d', padding: '5px 6px', borderRadius: '8px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s', flexShrink: 0, whiteSpace: 'nowrap' }} 
                     className="hover-effect"
                   >
                       🗑️ {lang === "TR" ? "Sil" : "Clear"}
@@ -2313,7 +2373,7 @@ export default function Home() {
                   
                   <button 
                     onClick={() => setShowSineAI(false)} 
-                    style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer', transition: '0.3s' }} 
+                    style={{ background: 'transparent', border: 'none', color: textLight, fontSize: '18px', cursor: 'pointer', transition: '0.3s', flexShrink: 0, padding: '0 5px' }} 
                     className="hover-effect"
                   >
                       ✕
@@ -2373,12 +2433,31 @@ export default function Home() {
             )}
 
             <div style={{ padding: '15px', background: aiHeaderBg, borderTop: `1px solid ${activeColor}40`, display: 'flex', gap: '10px', alignItems: 'center' }}>
-               <input type="text" placeholder={lang === "TR" ? "Sohbet et veya film iste..." : "Chat or ask for a movie..."} value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} onKeyDown={(e) => handleEnterKey(e, handleAISubmit)} disabled={isAITyping} style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
-               <button onClick={handleAISubmit} disabled={isAITyping || !aiPrompt.trim()} style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span></button>
+               <input 
+                 type="text" 
+                 placeholder={lang === "TR" ? "Sohbet et veya film iste..." : "Chat or ask for a movie..."} 
+                 value={aiPrompt} 
+                 onChange={(e) => setAiPrompt(e.target.value)} 
+                 onKeyDown={(e) => { 
+                   if (e.key === 'Enter' && !isAITyping && aiPrompt.trim()) { 
+                     handleAISubmit(); 
+                   } 
+                 }} 
+                 disabled={isAITyping} 
+                 style={{ flex: 1, background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} 
+               />
+               <button 
+                 onClick={handleAISubmit} 
+                 disabled={isAITyping || !aiPrompt.trim()} 
+                 style={{ background: activeColor, border: 'none', width: '45px', height: '45px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+               >
+                 <span style={{ color: badgeText, fontWeight: 'bold' }}>➤</span>
+               </button>
             </div>
           </div>
         </div>
       )}
+      
 
       {/* --- PROFIL AYARLARI EKRANI (MODAL) --- */}
       {showProfileSettings && (
@@ -2536,16 +2615,16 @@ export default function Home() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {(authMode === 'register' || authMode === 'login' || authMode === 'forgot_password') && (
-                 <input type="email" placeholder={lang === "TR" ? "E-posta Adresi" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
+                 <input type="email" placeholder={lang === "TR" ? "E-posta Adresi" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') { if (authMode === 'login') handleLogin(); else if (authMode === 'register') handleRegisterStart(); else if (authMode === 'forgot_password') handleForgotPasswordStart(); } }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {authMode === 'register' && (
-                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
+                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') handleRegisterStart(); }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {(authMode === 'register' || authMode === 'login' || authMode === 'new_password') && (
-                 <input type="password" placeholder={lang === "TR" ? "Şifre" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
+                 <input type="password" placeholder={lang === "TR" ? "Şifre" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') { if (authMode === 'login') handleLogin(); else if (authMode === 'register') handleRegisterStart(); else if (authMode === 'new_password') handleSaveNewPassword(); } }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {(authMode === 'verify' || authMode === 'verify_forgot' || authMode === 'security_verify') && (
-                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Kod" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `2px dashed ${activeColor}`, outline: 'none', fontSize: '20px', transition: '0.3s', textAlign: 'center', letterSpacing: '4px', fontWeight: 'bold' }} />
+                 <input type="text" placeholder={lang === "TR" ? "6 Haneli Kod" : "6-Digit Code"} value={verificationCode} onChange={(e) => setVerificationCode(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { if (authMode === 'verify') handleVerifyAndFinish(); else if (authMode === 'verify_forgot') handleVerifyForgot(); else if (authMode === 'security_verify') handleSecurityUpdate(); } }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `2px dashed ${activeColor}`, outline: 'none', fontSize: '20px', transition: '0.3s', textAlign: 'center', letterSpacing: '4px', fontWeight: 'bold' }} />
               )}
 
               {authMode === 'login' && <button onClick={handleLogin} className="hover-effect" style={{ background: activeColor, color: badgeText, padding: '14px', borderRadius: '12px', border: 'none', fontWeight: '900', cursor: 'pointer', fontSize: '15px', marginTop: '10px', boxShadow: `0 8px 20px ${activeColor}40` }}>{lang === "TR" ? "GİRİŞ YAP" : "LOGIN"}</button>}

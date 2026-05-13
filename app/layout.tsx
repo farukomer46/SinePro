@@ -5,10 +5,17 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "SİNEPRO | Sinema ve Sosyal Keşif Platformu",
-  description: "SİNEPRO ile en yeni filmleri keşfet, toplulukla tartış, kişisel profilini oluştur ve SİNE-Aİ ile zevkine uygun film tavsiyeleri al!, Küresel sohbete katıl.ZAMAN GEÇİRMENİN EN İYİ YOLU,Haydi Bir Dene!! ",
-  keywords: "film izle, dizi izle, sinema platformu, sinepro, sine ai, film önerisi, film inceleme",
-
+  title: "SİNEPRO | Sine-AI Destekli Sinema ve Sosyal Keşif Platformu",
+  description: "SİNEPRO ile en yeni filmleri keşfet, Sine-AI asistanından kişiselleştirilmiş tavsiyeler al ve küresel toplulukla tartış. Sinema dünyasının en sosyal hali burada. Haydi, keşfetmeye başla!",
+  keywords: "SİNEPRO, Sine AI, film önerisi, hangi filmi izlesem, film inceleme, dizi tavsiyeleri, sosyal sinema platformu, yapay zeka film asistanı, küresel sohbet",
+  openGraph: {
+    title: "SİNEPRO - Sinema ve Sosyal Keşif Platformu",
+    description: "Yapay zeka destekli film önerileri ve global sinema topluluğu.",
+    type: "website",
+    locale: "tr_TR",
+    url: "https://sinepro.com", // Kendi URL'ini buraya yaz
+    siteName: "SİNEPRO",
+  },
   applicationName: 'SİNEPRO',
   appleWebApp: {
     title: 'SİNEPRO',
