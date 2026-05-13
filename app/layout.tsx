@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     description: "Yapay zeka destekli film önerileri ve global sinema topluluğu.",
     type: "website",
     locale: "tr_TR",
-    url: "https://sinepro.com", // Kendi URL'ini buraya yaz
+    url: "https://sinepro.vercel.app/", // Kendi URL'ini buraya yaz
     siteName: "SİNEPRO",
   },
   applicationName: 'SİNEPRO',
