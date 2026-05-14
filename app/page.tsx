@@ -1589,7 +1589,7 @@ const handleFollowUser = async (targetUsername: string) => {
                    )}
                 </button>
                 {showNotifications && (
-                    <div className="notif-dropdown-mobile" style={{ background: bgCard, position: 'absolute', top: '45px', right: '-60px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
+                <div className="notif-dropdown-mobile" style={{ background: bgCard, position: 'absolute', top: '45px', right: '-10px', width: '300px', maxWidth: '85vw', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
                        <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                           <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? (lang === "TR" ? "Bildirimleriniz" : "Your Notifications") : (lang === "TR" ? "Sistem Panosu" : "System Board")}</span>
                        </div>
@@ -2685,11 +2685,13 @@ const handleFollowUser = async (targetUsername: string) => {
 
       {/* --- GİRİŞ YAP / KAYIT OL MODALI --- */}
       {showLogin && (
-        <div onClick={() => setShowLogin(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div onClick={() => { if (authMode !== "verify") setShowLogin(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 25000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div onClick={(e) => e.stopPropagation()} className="modal-box auth-modal" style={{ background: bgCard, border: `1px solid ${borderColor}`, position: 'relative', borderRadius: '20px', boxShadow: `0 20px 60px rgba(0,0,0,0.8)`, overflow: 'hidden', padding: '40px 30px', width: '100%', maxWidth: '380px' }}>
             
-            <button onClick={() => setShowLogin(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', border: 'none', color: textMain, fontSize: '14px', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.3s' }} className="hover-effect">✕</button>
-            
+            {/* KAPATMA BUTONU (Bunu da kilitliyoruz ki çarpıya basıp kaçamasın) */}
+            <button onClick={() => { if (authMode !== "verify") setShowLogin(false); }} style={{ position: 'absolute', top: '15px', right: '15px', background: 'transparent', border: 'none', color: textLight, fontSize: '20px', cursor: 'pointer' }}>
+              ✕
+            </button>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '25px' }}>
                <SineProLogo activeColor={activeColor} badgeText={badgeText} fontSize="32px" proSize="22px" hidePro={false} />
             </div>
