@@ -95,3 +95,15 @@ body {
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
   font-weight: 900 !important;
 }
+/* --- Mobilde Bildirim Kutusunu Ekrana Ortalama --- */
+@media (max-width: 768px) {
+  .notif-dropdown {
+    position: fixed !important;
+    top: 75px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: 90% !important;
+    max-width: 350px !important;
+  }
+}

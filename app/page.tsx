@@ -1589,7 +1589,8 @@ const handleFollowUser = async (targetUsername: string) => {
                    )}
                 </button>
                 {showNotifications && (
-                <div className="notif-dropdown-mobile" style={{ background: bgCard, position: 'absolute', top: '45px', right: '-10px', width: '300px', maxWidth: '85vw', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
+                    
+               <div className="notif-dropdown" style={{ background: bgCard, position: 'absolute', top: '45px', right: '-80px', width: '320px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 3000 }}>
                        <div style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                           <span style={{ fontWeight: 'bold', color: activeColor, fontSize: '15px' }}>{currentUser ? (lang === "TR" ? "Bildirimleriniz" : "Your Notifications") : (lang === "TR" ? "Sistem Panosu" : "System Board")}</span>
                        </div>
