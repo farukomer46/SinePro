@@ -617,7 +617,7 @@ export default function Home() {
     const mesajMetni = newGlobalMessage.trim(); 
 
     try {
-      const currentCommentCount = (currentUser.messageCount || 0) + 1;
+      const currentCommentCount = (currentUser.messageCount || 0);
       const rankInfo = getUserRank(currentCommentCount, currentUser?.email);
 
       await addDoc(collection(db, "global_chat"), {
@@ -635,7 +635,7 @@ export default function Home() {
         rankIcon: rankInfo.icon || ""
       });
 
-      await setDoc(doc(db, "users", currentUser.uid), { messageCount: currentCommentCount }, { merge: true });
+     
 
       const mentionRegex = /@(\w+)/g;
       let match;
@@ -892,17 +892,36 @@ export default function Home() {
     catch { return false; }
   };
 
-  const handleRegisterStart = async () => {
-    if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) return alert(lang === "TR" ? "Lütfen tüm alanları doldurun!" : "Please fill in all fields!");
+ const handleRegisterStart = async () => {
+    // 1. BOŞ ALAN KONTROLÜ
+    if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
+        return alert(lang === "TR" ? "Lütfen tüm alanları doldurun!" : "Please fill in all fields!");
+    }
+
+    // 2. YENİ EKLENEN KARAKTER SINIRI KONTROLÜ
+    const cleanUsername = formData.username.trim();
+    if (cleanUsername.length > 15) {
+        return alert(lang === "TR" ? "Kullanıcı adı en fazla 15 karakter olabilir!" : "Username can be maximum 15 characters!");
+    }
+    if (cleanUsername.length < 3) {
+        return alert(lang === "TR" ? "Kullanıcı adı en az 3 karakter olmalıdır!" : "Username must be at least 3 characters!");
+    }
+
     try {
-        await registerUser(formData.email.trim(), formData.password.trim(), formData.username.trim());
+        await registerUser(formData.email.trim(), formData.password.trim(), cleanUsername);
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
-        const success = await sendEmail(formData.email.trim(), code, formData.username.trim());
-        if (success) { alert(lang === "TR" ? "Doğrulama kodu mailinize gönderildi!" : "Verification code sent to your email!"); setAuthMode("verify"); }
+        const success = await sendEmail(formData.email.trim(), code, cleanUsername);
+        if (success) { 
+            alert(lang === "TR" ? "Doğrulama kodu mailinize gönderildi!" : "Verification code sent to your email!"); 
+            setAuthMode("verify"); 
+        }
     } catch (error: any) {
-        if (error.message === "USERNAME_TAKEN") alert(lang === "TR" ? "Bu kullanıcı adı zaten alınmış!" : "Username already taken!");
-        else alert("Hata/Error: " + error.message);
+        if (error.message === "USERNAME_TAKEN") {
+            alert(lang === "TR" ? "Bu kullanıcı adı zaten alınmış!" : "Username already taken!");
+        } else {
+            alert("Hata/Error: " + error.message);
+        }
     }
   };
 
@@ -1161,86 +1180,74 @@ export default function Home() {
     try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert(lang === "TR" ? "Talebiniz alındı!" : "Request received!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert(lang === "TR" ? "Hata oluştu." : "An error occurred."); }
   };
 
- const handleFollowUser = async (targetUsername: string) => {
+const handleFollowUser = async (targetUsername: string) => {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
       
-      // 1. Zaten takip ediyor mu? (Takip Et / Takipten Çık mantığı)
       const isFollowing = currentUser.following?.includes(targetUsername);
 
-      // 2. İYİMSER GÜNCELLEME: Veritabanını beklemeden ekrandaki sayıları anında değiştir!
-      setCurrentUser((prev: any) => ({
-          ...prev,
-          following: isFollowing 
-              ? prev.following.filter((u: string) => u !== targetUsername) 
-              : [...(prev.following || []), targetUsername]
-      }));
-
-      // Profil sayfasındaysa anında sayıyı güncelle
-      if (targetProfile && targetProfile.username === targetUsername) {
-          setTargetProfile((prev: any) => ({
-              ...prev,
-              stats: {
-                  ...prev.stats,
-                  followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1
-              }
-          }));
-      }
-
-      // Pop-up profil kartındaysa anında sayıyı güncelle
-      if (zoomedAvatar && zoomedAvatar.username === targetUsername) {
-          setZoomedAvatar((prev: any) => ({
-              ...prev,
-              stats: {
-                  ...prev.stats,
-                  followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1
-              }
-          }));
-      }
-
-      // 3. VERİTABANI İŞLEMLERİ (Arka planda çalışır, ekranı bekletmez)
       try {
           const q = query(collection(db, "users"), where("username", "==", targetUsername));
           const querySnapshot = await getDocs(q);
 
-          if (!querySnapshot.empty) {
-              const targetUserDoc = querySnapshot.docs[0];
-              const targetData = targetUserDoc.data();
+          if (querySnapshot.empty) return;
+          
+          const targetUserDoc = querySnapshot.docs[0];
+          const targetData = targetUserDoc.data();
 
-              if (targetData.isPrivate && !isFollowing) {
-                  // HESAP GİZLİYSE SADECE İSTEK GÖNDER VE İYİMSER GÜNCELLEYİ GERİ AL
-                  await updateDoc(doc(db, "users", targetUserDoc.id), {
-                      friendRequests: arrayUnion(currentUser.username)
-                  });
+          // 1. DURUM: HESAP GİZLİ VE TAKİP ETMİYORSAK (İSTEK AT)
+          if (targetData.isPrivate && !isFollowing) {
+              if (targetData.friendRequests?.includes(currentUser.username)) {
+                  alert(lang === "TR" ? "Bu kişiye zaten istek gönderdin!" : "Request already sent!");
+                  return;
+              }
+
+              await updateDoc(doc(db, "users", targetUserDoc.id), {
+                  friendRequests: arrayUnion(currentUser.username)
+              });
+              
+              await addDoc(collection(db, "notifications"), {
+                  recipient: targetUsername, sender: currentUser.username, type: "follow_request",
+                  text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmek için istek gönderdi! 🔒" : "sent a follow request! 🔒"}`,
+                  isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
+              });
+              
+              alert(lang === "TR" ? `Bu hesap gizli. ${targetUsername} kullanıcısına takip isteği gönderildi!` : `Private account. Follow request sent!`);
+          
+          } else {
+              // 2. DURUM: HESAP AÇIK (VEYA ZATEN TAKİP EDİYORUZ, TAKİPTEN ÇIKACAĞIZ)
+              
+              // İyimser Güncelleme (Sayılar anında değişsin diye)
+              setCurrentUser((prev: any) => ({
+                  ...prev,
+                  following: isFollowing ? prev.following.filter((u: string) => u !== targetUsername) : [...(prev.following || []), targetUsername]
+              }));
+
+              if (targetProfile && targetProfile.username === targetUsername) {
+                  setTargetProfile((prev: any) => ({
+                      ...prev, stats: { ...prev.stats, followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1 }
+                  }));
+              }
+
+              if (zoomedAvatar && zoomedAvatar.username === targetUsername) {
+                  setZoomedAvatar((prev: any) => ({
+                      ...prev, stats: { ...prev.stats, followers: isFollowing ? Math.max(0, (prev.stats?.followers || 0) - 1) : (prev.stats?.followers || 0) + 1 }
+                  }));
+              }
+
+              // Veritabanı İşlemi
+              if (isFollowing) {
+                  await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayRemove(currentUser.username) });
+                  if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUsername) });
+              } else {
+                  await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayUnion(currentUser.username) });
+                  if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUsername) });
                   
-                  // Takip etmedi, sadece istek attı. Sayıyı eski haline getiriyoruz.
-                  setCurrentUser((prev: any) => ({ ...prev, following: prev.following.filter((u: string) => u !== targetUsername) }));
-                  if (targetProfile && targetProfile.username === targetUsername) setTargetProfile((prev: any) => ({ ...prev, stats: { ...prev.stats, followers: Math.max(0, (prev.stats?.followers || 0) - 1) } }));
-                  if (zoomedAvatar && zoomedAvatar.username === targetUsername) setZoomedAvatar((prev: any) => ({ ...prev, stats: { ...prev.stats, followers: Math.max(0, (prev.stats?.followers || 0) - 1) } }));
-
                   await addDoc(collection(db, "notifications"), {
-                      recipient: targetUsername, sender: currentUser.username, type: "follow_request",
-                      text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmek için istek gönderdi! 🔒" : "sent a follow request! 🔒"}`,
+                      recipient: targetUsername, sender: currentUser.username, type: "follow",
+                      text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
                       isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
                   });
-                  alert(lang === "TR" ? `Bu hesap gizli. ${targetUsername} kullanıcısına takip isteği gönderildi!` : `Private account. Follow request sent!`);
-              } else {
-                  // HESAP AÇIKSA DİREKT TAKİP ET VEYA TAKİPTEN ÇIK
-                  if (isFollowing) {
-                      // Takipten çık
-                      await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayRemove(currentUser.username) });
-                      if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUsername) });
-                  } else {
-                      // Takip Et
-                      await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayUnion(currentUser.username) });
-                      if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUsername) });
-                      
-                      await addDoc(collection(db, "notifications"), {
-                          recipient: targetUsername, sender: currentUser.username, type: "follow",
-                          text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
-                          isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
-                      });
-                  }
               }
           }
       } catch (error) { 
@@ -1588,17 +1595,50 @@ export default function Home() {
                        </div>
                        <div style={{ maxHeight: '350px', overflowY: 'auto' }}>
                           {displayNotifs.length > 0 ? displayNotifs.map(n => (
-                             <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
-                                <span style={{ fontSize: '22px' }}>{n.text.includes('Hoş Geldin') || n.text.includes('Welcome') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') || n.text.includes('replied') ? '💬' : '❤️'}</span>
-                                <div style={{ flex: 1 }}>
-                                   <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4' }}>{n.text}</p>
-                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-                                       <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
-                                       {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve git" : "Click to view"}</span>}
-                                   </div>
-                                </div>
-                             </div>
-                          )) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>{lang === "TR" ? "Henüz bildiriminiz yok." : "No notifications yet."}</div>}
+    <div key={n.id} onClick={() => handleNotificationClick(n)} style={{ padding: '15px 20px', borderBottom: `1px solid ${borderColor}`, background: n.isRead ? 'transparent' : isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', display: 'flex', gap: '15px', alignItems: 'center', cursor: 'pointer' }}>
+        
+        {/* flexShrink: 0 sayesinde emoji asla ezilmez ve sola sıkışmaz */}
+        <span style={{ fontSize: '22px', flexShrink: 0 }}>
+            {n.text.includes('Hoş Geldin') || n.text.includes('Welcome') ? '🎉' : n.text.includes('Kilitli') ? '🔒' : n.text.includes('cevap') || n.text.includes('replied') ? '💬' : '❤️'}
+        </span>
+        
+        {/* minWidth: 0 sayesinde yazı dışarı taşmaz, aşağı doğru düzgünce kırılır */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: '13px', color: textMain, lineHeight: '1.4', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                {n.text}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+                <span style={{ fontSize: '11px', color: textLight }}>{n.date}</span>
+                {n.itemID && <span style={{ fontSize: '10px', color: activeColor, fontWeight: 'bold' }}>{lang === "TR" ? "Tıkla ve git" : "Click to view"}</span>}
+            </div>
+        </div>
+
+        {/* YENİ EKLENEN ÇARPI (SİLME) BUTONU */}
+        <div 
+            onClick={async (e) => {
+                e.stopPropagation(); // Sayfayı yönlendirmesini engeller!
+                try {
+                    await deleteDoc(doc(db, "notifications", n.id));
+                } catch (error) {
+                    console.error("Bildirim silinemedi:", error);
+                }
+            }}
+            style={{ 
+                fontSize: '18px', 
+                color: textLight, 
+                padding: '5px 10px', 
+                cursor: 'pointer',
+                flexShrink: 0 
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'} 
+            onMouseLeave={(e) => e.currentTarget.style.color = textLight} 
+            title={lang === "TR" ? "Bildirimi Sil" : "Delete Notification"}
+        >
+            ✕
+        </div>
+
+    </div>
+)) : <div style={{ padding: '20px', textAlign: 'center', color: textLight, fontSize: '13px' }}>{lang === "TR" ? "Henüz bildiriminiz yok." : "No notifications yet."}</div>}
                        </div>
                        {currentUser && <div onClick={() => { setViewMode("notifications"); setActiveBottomTab("profile"); setShowNotifications(false); }} style={{ padding: '12px', textAlign: 'center', color: activeColor, fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', borderTop: `1px solid ${borderColor}` }}>{lang === "TR" ? "Tüm Bildirimleri Gör" : "See All"}</div>}
                     </div>
@@ -2081,24 +2121,30 @@ export default function Home() {
         <div style={{ padding: '30px 5%', minHeight: '70vh', position: 'relative', zIndex: 1 }}>
             <h2 className="section-title" style={{ marginBottom: '30px' }}>📊 {lang === "TR" ? "İSTATİSTİKLERİM" : "MY STATS"}</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{favorites.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Favori İçerik</p></div>
-                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{currentUserTotalComments}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Yaptığın Yorum</p></div>
-                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👀</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{recentlyViewed.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Son İncelenen</p></div>
-                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div><h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>Aldığın Beğeni</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>❤️</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{favorites.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>{lang === "TR" ? "Favori İçerik" : "Favorite Content"}</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>💬</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{currentUserTotalComments}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>{lang === "TR" ? "Yaptığın Yorum" : "Your Comments"}</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👀</div><h3 style={{ margin: '0 0 5px 0', color: activeColor, fontSize: '36px' }}>{recentlyViewed.length}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>{lang === "TR" ? "Son İncelenen" : "Recently Viewed"}</p></div>
+                 <div style={{ background: bgCard, padding: '40px 20px', borderRadius: '20px', textAlign: 'center', border: `1px solid ${activeColor}40`, boxShadow: `0 10px 30px rgba(0,0,0,0.2)` }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>👍</div><h3 style={{ margin: '0 0 5px 0', color: '#ff4d4d', fontSize: '36px' }}>{getMyComments().reduce((sum, c) => sum + (c.likes || 0), 0)}</h3><p style={{ margin: 0, color: textLight, fontWeight: 'bold' }}>{lang === "TR" ? "Aldığın Beğeni" : "Received Likes"}</p></div>
             </div>
             <div style={{ marginTop: '60px' }}>
-                <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎖️ SİNE-RÜTBE & VIP AYRICALIKLAR REHBERİ</h3>
-                <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>SİNEPRO topluluğunda aktif ol, yorum yaptıkça sinema dünyasında seviye atla! 500 yoruma ulaştığında otomatik olarak <strong>SİNE-LORD (VIP)</strong> olursun, avatarının etrafında <strong>altın bir hare döner</strong> ve sohbette <strong>renkli yazılar (/kirmizi, /neon)</strong> yazabilirsin.</p>
+                <h3 style={{ color: activeColor, borderBottom: `1px solid ${borderColor}`, paddingBottom: '15px', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>🎖️ {lang === "TR" ? "SİNE-RÜTBE & VIP AYRICALIKLAR REHBERİ" : "SINE-RANK & VIP PRIVILEGES GUIDE"}</h3>
+                <p style={{ color: textLight, fontSize: '14px', marginBottom: '30px', lineHeight: '1.6' }}>
+                    {lang === "TR" ? (
+                        <>SİNEPRO topluluğunda aktif ol, yorum yaptıkça sinema dünyasında seviye atla! 500 yoruma ulaştığında otomatik olarak <strong>SİNE-LORD (VIP)</strong> olursun, avatarının etrafında <strong>altın bir hare döner</strong> ve sohbette <strong>renkli yazılar (/kirmizi, /neon)</strong> yazabilirsin.</>
+                    ) : (
+                        <>Be active in the SINEPRO community, level up in the cinema world as you comment! When you reach 500 comments, you automatically become a <strong>SINE-LORD (VIP)</strong>, a <strong>golden halo spins</strong> around your avatar, and you can write <strong>colored texts (/kirmizi, /neon)</strong> in chat.</>
+                    )}
+                </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888' }}><span style={{ fontSize: '28px' }}>🍿</span><br/><strong style={{ color: '#888', fontSize: '18px' }}>Set Çaylağı</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 9 Yorum</p></div>
-                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF' }}><span style={{ fontSize: '28px' }}>🔭</span><br/><strong style={{ color: '#00E5FF', fontSize: '18px' }}>Vizyoner</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>10 - 49 Yorum</p></div>
-                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF' }}><span style={{ fontSize: '28px' }}>👁️‍🗨️</span><br/><strong style={{ color: '#9D00FF', fontSize: '18px' }}>Baş Eleştirmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>50 - 149 Yorum</p></div>
-                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700' }}><span style={{ fontSize: '28px' }}>🎬</span><br/><strong style={{ color: '#FFD700', fontSize: '18px' }}>Kült Yönetmen</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>150 - 499 Yorum</p></div>
-                    <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', border: '1px solid rgba(255,0,85,0.3)' }}><span style={{ fontSize: '28px' }}>👑</span><br/><strong style={{ color: '#FF0055', fontSize: '20px' }}>SİNE-LORD (VIP)</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>500+ Yorum</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #888' }}><span style={{ fontSize: '28px' }}>🍿</span><br/><strong style={{ color: '#888', fontSize: '18px' }}>{lang === "TR" ? "Set Çaylağı" : "Set Rookie"}</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>0 - 9 {lang === "TR" ? "Yorum" : "Comments"}</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #00E5FF' }}><span style={{ fontSize: '28px' }}>🔭</span><br/><strong style={{ color: '#00E5FF', fontSize: '18px' }}>{lang === "TR" ? "Vizyoner" : "Visionary"}</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>10 - 49 {lang === "TR" ? "Yorum" : "Comments"}</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #9D00FF' }}><span style={{ fontSize: '28px' }}>👁️‍🗨️</span><br/><strong style={{ color: '#9D00FF', fontSize: '18px' }}>{lang === "TR" ? "Baş Eleştirmen" : "Chief Critic"}</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>50 - 149 {lang === "TR" ? "Yorum" : "Comments"}</p></div>
+                    <div style={{ background: bgCard, padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FFD700' }}><span style={{ fontSize: '28px' }}>🎬</span><br/><strong style={{ color: '#FFD700', fontSize: '18px' }}>{lang === "TR" ? "Kült Yönetmen" : "Cult Director"}</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: activeColor, fontWeight: 'bold' }}>150 - 499 {lang === "TR" ? "Yorum" : "Comments"}</p></div>
+                    <div style={{ background: 'linear-gradient(135deg, rgba(255,0,85,0.1), transparent)', padding: '20px', borderRadius: '15px', borderLeft: '4px solid #FF0055', border: '1px solid rgba(255,0,85,0.3)' }}><span style={{ fontSize: '28px' }}>👑</span><br/><strong style={{ color: '#FF0055', fontSize: '20px' }}>SİNE-LORD (VIP)</strong><p style={{ margin: '10px 0 0 0', fontSize: '13px', color: '#FF0055', fontWeight: 'bold' }}>500+ {lang === "TR" ? "Yorum" : "Comments"}</p></div>
                 </div>
             </div>
         </div>
-      )}
+  )}
 
       {/* --- HAKKIMIZDA EKRANI --- */}
       {viewMode === "about" && (
@@ -2561,10 +2607,17 @@ export default function Home() {
                   <label style={{ fontSize: '12px', color: textMuted, fontWeight: 'bold', marginLeft: '5px' }}>{lang === "TR" ? "Biyografi (Maks 50 Karakter)" : "Bio (Max 50 Characters)"}</label>
                   <input type="text" maxLength={50} placeholder={lang === "TR" ? "Kendinden bahset..." : "Tell us about yourself..."} value={currentUser?.bio || ""} onChange={(e) => setCurrentUser({...currentUser, bio: e.target.value})} style={{ width: '100%', background: bgCard, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '12px', color: textMain, marginTop: '5px', boxSizing: 'border-box', outline: 'none' }} />
               </div>
-              <div style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: inputBg, padding: '12px 15px', borderRadius: '12px', border: `1px solid ${borderColor}`, boxSizing: 'border-box' }}>
-                  <label style={{ fontSize: '13px', color: textMain, fontWeight: 'bold', cursor: 'pointer' }}>🔒 {lang === "TR" ? "Profili Gizli Tut" : "Private Profile"}</label>
-                  <input type="checkbox" checked={currentUser?.isPrivate || false} onChange={(e) => setCurrentUser({...currentUser, isPrivate: e.target.checked})} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-              </div>
+             <div style={{ width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: inputBg, padding: '12px 15px', borderRadius: '12px', border: `1px solid ${borderColor}`, boxSizing: 'border-box' }}>
+    <label style={{ fontSize: '13px', color: textMain, fontWeight: 'bold', cursor: 'pointer' }}>
+        🔒 {lang === "TR" ? "Profili Gizli Tut" : "Private Profile"}
+    </label>
+    <input 
+        type="checkbox" 
+        checked={currentUser?.isPrivate === true} 
+        onChange={(e) => setCurrentUser({ ...currentUser, isPrivate: e.target.checked })} 
+        style={{ width: '18px', height: '18px', cursor: 'pointer' }} 
+    />
+</div>
               <button onClick={saveProfileSettings} style={{ width: '100%', background: activeColor, color: badgeText, padding: '15px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', border: 'none', fontSize: '15px', marginTop: '10px', boxShadow: `0 5px 15px ${activeColor}40` }}>{lang === "TR" ? "DEĞİŞİKLİKLERİ KAYDET" : "SAVE CHANGES"}</button>
             </div>
             <button onClick={() => setShowProfileSettings(false)} style={{ width: '100%', background: 'none', color: textLight, marginTop: '15px', marginBottom: '50px', paddingBottom: '20px', cursor: 'pointer', border: 'none', fontSize: '14px', fontWeight: 'bold' }}>{lang === "TR" ? "Vazgeç ve Kapat" : "Cancel & Close"}</button>
@@ -2650,8 +2703,16 @@ export default function Home() {
                  <input type="email" placeholder={lang === "TR" ? "E-posta Adresi" : "Email Address"} value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') { if (authMode === 'login') handleLogin(); else if (authMode === 'register') handleRegisterStart(); else if (authMode === 'forgot_password') handleForgotPasswordStart(); } }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}
               {authMode === 'register' && (
-                 <input type="text" placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') handleRegisterStart(); }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
-              )}
+    <input 
+        type="text" 
+        placeholder={lang === "TR" ? "Kullanıcı Adı" : "Username"} 
+        maxLength={15} 
+        value={formData.username} 
+        onChange={(e) => setFormData({...formData, username: e.target.value})} 
+        onKeyDown={(e) => { if (e.key === 'Enter') handleRegisterStart(); }} 
+        style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} 
+    />
+)}
               {(authMode === 'register' || authMode === 'login' || authMode === 'new_password') && (
                  <input type="password" placeholder={lang === "TR" ? "Şifre" : "Password"} value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} onKeyDown={(e) => { if (e.key === 'Enter') { if (authMode === 'login') handleLogin(); else if (authMode === 'register') handleRegisterStart(); else if (authMode === 'new_password') handleSaveNewPassword(); } }} style={{ padding: '14px 18px', borderRadius: '12px', background: inputBg, color: textMain, border: `1px solid ${borderColor}`, outline: 'none', fontSize: '14px', transition: '0.3s' }} />
               )}

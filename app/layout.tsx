@@ -32,6 +32,9 @@ export const metadata: Metadata = {
 
 export const viewport = {
   themeColor: '#66FCF1',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1, // İŞTE APPLE'IN YAKINLAŞTIRMASINI ENGELLEYEN SİHİRLİ KOD
 };
 
 // İŞTE HATAYI ÇÖZECEK OLAN ANA BİLEŞEN KISMI BURASI:
