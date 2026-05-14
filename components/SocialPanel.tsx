@@ -255,7 +255,7 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
     };
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 20000, display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} onClick={onClose}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }} onClick={onClose}>
             <div style={{ width: '100%', maxWidth: '400px', height: '100%', background: bgCard, boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
                 
                 <style dangerouslySetInnerHTML={{ __html: `@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }` }} />
@@ -267,7 +267,7 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
                                 <button onClick={() => setActiveChatUser(null)} style={{ background: 'none', border: 'none', color: activeColor, cursor: 'pointer', fontSize: '20px', padding: 0 }}>❮</button>
                                 <span onClick={() => onOpenProfile && onOpenProfile(activeChatUser, "default")} style={{ cursor: 'pointer' }}>@{activeChatUser}</span>
                             </>
-                        ) : (lang === "TR" ? "SİNE-SOSYAL" : "SINE-SOCIAL")}
+                        ) : (lang === "TR" ? "SOSYAL" : "SOCIAL")}
                     </h2>
                     <button onClick={onClose} style={{ background: 'none', border: 'none', color: textLight, fontSize: '24px', cursor: 'pointer' }}>✕</button>
                 </div>
