@@ -418,61 +418,76 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
                         </div>
                     </>
                 ) : (
-                 /* MESAJLAŞMA EKRANI (AÇIK DM) */
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100dvh', maxHeight: '100%', overflow: 'hidden' }}>
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                            {messages.map(msg => {
-                                const isMe = msg.sender === currentUser.username;
-                                const msgTime = msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+               /* MESAJLAŞMA EKRANI (AÇIK DM) */
+<div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', overflow: 'hidden', overscrollBehavior: 'none' }}>
+    
+    {/* KAYDIRMA ÇUBUĞUNU GİZLEYEN VE MOBİL EKRANI SABİTLEYEN SİHİRLİ CSS */}
+    <style>{`
+        .gizli-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .gizli-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            
+            /* APPLE VE ANDROID İÇİN SABİTLEME (ESNEME ÖNLEYİCİ) */
+            overscroll-behavior-y: contain; 
+            -webkit-overflow-scrolling: touch; 
+        }
+    `}</style>
 
-                                return (
-                                    <div key={msg.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                                            <div style={{ background: isMe ? activeColor : inputBg, color: isMe ? '#000' : textMain, padding: '10px 15px', borderRadius: isMe ? '15px 15px 0 15px' : '15px 15px 15px 0', fontSize: '14px', lineHeight: '1.4' }}>
-                                                {/* EĞER RESİM VARSA GÖSTER */}
-                                                {msg.image && (
-                                                    <img 
-                                                        src={msg.image} 
-                                                        onClick={() => setZoomedDmImage(msg.image)}
-                                                        style={{ cursor: 'zoom-in', maxWidth: '200px', width: '100%', borderRadius: '10px', marginBottom: msg.text ? '8px' : '0', objectFit: 'cover' }} 
-                                                        alt="DM Fotoğraf" 
-                                                    />
-                                                )}
-                                                {msg.text && <div>{msg.text}</div>}
-                                            </div>
-                                            {isMe && (
-                                                <button onClick={() => handleUnsendMessage(msg.id)} style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '12px', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px' }} title={lang === "TR" ? "Geri Al (Herkesten Sil)" : "Unsend"}>
-                                                    ✕
-                                                </button>
-                                            )}
-                                        </div>
-                                        <span style={{ fontSize: '10px', color: textLight, alignSelf: isMe ? 'flex-end' : 'flex-start', margin: isMe ? '0 35px 0 0' : '0 0 0 5px', fontWeight: 'bold' }}>
-                                            {msgTime}
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                            <div ref={messagesEndRef} />
+    <div className="gizli-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        {messages.map(msg => {
+            const isMe = msg.sender === currentUser.username;
+            const msgTime = msg.createdAt ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+            return (
+                <div key={msg.id} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '85%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                        <div style={{ background: isMe ? activeColor : inputBg, color: isMe ? '#000' : textMain, padding: '10px 15px', borderRadius: isMe ? '15px 15px 0 15px' : '15px 15px 15px 0', fontSize: '14px', lineHeight: '1.4' }}>
+                            {/* EĞER RESİM VARSA GÖSTER */}
+                            {msg.image && (
+                                <img 
+                                    src={msg.image} 
+                                    onClick={() => setZoomedDmImage(msg.image)}
+                                    style={{ cursor: 'zoom-in', maxWidth: '200px', width: '100%', borderRadius: '10px', marginBottom: msg.text ? '8px' : '0', objectFit: 'cover' }} 
+                                    alt="DM Fotoğraf" 
+                                />
+                            )}
+                            {msg.text && <div>{msg.text}</div>}
                         </div>
-                        
-                        {/* DM RESİM ÖNİZLEME KUTUSU */}
-                        {dmImage && (
-                            <div style={{ flexShrink: 0, position: 'relative', display: 'inline-block', padding: '10px 15px', background: bgCard, borderTop: `1px solid ${borderColor}` }}>
-                                <img src={dmImage} style={{ height: '80px', borderRadius: '8px', border: `2px solid ${activeColor}` }} alt="Preview" />
-                                <button onClick={() => setDmImage(null)} style={{ position: 'absolute', top: '2px', right: '5px', background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-                            </div>
+                        {isMe && (
+                            <button onClick={() => handleUnsendMessage(msg.id)} style={{ background: 'rgba(255,0,0,0.1)', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '12px', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px' }} title={lang === "TR" ? "Geri Al (Herkesten Sil)" : "Unsend"}>
+                                ✕
+                            </button>
                         )}
-
-                        {/* MESAJ YAZMA KUTUSU - TABANA SABİTLENDİ */}
-                        <div style={{ flexShrink: 0, padding: '15px', borderTop: `1px solid ${borderColor}`, display: 'flex', gap: '10px', background: bgCard, alignItems: 'center' }}>
-                            {/* YENİ: DM FOTOĞRAF EKLEME BUTONU */}
-                            <button onClick={() => document.getElementById('dmImageInput')?.click()} style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} className="hover-effect">📸</button>
-                            <input type="file" accept="image/*" onChange={handleDmImageUpload} style={{ display: 'none' }} id="dmImageInput" />
-                            
-                            <input type="text" placeholder={lang === "TR" ? "Mesaj yaz..." : "Type message..."} value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, minWidth: 0, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
-                            <button onClick={handleSendMessage} disabled={!messageInput.trim() && !dmImage} style={{ background: activeColor, color: '#000', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (messageInput.trim() || dmImage) ? 'pointer' : 'not-allowed', opacity: (messageInput.trim() || dmImage) ? 1 : 0.5 }}>➤</button>
-                        </div>
                     </div>
+                    <span style={{ fontSize: '10px', color: textLight, alignSelf: isMe ? 'flex-end' : 'flex-start', margin: isMe ? '0 35px 0 0' : '0 0 0 5px', fontWeight: 'bold' }}>
+                        {msgTime}
+                    </span>
+                </div>
+            )
+        })}
+        <div ref={messagesEndRef} />
+    </div>
+    
+    {/* DM RESİM ÖNİZLEME KUTUSU */}
+    {dmImage && (
+        <div style={{ flexShrink: 0, position: 'relative', display: 'inline-block', padding: '10px 15px', background: bgCard, borderTop: `1px solid ${borderColor}` }}>
+            <img src={dmImage} style={{ height: '80px', borderRadius: '8px', border: `2px solid ${activeColor}` }} alt="Preview" />
+            <button onClick={() => setDmImage(null)} style={{ position: 'absolute', top: '2px', right: '5px', background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+        </div>
+    )}
+
+    {/* MESAJ YAZMA KUTUSU - TABANA SABİTLENDİ */}
+    <div style={{ flexShrink: 0, padding: '15px', borderTop: `1px solid ${borderColor}`, display: 'flex', gap: '10px', background: bgCard, alignItems: 'center' }}>
+        <button onClick={() => document.getElementById('dmImageInput')?.click()} style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} className="hover-effect">📸</button>
+        <input type="file" accept="image/*" onChange={handleDmImageUpload} style={{ display: 'none' }} id="dmImageInput" />
+        
+        <input type="text" placeholder={lang === "TR" ? "Mesaj yaz..." : "Type message..."} value={messageInput} onChange={(e) => setMessageInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} style={{ flex: 1, minWidth: 0, background: inputBg, border: `1px solid ${borderColor}`, padding: '12px 15px', borderRadius: '20px', color: textMain, outline: 'none' }} />
+        <button onClick={handleSendMessage} disabled={!messageInput.trim() && !dmImage} style={{ background: activeColor, color: '#000', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: (messageInput.trim() || dmImage) ? 'pointer' : 'not-allowed', opacity: (messageInput.trim() || dmImage) ? 1 : 0.5 }}>➤</button>
+    </div>
+</div>
                 )}
             </div>
 

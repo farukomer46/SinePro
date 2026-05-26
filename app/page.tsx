@@ -1225,7 +1225,6 @@ const handleVerifyAndFinish = async () => {
     if(!supportForm.message.trim()) return alert(lang === "TR" ? "Mesaj yazın!" : "Write a message!");
     try { await emailjs.send("service_9d5qlk9", "template_x6iu07i", { user_name: currentUser?.username || "Ziyaretçi", user_email: currentUser?.email || "Belirtilmedi", support_category: supportForm.category, support_message: supportForm.message }, "OGQEmxiu2oahk21gg"); alert(lang === "TR" ? "Talebiniz alındı!" : "Request received!"); setSupportForm({ category: "Hesap Problemi", message: "" }); } catch (err) { alert(lang === "TR" ? "Hata oluştu." : "An error occurred."); }
   };
-
 const handleFollowUser = async (targetUsername: string) => {
       if (!currentUser) { setAuthMode("login"); setShowLogin(true); return; }
       if (currentUser.username === targetUsername) return alert(lang === "TR" ? "Kendinizi takip edemezsiniz :)" : "You cannot follow yourself :)");
@@ -1241,7 +1240,7 @@ const handleFollowUser = async (targetUsername: string) => {
           const targetUserDoc = querySnapshot.docs[0];
           const targetData = targetUserDoc.data();
 
-          // 1. DURUM: HESAP GİZLİ VE TAKİP ETMİYORSAK (İSTEK AT)
+          // 1. DURUM: HESAP GİZLİ VE TAKİP ETMİYORSAK (SADECE İSTEK AT)
           if (targetData.isPrivate && !isFollowing) {
               if (targetData.friendRequests?.includes(currentUser.username)) {
                   alert(lang === "TR" ? "Bu kişiye zaten istek gönderdin!" : "Request already sent!");
@@ -1261,7 +1260,7 @@ const handleFollowUser = async (targetUsername: string) => {
               alert(lang === "TR" ? `Bu hesap gizli. ${targetUsername} kullanıcısına takip isteği gönderildi!` : `Private account. Follow request sent!`);
           
           } else {
-              // 2. DURUM: HESAP AÇIK (VEYA ZATEN TAKİP EDİYORUZ, TAKİPTEN ÇIKACAĞIZ)
+              // 2. DURUM: ÇİFT MOTORLU SİSTEM (HEM TAKİP ET HEM İSTEKLER KUTUSUNA DÜŞÜR)
               
               // İyimser Güncelleme (Sayılar anında değişsin diye)
               setCurrentUser((prev: any) => ({
@@ -1283,14 +1282,24 @@ const handleFollowUser = async (targetUsername: string) => {
 
               // Veritabanı İşlemi
               if (isFollowing) {
-                  await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayRemove(currentUser.username) });
+                  // Takipten çıkıyorsa, adamın istek kutusundan da adımızı silelim (Temizlik)
+                  await updateDoc(doc(db, "users", targetUserDoc.id), { 
+                      followers: arrayRemove(currentUser.username),
+                      friendRequests: arrayRemove(currentUser.username) 
+                  });
                   if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayRemove(targetUsername) });
               } else {
-                  await updateDoc(doc(db, "users", targetUserDoc.id), { followers: arrayUnion(currentUser.username) });
+                  // 🚨 İŞTE SİHİR BURADA: Hem takipçilere ekliyoruz hem istek kutusuna yolluyoruz!
+                  await updateDoc(doc(db, "users", targetUserDoc.id), { 
+                      followers: arrayUnion(currentUser.username),
+                      friendRequests: arrayUnion(currentUser.username) // İstekler kutusuna düşüren kod
+                  });
                   if (currentUser.uid) await updateDoc(doc(db, "users", currentUser.uid), { following: arrayUnion(targetUsername) });
                   
+                  // Bildirim gönderimi (type: "follow_request" yaparak özel İstekler sekmesine düşürüyoruz)
                   await addDoc(collection(db, "notifications"), {
-                      recipient: targetUsername, sender: currentUser.username, type: "follow",
+                      recipient: targetUsername, sender: currentUser.username, 
+                      type: "follow_request", // 🚨 Bildirim tipi değişti!
                       text: `@${currentUser.username} ${lang === "TR" ? "seni takip etmeye başladı! 👤" : "started following you! 👤"}`,
                       isRead: false, date: new Date().toLocaleTimeString('tr-TR'), createdAt: serverTimestamp()
                   });
