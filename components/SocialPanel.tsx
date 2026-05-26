@@ -418,8 +418,8 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
                         </div>
                     </>
                 ) : (
-                    /* MESAJLAŞMA EKRANI (AÇIK DM) */
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%' }}>
+                 /* MESAJLAŞMA EKRANI (AÇIK DM) */
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100dvh', maxHeight: '100%', overflow: 'hidden' }}>
                         <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             {messages.map(msg => {
                                 const isMe = msg.sender === currentUser.username;
@@ -457,13 +457,14 @@ export default function SocialPanel({ currentUser, onClose, theme, isDarkMode, a
                         
                         {/* DM RESİM ÖNİZLEME KUTUSU */}
                         {dmImage && (
-                            <div style={{ position: 'relative', display: 'inline-block', padding: '10px 15px', background: bgCard, borderTop: `1px solid ${borderColor}` }}>
+                            <div style={{ flexShrink: 0, position: 'relative', display: 'inline-block', padding: '10px 15px', background: bgCard, borderTop: `1px solid ${borderColor}` }}>
                                 <img src={dmImage} style={{ height: '80px', borderRadius: '8px', border: `2px solid ${activeColor}` }} alt="Preview" />
                                 <button onClick={() => setDmImage(null)} style={{ position: 'absolute', top: '2px', right: '5px', background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
                             </div>
                         )}
 
-                        <div style={{ padding: '15px', borderTop: `1px solid ${borderColor}`, display: 'flex', gap: '10px', background: bgCard }}>
+                        {/* MESAJ YAZMA KUTUSU - TABANA SABİTLENDİ */}
+                        <div style={{ flexShrink: 0, padding: '15px', borderTop: `1px solid ${borderColor}`, display: 'flex', gap: '10px', background: bgCard, alignItems: 'center' }}>
                             {/* YENİ: DM FOTOĞRAF EKLEME BUTONU */}
                             <button onClick={() => document.getElementById('dmImageInput')?.click()} style={{ background: 'transparent', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }} className="hover-effect">📸</button>
                             <input type="file" accept="image/*" onChange={handleDmImageUpload} style={{ display: 'none' }} id="dmImageInput" />
