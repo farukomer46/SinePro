@@ -26,14 +26,14 @@ export const registerUser = async (email: string, password: string, username: st
     });
 
     await setDoc(doc(db, "users", user.uid), {
-      uid: user.uid,
-      email: user.email,
-      username: username,
-      avatar: "default",
-      favorites: [],
-      createdAt: new Date().toISOString()
-    });
-
+  uid: user.uid,
+  email: user.email,
+  username: username,
+  avatar: "default",
+  favorites: [],
+  isVerified: false, // 🚨 İŞTE KİLİDİ BURAYA EKLEDİK
+  createdAt: new Date().toISOString()
+});
     return user;
   } catch (error: any) {
     console.error("Kayıt Hatası Detayı:", error); 

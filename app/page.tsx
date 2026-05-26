@@ -8,6 +8,7 @@ import emailjs from '@emailjs/browser';
 import { registerUser, loginUser, syncFavoritesToFirebase, getFavoritesFromFirebase } from '@/lib/auth-functions';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { collection, getDocs, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, arrayRemove, setDoc, deleteDoc } from "firebase/firestore";
 import SocialPanel from '@/components/SocialPanel';
 import { sendFriendRequest } from '@/lib/social-functions';
@@ -456,7 +457,7 @@ export default function Home() {
     }
   }, [currentUser?.username]);
 
-  useEffect(() => {
+ useEffect(() => {
     setGuestNotifSeen(sessionStorage.getItem("sinepro_guest_notif") === "true");
     setMounted(true);
     const savedMode = localStorage.getItem("sinepro_dark_mode");
@@ -469,6 +470,20 @@ export default function Home() {
       if (user) {
         const userDocRef = doc(db, "users", user.uid);
         unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          
+          // 🚨 --- GÜMRÜK MEMURU KONTROLÜ BAŞLIYOR --- 🚨
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            
+            // Kullanıcı veritabanında "isVerified: false" ise (yani kodu girmemişse)
+            if (userData.isVerified === false) {
+              console.log("Onaysız kullanıcı tespit edildi, dışarı atılıyor!");
+              signOut(auth); // Sistemden zorla çıkış yaptır
+              return; // Aşağıdaki verileri (avatar vb.) çekmeyi durdur, sistemi kitle!
+            }
+          }
+          // 🚨 --- GÜMRÜK MEMURU KONTROLÜ BİTTİ --- 🚨
+
           let cloudAvatar = "default";
           let cloudUsername = user.displayName || user.email?.split('@')[0];
           let cloudBanner = null; 
@@ -477,7 +492,8 @@ export default function Home() {
           let cloudFollowers = [];
           let cloudFollowing = [];
           let cloudMessageCount = 0;
-
+          
+          // ... (Buradan sonrası senin kendi yazdığın state'leri güncellediğin kodların devamı olarak kalacak)
           if (docSnap.exists()) {
               const data = docSnap.data();
               if (data.avatar) cloudAvatar = data.avatar;
@@ -925,13 +941,43 @@ export default function Home() {
     }
   };
 
-  const handleVerifyAndFinish = () => {
+const handleVerifyAndFinish = async () => {
     if (verificationCode.trim() === generatedCode.trim()) {
+      
+      // 1. LocalStorage Kaydı (Mevcut mantığını aynen koruyoruz)
       const users = JSON.parse(localStorage.getItem("sinepro_database_users") || "[]");
-      users.push({ email: formData.email.trim(), password: formData.password.trim(), username: formData.username.trim(), id: Date.now(), joined: new Date().toLocaleDateString('tr-TR'), avatar: "default" });
+      users.push({ 
+        email: formData.email.trim(), 
+        password: formData.password.trim(), 
+        username: formData.username.trim(), 
+        id: Date.now(), 
+        joined: new Date().toLocaleDateString('tr-TR'), 
+        avatar: "default" 
+      });
       localStorage.setItem("sinepro_database_users", JSON.stringify(users));
-      setAuthMode("login"); setVerificationCode(""); alert(lang === "TR" ? "Kayıt başarılı! Şimdi giriş yapabilirsiniz." : "Registration successful! You can login now.");
-    } else { alert(lang === "TR" ? "Girdiğiniz kod yanlış!" : "Wrong code!"); }
+
+      // 2. 🚨 FIREBASE GÜVENLİK KİLİDİNİ AÇMA 🚨
+      try {
+        if (auth.currentUser) {
+          // Yukarıda import edilen db ve doc fonksiyonlarını doğrudan kullanıyoruz
+          const userDocRef = doc(db, "users", auth.currentUser.uid);
+          await updateDoc(userDocRef, { 
+            isVerified: true // 🎉 Kilidi açtık, gümrük memuru artık geçiş izni verecek!
+          });
+          console.log("Firebase kullanıcısı başarıyla doğrulandı.");
+        }
+      } catch (fbError) {
+        console.error("Firebase kilidi açılırken bir hata oluştu:", fbError);
+      }
+
+      // 3. Ekran Modunu Güncelleme ve Bildirim
+      setAuthMode("login"); 
+      setVerificationCode(""); 
+      alert(lang === "TR" ? "Kayıt başarılı! Şimdi giriş yapabilirsiniz." : "Registration successful! You can login now.");
+      
+    } else { 
+      alert(lang === "TR" ? "Girdiğiniz kod yanlış!" : "Wrong code!"); 
+    }
   };
 
   const handleForgotPasswordStart = () => {
