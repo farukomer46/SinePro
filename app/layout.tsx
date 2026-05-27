@@ -6,14 +6,14 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "SİNEPRO | Sine-AI Destekli Sinema ve Sosyal Keşif Platformu",
-  description: "SİNEPRO ile en yeni filmleri keşfet, Sine-AI asistanından kişiselleştirilmiş tavsiyeler al ve küresel toplulukla tartış. Sinema dünyasının en sosyal hali burada. Haydi, keşfetmeye başla!",
-  keywords: "SİNEPRO, Sine AI, film önerisi, hangi filmi izlesem, film inceleme, dizi tavsiyeleri, sosyal sinema platformu, yapay zeka film asistanı, küresel sohbet",
+  description: "SİNEPRO ile sinema dünyasını yeniden keşfet! Yapay zeka asistanı Sine-AI ile sana en uygun film ve dizi önerilerini al, kendi izleme listelerini oluştur, detaylı incelemeler yaz ve global sinema topluluğuyla favori yapımlarını tartışmaya başla. Dijital sinema evrenin seni bekliyor.",
+  keywords: ["SİNEPRO", "Sine AI", "film önerisi", "hangi filmi izlesem", "film inceleme", "dizi tavsiyeleri", "sosyal sinema platformu", "yapay zeka film asistanı", "küresel sohbet", "film listesi"], 
   openGraph: {
     title: "SİNEPRO - Sinema ve Sosyal Keşif Platformu",
-    description: "Yapay zeka destekli film önerileri ve global sinema topluluğu.",
+    description: "Yapay zeka asistanı Sine-AI ile kişiselleştirilmiş film önerileri al, kendi listelerini oluştur ve global sinema topluluğuna hemen katıl.",
     type: "website",
     locale: "tr_TR",
-    url: "https://sinepro.vercel.app/", // Kendi URL'ini buraya yaz
+    url: "https://sinepro.com.tr", 
     siteName: "SİNEPRO",
   },
   applicationName: 'SİNEPRO',
@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "SİNEPRO",
-    "url": "https://sinepro.vercel.app/"
+    "url": "https://sinepro.com.tr" // BURASI DA YENİ ALAN ADIYLA DEĞİŞTİ
   };
 
   return (
