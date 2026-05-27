@@ -13,6 +13,7 @@ import { collection, getDocs, query, where, onSnapshot, orderBy, addDoc, serverT
 import SocialPanel from '@/components/SocialPanel';
 import { sendFriendRequest } from '@/lib/social-functions';
 
+
 const API_TOKEN = "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJjNzlkZTI0MDY3NmYxMDJjM2VmYjQzNjQ2MzFhYTQxYSIsIm5iZiI6MTc3NzMxNDk5Ny41Miwic3ViIjoiNjllZmFjYjVjNmJjMzVlODFmODExNGU3Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.cnbxIvgci9RstPITQDeK2w6HzD3Db7qyY52LzR0qdAQ";
 
 // --- YARDIMCI BİLEŞENLER ---
@@ -504,6 +505,10 @@ export default function Home() {
               if (data.followers) cloudFollowers = data.followers;
               if (data.following) cloudFollowing = data.following;
               if (data.messageCount) cloudMessageCount = data.messageCount;
+              if (data.savedTheme) {
+                  setTheme(data.savedTheme);
+                  localStorage.setItem("sinepro_theme", JSON.stringify(data.savedTheme));
+              }
           }
 
           if (cloudFavs.length > 0) {
@@ -2813,14 +2818,29 @@ const handleFollowUser = async (targetUsername: string) => {
         </div>
       )}
 
-      {/* --- TEMA DEĞİŞTİRME MODALI --- */}
+     {/* --- TEMA DEĞİŞTİRME MODALI --- */}
       {showThemeSettings && (
         <div onClick={() => setShowThemeSettings(false)} style={{ position: 'fixed', inset: 0, background: modalBg, zIndex: 12000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={(e) => e.stopPropagation()} className="modal-box theme-modal" style={{ background: bgCard, border: `1px solid ${activeColor}` }}>
               <h3 style={{ color: activeColor, textAlign: 'center', marginTop: 0, marginBottom: '20px' }}>{lang === "TR" ? "Tema Seçimi" : "Select Theme"}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                  {themes.map(t => (
-                    <button key={t.name} onClick={() => { setTheme(t); localStorage.setItem("sinepro_theme", JSON.stringify(t)); setShowThemeSettings(false); }} style={{ background: t.color, color: '#000', padding: '15px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }} className="hover-effect">
+                    <button 
+                      key={t.name} 
+                      onClick={async () => { 
+                          setTheme(t); 
+                          localStorage.setItem("sinepro_theme", JSON.stringify(t)); 
+                          setShowThemeSettings(false); 
+                          
+                          // İŞTE YENİ EKLENEN FİREBASE KAYIT EMRİ:
+                          if (currentUser?.uid) {
+                              await updateDoc(doc(db, "users", currentUser.uid), {
+                                  savedTheme: t
+                              });
+                          }
+                      }} 
+                      style={{ background: t.color, color: '#000', padding: '15px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer', transition: '0.3s' }} className="hover-effect"
+                    >
                        {t.name}
                     </button>
                  ))}
