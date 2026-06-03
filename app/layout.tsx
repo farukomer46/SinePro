@@ -5,7 +5,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "SİNEPRO | Sine-AI Destekli Sinema ve Sosyal Keşif Platformu",
+  title: "SİNEPRO | Sinema ve Sosyal Keşif Platformu",
   description: "SİNEPRO ile sinema dünyasını yeniden keşfet! Yapay zeka asistanı Sine-AI ile sana en uygun film ve dizi önerilerini al, kendi izleme listelerini oluştur, detaylı incelemeler yaz ve global sinema topluluğuyla favori yapımlarını tartışmaya başla. Dijital sinema evrenin seni bekliyor.",
   keywords: ["SİNEPRO", "Sine AI", "film önerisi", "hangi filmi izlesem", "film inceleme", "dizi tavsiyeleri", "sosyal sinema platformu", "yapay zeka film asistanı", "küresel sohbet", "film listesi"], 
   openGraph: {
@@ -14,11 +14,11 @@ export const metadata: Metadata = {
     type: "website",
     locale: "tr_TR",
     url: "https://sinepro.com.tr", 
-    siteName: "SİNEPRO",
+    siteName: "SinePro",
   },
-  applicationName: 'SİNEPRO',
+  applicationName: 'SinePro',
   appleWebApp: {
-    title: 'SİNEPRO',
+    title: 'SinePro',
   },
   icons: {
     icon: '/icon.png', 
@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "SİNEPRO",
+    "name": "SinePro",
     "url": "https://sinepro.com.tr" // BURASI DA YENİ ALAN ADIYLA DEĞİŞTİ
   };
 
