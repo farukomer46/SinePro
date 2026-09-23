@@ -8,5 +8,5 @@ https://www.sinepro.com.tr/
 
 
 License & Copyright
-© 2026 [Adınız Soyadınız]. All rights reserved.
+© 2026 ÖmerFarukYüksel. All rights reserved.
 This project is shared for portfolio and evaluation purposes only. You are not allowed to copy, modify, or distribute this code without permission.
