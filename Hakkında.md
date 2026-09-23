@@ -5,3 +5,8 @@ Aylarca süren titiz bir geliştirme süreci, binlerce satır kod ve kullanıcı
 Amacımız sadece ne izleyeceğini bulman değil, izlediğin yapımları seninle aynı zevkleri paylaşan insanlarla tartışabilmen ve SİNEPRO evreninin bir parçası olmandır. Bizi tercih ettiğiniz ve bu emeğe ortak olduğunuz için teşekkür ederiz!
 
 https://www.sinepro.com.tr/
+
+
+License & Copyright
+© 2026 [Adınız Soyadınız]. All rights reserved.
+This project is shared for portfolio and evaluation purposes only. You are not allowed to copy, modify, or distribute this code without permission.
